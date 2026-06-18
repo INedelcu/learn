@@ -65,7 +65,7 @@
 <h1>Sampling a chosen distribution</h1>
 <p class="sub">05_sampling_distributions.cpp — two workhorse recipes, inversion and rejection, for turning a plain Uniform[0,1) draw into a sample from any density $p(x)$ you choose.</p>
 
-<p class="lead">Everything so far sampled uniformly. But the entire power of Monte Carlo — the freedom to pick a sampling density $p$ from example 03 — is useless until you can actually <em>draw</em> from a non-uniform $p$. This file gives the two standard ways to do it: <strong>inversion</strong> (invert the CDF; cheap and exact when you can), and <strong>rejection</strong> (throw darts under the curve; always works but wastes some). Both consume uniform draws and emit samples distributed as $p$.</p>
+<p class="lead">Everything so far sampled uniformly. But the entire power of Monte Carlo — the freedom to pick a sampling density $p$ from <a href="03_monte_carlo_integration.html">example 03</a> — is useless until you can actually <em>draw</em> from a non-uniform $p$. This file gives the two standard ways to do it: <strong>inversion</strong> (invert the CDF; cheap and exact when you can), and <strong>rejection</strong> (throw darts under the curve; always works but wastes some). Both consume uniform draws and emit samples distributed as $p$.</p>
 
 <div class="callout key">
 <strong>One-sentence summary.</strong> <strong>Inversion:</strong> if $U\sim\mathrm{Uniform}[0,1]$ then $X=P^{-1}(U)$ has density $p$, where $P$ is the CDF — one uniform in, one sample out, no waste. <strong>Rejection:</strong> bound $p(x)\le M\,q(x)$ with an easy $q$, draw a candidate from $q$, keep it with probability $p(x)/(M\,q(x))$ — completely general, but only a fraction $1/M$ of candidates survive.
@@ -140,7 +140,7 @@ $$p(x)\le M\,q(x)\quad\text{for all }x.$$
 <p>The recipe: draw a candidate $x$ from $q$, then <strong>accept</strong> it with probability $p(x)/(M\,q(x))$; otherwise discard and try again. Accepted samples follow $p$ exactly. Geometrically, with $q$ uniform it is pure darts: scatter points uniformly under the bounding box of height $M$, keep the ones that fall under the curve $p$.</p>
 
 <div class="callout warn">
-<strong>The cost.</strong> Only a fraction $1/M$ of candidates are accepted (the area under $p$ divided by the box area). A loose bound $M$ means most darts are thrown away. That waste is precisely why renderers prefer inversion / importance sampling whenever a closed form exists — and why example 06 is about choosing good densities rather than brute-forcing them.</p>
+<strong>The cost.</strong> Only a fraction $1/M$ of candidates are accepted (the area under $p$ divided by the box area). A loose bound $M$ means most darts are thrown away. That waste is precisely why renderers prefer inversion / importance sampling whenever a closed form exists — and why <a href="06_importance_sampling.html">example 06</a> is about choosing good densities rather than brute-forcing them.</p>
 </div>
 
 <figure>
@@ -181,7 +181,7 @@ $$\frac{p(x)}{M\,q(x)}=\frac{3x^2}{3\cdot1}=x^2,$$
 </tbody>
 </table>
 
-<p>In practice the renderer leans almost entirely on inversion-style sampling, because the densities it cares about (cosine-weighted hemisphere, GGX/VNDF, the exponential above) have closed-form inverses worked out — see examples 08 and 19. Rejection is the safety net for everything else.</p>
+<p>In practice the renderer leans almost entirely on inversion-style sampling, because the densities it cares about (cosine-weighted hemisphere, GGX/VNDF, the exponential above) have closed-form inverses worked out — see examples <a href="08_hemisphere_sampling.html">08</a> and 19. Rejection is the safety net for everything else.</p>
 
 
 <h2>5. Verifying a sampler</h2>
@@ -218,7 +218,7 @@ while (got &lt; kN) {
 <li><strong>The exponential is special</strong> — it samples free-flight distance / Beer–Lambert absorption, used directly in volume and glass rendering.</li>
 <li><strong>Tradeoff.</strong> Inversion is cheap, exact, and waste-free but needs a closed form; rejection is universal but pays in thrown-away candidates. Rendering prefers inversion, falling back to rejection.</li>
 <li><strong>Always verify</strong> a sampler by histogramming against the target density.</li>
-<li>This unlocks example 06: now that we can sample <em>any</em> $p$, we can choose a clever one to slash variance — importance sampling.</li>
+<li>This unlocks <a href="06_importance_sampling.html">example 06</a>: now that we can sample <em>any</em> $p$, we can choose a clever one to slash variance — importance sampling.</li>
 </ul>
 
 <p class="small">References — inversion and rejection are standard; see Devroye, <em>Non-Uniform Random Variate Generation</em> (1986), chs. II–III, and Pharr, Jakob &amp; Humphreys, <em>Physically Based Rendering</em>, §13.3 (“Sampling Random Variables”). The free-flight / Beer–Lambert connection appears in PBR ch. 11 (volume scattering).</p>

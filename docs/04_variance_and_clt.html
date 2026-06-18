@@ -66,7 +66,7 @@
 <h1>Variance of the estimator, the CLT &amp; error bars</h1>
 <p class="sub">04_variance_and_clt.cpp — why the Monte Carlo error falls as 1/√N (now <em>proved</em>, not just observed), and how a renderer attaches an honest “±” to every result and decides a pixel has converged.</p>
 
-<p class="lead">Example 03 produced one number per run. But that number is itself a random variable: run the estimator again with fresh samples and you get a slightly different answer. This file studies that randomness head-on — its size (variance), its shape (the Central Limit Theorem), and the error bar and confidence interval you can build from a single run. It then <em>tests</em> the theory by launching 100,000 independent estimators and checking they behave exactly as predicted.</p>
+<p class="lead"><a href="03_monte_carlo_integration.html">Example 03</a> produced one number per run. But that number is itself a random variable: run the estimator again with fresh samples and you get a slightly different answer. This file studies that randomness head-on — its size (variance), its shape (the Central Limit Theorem), and the error bar and confidence interval you can build from a single run. It then <em>tests</em> the theory by launching 100,000 independent estimators and checking they behave exactly as predicted.</p>
 
 <div class="callout key">
 <strong>One-sentence summary.</strong> The estimate $F_N$ is unbiased with variance $\operatorname{Var}[Y]/N$, so its standard deviation — the <em>standard error</em> — is $\sigma_Y/\sqrt N$ (this is the $1/\sqrt N$ law, proved); the Central Limit Theorem makes $F_N$ approximately $\mathrm{Normal}(I,\sigma_Y^2/N)$, so $F_N\pm1.96\,\mathrm{SE}$ is a 95% confidence interval — and you can estimate $\mathrm{SE}$ from the very same samples, getting an error bar for free.
@@ -83,7 +83,7 @@
 
 <h2>1. The estimate is a random variable</h2>
 
-<p>We reuse the integral from example 03: $f(x)=e^x$ on $[0,1]$, whose exact value is $I=e-1\approx1.7182818$. Writing $Y_i=f(X_i)/p(X_i)$ for each sampled term, the estimator is their average</p>
+<p>We reuse the integral from <a href="03_monte_carlo_integration.html">example 03</a>: $f(x)=e^x$ on $[0,1]$, whose exact value is $I=e-1\approx1.7182818$. Writing $Y_i=f(X_i)/p(X_i)$ for each sampled term, the estimator is their average</p>
 
 $$F_N=\frac1N\sum_{i=1}^N Y_i .$$
 
@@ -122,20 +122,20 @@ $$\operatorname{Var}[F_N]=\frac1{N^2}\sum_{i=1}^N\operatorname{Var}[Y_i]=\frac{N
 $$\operatorname{SD}[F_N]=\frac{\sigma_Y}{\sqrt N}\equiv\mathrm{SE},\qquad \sigma_Y=\sqrt{\operatorname{Var}[Y]} .$$
 
 <div class="callout">
-<strong>This <em>is</em> the law from example 02 — now derived.</strong> Earlier we just <em>watched</em> the error fall as $1/\sqrt N$ and saw error$\times\sqrt N$ flatten to a constant. That constant has a name now: it is $\sigma_Y$, the standard deviation of a single sample. The error of an $N$-sample estimate is $\sigma_Y/\sqrt N$. Variance reduction (examples 06–09) is the project of shrinking $\sigma_Y$.
+<strong>This <em>is</em> the law from <a href="02_estimating_pi.html">example 02</a> — now derived.</strong> Earlier we just <em>watched</em> the error fall as $1/\sqrt N$ and saw error$\times\sqrt N$ flatten to a constant. That constant has a name now: it is $\sigma_Y$, the standard deviation of a single sample. The error of an $N$-sample estimate is $\sigma_Y/\sqrt N$. Variance reduction (examples <a href="06_importance_sampling.html">06</a>–<a href="09_multiple_importance_sampling.html">09</a>) is the project of shrinking $\sigma_Y$.
 </div>
 
 
 <h2>3. The standard error, and a free error bar</h2>
 
-<p>The catch: $\sigma_Y$ depends on $\operatorname{Var}[Y]$, which itself depends on the integral we don’t know. The fix is to <strong>estimate $\sigma_Y$ from the very same samples</strong>, using the Bessel-corrected sample variance from example 01. With sample variance $s^2=\tfrac1{N-1}\sum(Y_i-F_N)^2$, the estimated standard error is</p>
+<p>The catch: $\sigma_Y$ depends on $\operatorname{Var}[Y]$, which itself depends on the integral we don’t know. The fix is to <strong>estimate $\sigma_Y$ from the very same samples</strong>, using the Bessel-corrected sample variance from <a href="01_random_and_estimators.html">example 01</a>. With sample variance $s^2=\tfrac1{N-1}\sum(Y_i-F_N)^2$, the estimated standard error is</p>
 
 $$\widehat{\mathrm{SE}}=\frac{s}{\sqrt N}=\sqrt{\frac{s^2}{N}} .$$
 
 <p>One Welford pass gives you the estimate <em>and</em> its error bar together — no extra samples, no second loop. Watch a single run report its estimate with a shrinking $\pm1.96\,\widehat{\mathrm{SE}}$ band that keeps the true value inside:</p>
 
 <figure>
-<svg id="single" viewBox="0 0 600 320" role="img" aria-label="A single estimator streaming, with its self-computed confidence band shrinking around the true value."></svg>
+<svg id="single" viewBox="0 0 600 330" role="img" aria-label="A single estimator streaming, with its self-computed confidence band shrinking around the true value."></svg>
 <div class="ctl">
   <button id="s-run">Run</button>
   <button id="s-reset">Reset</button>
@@ -154,7 +154,7 @@ $$F_N\;\xrightarrow{\;\text{large }N\;}\;\mathrm{Normal}\!\left(I,\ \frac{\sigma
 <p>Build the sampling distribution yourself. Each click runs more estimators (each an average of $K$ samples) and drops them into the histogram. Toggle the Normal curve to see how well $\mathrm{Normal}(I,\sigma_Y^2/K)$ matches, and drag $K$ to watch the bell narrow as $1/\sqrt K$ while keeping its shape.</p>
 
 <figure>
-<svg id="hist" viewBox="0 0 600 300" role="img" aria-label="Histogram of many estimates forming a bell, with the predicted Normal overlaid."></svg>
+<svg id="hist" viewBox="0 0 600 312" role="img" aria-label="Histogram of many estimates forming a bell, with the predicted Normal overlaid."></svg>
 <div class="ctl">
   samples per estimate K = <b id="h-kval">1000</b>
   <input id="h-k" type="range" min="10" max="2000" value="1000" step="10">
@@ -264,13 +264,13 @@ double predSE = sqrt(((kE*kE-1)/2 - I*I) / kPerEstimate);</code></pre>
 <h2>8. Takeaways</h2>
 <ul>
 <li><strong>The estimate is random.</strong> Its sampling distribution is centered on $I$ (unbiased) with variance $\operatorname{Var}[Y]/N$.</li>
-<li><strong>$1/\sqrt N$, proved.</strong> $\operatorname{SD}[F_N]=\sigma_Y/\sqrt N$ — the standard error. This is the law example 02 only observed; variance reduction shrinks $\sigma_Y$.</li>
+<li><strong>$1/\sqrt N$, proved.</strong> $\operatorname{SD}[F_N]=\sigma_Y/\sqrt N$ — the standard error. This is the law <a href="02_estimating_pi.html">example 02</a> only observed; variance reduction shrinks $\sigma_Y$.</li>
 <li><strong>Free error bar.</strong> Estimate $\sigma_Y$ from the same samples (Bessel sample variance) to get $\widehat{\mathrm{SE}}=s/\sqrt N$ in a single Welford pass.</li>
 <li><strong>CLT gives the shape.</strong> For large $N$, $F_N\approx\mathrm{Normal}(I,\sigma_Y^2/N)$ regardless of the integrand, so $\pm1.96\,\widehat{\mathrm{SE}}$ is a 95% interval.</li>
 <li><strong>Coverage is a long-run frequency.</strong> Over many runs ~95% of the intervals contain $I$; verified empirically at ~95%. This is the machinery behind honest noise estimates and adaptive sampling.</li>
 </ul>
 
-<p class="small">References — the $\operatorname{Var}/N$ law and CLT are standard; see Sheldon Ross, <em>A First Course in Probability</em>, or Owen, <em>Monte Carlo theory, methods and examples</em>, ch. 2. For estimator variance and error bars in rendering, Pharr, Jakob &amp; Humphreys, <em>Physically Based Rendering</em>, §13.2; Welford’s online variance is from example 01.</p>
+<p class="small">References — the $\operatorname{Var}/N$ law and CLT are standard; see Sheldon Ross, <em>A First Course in Probability</em>, or Owen, <em>Monte Carlo theory, methods and examples</em>, ch. 2. For estimator variance and error bars in rendering, Pharr, Jakob &amp; Humphreys, <em>Physically Based Rendering</em>, §13.2; Welford’s online variance is from <a href="01_random_and_estimators.html">example 01</a>.</p>
 
 </div>
 
@@ -312,7 +312,7 @@ double predSE = sqrt(((kE*kE-1)/2 - I*I) / kPerEstimate);</code></pre>
       svg.appendChild(svgEl('line',{x1:X0,y1:Y1,x2:X1,y2:Y1,stroke:'#cbd0d9','stroke-width':1.2}));
       svg.appendChild(svgEl('line',{x1:X0,y1:Y0,x2:X0,y2:Y1,stroke:'#cbd0d9','stroke-width':1.2}));
       for(let e=1;e<=L10;e++){const x=X0+e/L10*(X1-X0);svg.appendChild(svgEl('line',{x1:x,y1:Y0,x2:x,y2:Y1,stroke:'#eef0f4'}));svg.appendChild(txt(x,Y1+16,'10^'+e,{'font-size':10.5,fill:'#8a8f9c','text-anchor':'middle'}));}
-      svg.appendChild(txt((X0+X1)/2,Y1+32,'samples N  (log scale)',{'font-size':12.5,fill:'#5b6472','text-anchor':'middle'}));
+      svg.appendChild(txt((X0+X1)/2,Y1+40,'samples N  (log scale)',{'font-size':12.5,fill:'#5b6472','text-anchor':'middle'}));
       [I-0.3,I,I+0.3].forEach(v=>svg.appendChild(txt(X0-6,ym(v)+4,v.toFixed(2),{'font-size':10.5,fill:'#8a8f9c','text-anchor':'end'})));
       svg.appendChild(svgEl('line',{x1:X0,y1:ym(I),x2:X1,y2:ym(I),stroke:'var(--true)','stroke-width':1.6,'stroke-dasharray':'5 4'}));
       svg.appendChild(txt(X1-2,ym(I)-6,'true I = e−1',{'font-size':11.5,fill:'var(--true)','text-anchor':'end'}));
@@ -380,7 +380,7 @@ double predSE = sqrt(((kE*kE-1)/2 - I*I) / kPerEstimate);</code></pre>
       svg.appendChild(svgEl('line',{x1:X0,y1:Y1,x2:X1,y2:Y1,stroke:'#cbd0d9','stroke-width':1.2}));
       const SEc=pred();
       [[I-4*SEc,'−4·SE'],[I-2*SEc,'−2·SE'],[I,'I'],[I+2*SEc,'+2·SE'],[I+4*SEc,'+4·SE']].forEach(([v,l])=>{svg.appendChild(svgEl('line',{x1:xm(v),y1:Y1,x2:xm(v),y2:Y1+5,stroke:'#9aa0ad'}));svg.appendChild(txt(xm(v),Y1+18,v.toFixed(3),{'font-size':10,fill:'#8a8f9c','text-anchor':'middle'}));svg.appendChild(txt(xm(v),Y1+31,l,{'font-size':9.5,fill:'#aeb4bf','text-anchor':'middle'}));});
-      svg.appendChild(txt((X0+X1)/2,Y1+45,'value of the estimate  F_K   (axis spans ±4 standard errors)',{'font-size':12,fill:'#5b6472','text-anchor':'middle'}));
+      svg.appendChild(txt((X0+X1)/2,Y1+52,'value of the estimate  F_K   (axis spans ±4 standard errors)',{'font-size':12,fill:'#5b6472','text-anchor':'middle'}));
       // bars
       for(let b=0;b<NB;b++){if(!counts[b])continue;const x=X0+(b/NB)*(X1-X0), w=(X1-X0)/NB;
         svg.appendChild(svgEl('rect',{x:x+0.5,y:ym(counts[b]),width:Math.max(0.5,w-1),height:Y1-ym(counts[b]),fill:'#cfe0f1',stroke:'var(--est)','stroke-width':0.6}));}
@@ -439,7 +439,7 @@ double predSE = sqrt(((kE*kE-1)/2 - I*I) / kPerEstimate);</code></pre>
       svg.appendChild(svgEl('line',{x1:xm(z),y1:ym(pdf(z)),x2:xm(z),y2:Y1,stroke:'#9aa0ad','stroke-width':1,'stroke-dasharray':'3 3'}));
       svg.appendChild(txt(xm(z),Y1+16,l,{'font-size':11.5,fill:'#5b6472','text-anchor':'middle'}));
     });
-    svg.appendChild(txt(xm(0),ym(pdf(0))-8,'95% of the mass',{'font-size':12.5,fill:'var(--band)','text-anchor':'middle',font_weight:600}));
+    svg.appendChild(txt(xm(0),ym(pdf(0))+18,'95% of the mass',{'font-size':12.5,fill:'var(--band)','text-anchor':'middle','font-weight':600}));
     svg.appendChild(txt(xm(-2.6),Y0+44,'2.5%',{'font-size':11,fill:'#8a8f9c','text-anchor':'middle'}));
     svg.appendChild(txt(xm(2.6),Y0+44,'2.5%',{'font-size':11,fill:'#8a8f9c','text-anchor':'middle'}));
   })();

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11 — Low-discrepancy sequences (QMC) — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --rand:#dd6b20; --qmc:#2f9e64; --vdc:#7c3aed; --true:#d9a500; --grid:#c2c8d2; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--qmc)}
+  .callout.warn{border-left-color:var(--rand)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:200px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 14px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button.sel{background:var(--ink); color:#fff; border-color:var(--ink)}
+  button:active{transform:translateY(1px)}
+  .big{font-size:20px; font-variant-numeric:tabular-nums; font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Low-discrepancy sequences (quasi-Monte Carlo)</h1>
+<p class="sub">11_low_discrepancy.cpp — replace randomness with a deterministic sequence engineered to fill space as evenly as possible at every prefix length, and the error falls nearly as 1/N instead of 1/√N.</p>
+
+<p class="lead">Random points clump (<a href="07_stratified_sampling.html">example 07</a>): clumps and gaps are wasted information, and they <em>are</em> the $1/\sqrt N$ noise. Stratification fought back by forcing one sample per grid cell. Quasi-Monte Carlo goes further — it drops randomness entirely for a deterministic sequence whose every prefix is already spread out. For smooth integrands the payoff is dramatic: error $\sim1/N$ rather than $1/\sqrt N$, nearly squaring the accuracy for the same sample count.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> A <em>low-discrepancy</em> sequence (van der Corput in 1-D, Halton in $d$-D) places each new point in the largest remaining gap, so its local density never strays far from uniform (discrepancy $\sim(\log N)^d/N$ instead of random's $1/\sqrt N$); by the Koksma–Hlawka bound, error $\le$ variation$(f)\times$discrepancy, so smooth-integrand error converges nearly as $1/N$.
+</div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--rand)"></i> random (Monte Carlo)</span>
+  <span><i class="dot" style="background:var(--qmc)"></i> Halton / low-discrepancy</span>
+  <span><i class="swatch" style="border-color:var(--vdc)"></i> van der Corput (1-D)</span>
+</div>
+
+
+<h2>1. The problem: random points clump</h2>
+
+<p>Scatter $N$ independent uniform points and the eye immediately finds dense knots and empty holes. <strong>Discrepancy</strong> makes that precise: take any sub-box, compare the <em>fraction of points</em> inside it to its <em>area</em>; the discrepancy is the worst such mismatch over all boxes. Random points have discrepancy $\sim1/\sqrt N$. A low-discrepancy sequence keeps it near $1/N$ — every region holds about its fair share of points at every $N$.</p>
+
+
+<h2>2. See it: random vs. Halton</h2>
+
+<p>Same number of points, two ways. The <span style="color:var(--rand)">random</span> set clumps; the <span style="color:var(--qmc)">Halton</span> set tiles the square almost evenly. The faint box is a fixed test region of area $0.25$ — watch its “local-density error” (how far the fraction of points inside strays from $0.25$): Halton’s stays tiny, random’s wanders.</p>
+
+<figure>
+<svg id="scatter" viewBox="0 0 600 360" role="img" aria-label="Two unit squares of points: random (clumpy) and Halton (evenly spread), each with a test box."></svg>
+<div class="ctl">
+  N = <b id="sc-nval">256</b> points
+  <input id="sc-n" type="range" min="4" max="10" value="8" step="1">
+  <button id="sc-roll">Re-roll random</button>
+</div>
+<div class="panel">
+  <div class="row"><span>test-box density error — random</span><b id="sc-er" style="color:var(--rand)">—</b></div>
+  <div class="row"><span>test-box density error — Halton</span><b id="sc-eh" style="color:var(--qmc)">—</b></div>
+</div>
+<figcaption>Figure 1. $N$ points as random pairs (left) vs. the Halton sequence in bases 2 and 3 (right). Random clumps and leaves gaps; Halton fills evenly. The test box quantifies it: the fraction of points inside should be $0.25$, and Halton tracks that far more tightly — lower discrepancy.</figcaption>
+</figure>
+
+
+<h2>3. The van der Corput sequence (1-D)</h2>
+
+<p>The 1-D building block is the <strong>radical inverse</strong>: write the index $i$ in base $b$, then mirror its digits across the radix point. In base 2, $i=6=110_2$ becomes $0.011_2=\tfrac14+\tfrac18=\tfrac38$. The effect is that each new point bisects the largest empty gap:</p>
+
+$$\text{base 2:}\quad 0,\ \tfrac12,\ \tfrac14,\ \tfrac34,\ \tfrac18,\ \tfrac58,\ \tfrac38,\ \tfrac78,\ \dots$$
+
+<p>Step through it and watch the newest point (highlighted) always drop into the widest gap — the opposite of random, which would happily pile two points next to each other.</p>
+
+<figure>
+<svg id="vdc" viewBox="0 0 600 150" role="img" aria-label="The van der Corput sequence on the unit interval, points appearing in gap-filling order."></svg>
+<div class="ctl">
+  base:
+  <button id="vd-2" class="sel">2</button>
+  <button id="vd-3">3</button>
+  <button id="vd-5">5</button>
+  <span style="margin-left:auto"></span>
+  first <b id="vd-nval">8</b> points
+  <input id="vd-n" type="range" min="1" max="40" value="8" step="1">
+</div>
+<figcaption>Figure 2. The van der Corput sequence (digit-mirroring radical inverse). Each new point — the <span style="color:var(--vdc)">highlighted</span> one — lands in the largest remaining gap, so the prefix of any length is well spread. Higher bases fill more slowly but the same way.</figcaption>
+</figure>
+
+
+<h2>4. The Halton sequence ($d$-D)</h2>
+
+<p>To fill a $d$-dimensional cube, run a van der Corput sequence in each axis but with a <strong>different prime base per dimension</strong> — 2, 3, 5, 7, … The bases must be coprime, or the dimensions line up into a visible lattice instead of covering the cube. For 2-D that is bases 2 and 3, exactly the right panel of Figure 1:</p>
+
+$$\mathbf x_i=\big(\,\Phi_2(i),\ \Phi_3(i)\,\big),\qquad \Phi_b=\text{radical inverse in base }b.$$
+
+<p>This is the sequence pbrt’s <code>HaltonSampler</code> is built on. It is deterministic — no RNG — yet covers the domain better than any random draw.</p>
+
+
+<h2>5. Why it converges faster</h2>
+
+<p>The link between “well spread” and “accurate” is the <strong>Koksma–Hlawka inequality</strong>:</p>
+
+$$\Big|\,\underbrace{\tfrac1N\textstyle\sum_i f(\mathbf x_i)}_{\text{estimate}}-\underbrace{\textstyle\int f}_{\text{truth}}\,\Big|\ \le\ \underbrace{V(f)}_{\text{variation of }f}\ \times\ \underbrace{D_N^*}_{\text{discrepancy}} .$$
+
+<p>The error is bounded by how much the function varies times how non-uniform the points are. We can’t change $f$, but we <em>can</em> shrink the discrepancy: random’s $D_N^*\sim1/\sqrt N$ gives the familiar $1/\sqrt N$ error, while a low-discrepancy sequence’s $D_N^*\sim(\log N)^d/N$ gives error nearly $1/N$ for smooth $f$ — almost the square of the accuracy at the same $N$.</p>
+
+
+<h2>6. Convergence: 1/√N vs. ~1/N</h2>
+
+<p>Integrate $f(x,y)=e^{x+y}$ over the unit square (exact $=(e-1)^2$) and plot the error against $N$ on log–log axes. Random sampling (RMS error over many trials) tracks slope $-\tfrac12$; Halton tracks slope $\approx-1$. Different slope = different convergence <em>order</em>.</p>
+
+<figure>
+<svg id="conv" viewBox="0 0 600 360" role="img" aria-label="Log-log error vs N for random and Halton sampling, with reference slopes minus one-half and minus one."></svg>
+<div class="ctl">
+  <button id="cv-run">Run</button>
+  <button id="cv-reset">Reset</button>
+  <span class="small">measured slope — random: <b id="cv-sr" style="color:var(--rand)">—</b> &nbsp; Halton: <b id="cv-sh" style="color:var(--qmc)">—</b></span>
+</div>
+<figcaption>Figure 3. Error vs. sample count, log–log, for $\int_{[0,1]^2}e^{x+y}$. <span style="color:var(--rand)">Random</span> (RMS over many trials) follows the dashed slope-$(-\tfrac12)$ guide; <span style="color:var(--qmc)">Halton</span> follows the steeper slope-$(-1)$ guide (with mild $\log$-factor wobble). Halton reaches the same accuracy with far fewer points.</figcaption>
+</figure>
+
+
+<h2>7. The catch: high dimensions and randomized QMC</h2>
+
+<div class="callout warn">
+<strong>Why renderers don’t use raw Halton everywhere.</strong> In high dimensions the small prime bases run out and pairs of dimensions develop visible correlation (the radical inverses in bases 11 and 13 trace slanted patterns before they fill in). Production samplers therefore <strong>scramble</strong> the sequence — <em>randomized QMC</em> — which restores an unbiased, per-run error estimate while keeping the fast convergence. Owen scrambling (example 35) and high-dimensional QMC pitfalls (example 42) develop this; here we show the raw, unscrambled idea.
+</div>
+
+
+<h2>8. The code</h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/11_low_discrepancy.cpp" target="_blank" rel="noopener"><code>11_low_discrepancy.cpp</code></a>.</p>
+
+<p>The whole sampler is the radical inverse; Halton is just two of them with different bases:</p>
+
+<pre><code>// radical inverse of a in base b: mirror a's base-b digits about the radix point
+double RadicalInverse(unsigned base, uint64_t a) {
+    double invBase = 1.0/base, invBaseN = 1.0, result = 0.0;
+    while (a) {
+        uint64_t digit = a % base;
+        invBaseN *= invBase;
+        result   += digit * invBaseN;   // result += digit * b^-(k+1)
+        a /= base;
+    }
+    return result;
+}
+
+// Halton point i in 2-D = van der Corput in bases 2 and 3
+double x = RadicalInverse(2, i);
+double y = RadicalInverse(3, i);
+
+// compare convergence on ∫∫ e^(x+y) = (e-1)^2
+//   random:  report RMS error over many trials   → error·sqrt(N) ≈ const   (order 1/√N)
+//   Halton:  one deterministic estimate           → error·N      ≈ const   (order 1/N)</code></pre>
+
+<p>The <code>error·sqrt(N)</code> column (random) and the <code>error·N</code> column (Halton) both stay roughly constant — exposing the two different convergence orders directly.</p>
+
+
+<h2>9. In the renderer</h2>
+
+<div class="callout">
+<strong>Rendering link.</strong> This <a href="https://github.com/INedelcu/PathTracingDemo" target="_blank" rel="noopener">demo renderer</a> (the <code>PathTracingDemo</code> project these docs accompany) keeps sampling simple: it jitters pixel (and lens/light) samples with a Wang-hash RNG — <a href="https://github.com/INedelcu/PathTracingDemo/blob/main/Assets/Shaders/Utils.hlsl#L31" target="_blank" rel="noopener"><code>RandomFloat01</code></a> (built on <a href="https://github.com/INedelcu/PathTracingDemo/blob/main/Assets/Shaders/Utils.hlsl#L21" target="_blank" rel="noopener"><code>WangHash</code></a>) — i.e. plain random jitter (<a href="07_stratified_sampling.html">example 07</a>). Production path tracers and pbrt instead drive those same samples with low-discrepancy sequences (Halton, Sobol) to buy the $\sim1/N$ convergence shown here. Same hook in the pipeline, faster sampler — the upgrade path from this demo to a production renderer.
+</div>
+
+
+<h2>10. Takeaways</h2>
+<ul>
+<li><strong>Discrepancy is the lever.</strong> Error $\le V(f)\times D_N^*$ (Koksma–Hlawka); lowering the discrepancy lowers the error without touching $f$.</li>
+<li><strong>Radical inverse / van der Corput.</strong> Mirror the index’s base-$b$ digits; each new point bisects the largest gap — discrepancy $\sim(\log N)/N$ in 1-D.</li>
+<li><strong>Halton</strong> stacks van der Corput with coprime prime bases per dimension to fill a $d$-cube deterministically.</li>
+<li><strong>Order, not just constant.</strong> QMC error falls $\sim1/N$ vs random’s $1/\sqrt N$ — like stratification (07) it improves the rate, here in any low dimension and from a single deterministic sequence.</li>
+<li><strong>Scramble for production.</strong> Randomized QMC (Owen scrambling, ex. 35) fixes high-dimensional correlation and restores an unbiased error estimate while keeping the speed.</li>
+</ul>
+
+<p class="small">References — J. H. Halton (1960); J. G. van der Corput (1935); Koksma–Hlawka inequality. See Owen, <em>Monte Carlo theory, methods and examples</em>, ch. 15–17, and Pharr, Jakob &amp; Humphreys, <em>Physically Based Rendering</em>, §8.6 (“Halton/Sobol samplers”). Renderer RNG: <code>Utils.hlsl</code> (<a href="https://github.com/INedelcu/PathTracingDemo/blob/main/Assets/Shaders/Utils.hlsl#L31" target="_blank" rel="noopener">RandomFloat01</a>). Scrambling/QMC pitfalls: examples 35 and 42.</p>
+
+</div>
+
+<script>
+(function(){
+  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+  const E=Math.E, EXACT=(E-1)*(E-1);
+  function svgEl(tag,attrs){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
+  function polyline(pts,stroke,w,dash){
+    const d=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(2)+','+p[1].toFixed(2)).join(' ');
+    const a={d,fill:'none',stroke,'stroke-width':w||2.2,'stroke-linejoin':'round','stroke-linecap':'round'};
+    if(dash)a['stroke-dasharray']=dash; return svgEl('path',a);
+  }
+  function txt(x,y,s,attrs){const e=svgEl('text',Object.assign({x,y},attrs||{}));e.textContent=s;return e;}
+  function radicalInverse(base,a){let inv=1/base, invN=1, r=0; while(a>0){const d=a%base; invN*=inv; r+=d*invN; a=Math.floor(a/base);} return r;}
+
+  // ===================================================================
+  // Figure 1 — random vs Halton scatter
+  // ===================================================================
+  (function(){
+    const svg=document.getElementById('scatter');
+    const S=260, LX=30, RX=330, TY=44;     // two square panels
+    let N=256, rnd=[];
+    function reroll(){ rnd=[]; for(let i=0;i<4096;i++) rnd.push([Math.random(),Math.random()]); }
+    reroll();
+    function panel(x0, pts, color, label){
+      svg.appendChild(svgEl('rect',{x:x0,y:TY,width:S,height:S,fill:'#fff',stroke:'var(--grid)','stroke-width':1.2}));
+      svg.appendChild(txt(x0+S/2,TY-10,label,{'font-size':13,fill:color,'text-anchor':'middle','font-weight':600}));
+      // test box [0,0.5]x[0,0.5] (area 0.25), drawn in lower-left (y up)
+      svg.appendChild(svgEl('rect',{x:x0,y:TY+S/2,width:S/2,height:S/2,fill:color,'fill-opacity':0.07,stroke:color,'stroke-width':1,'stroke-dasharray':'4 3'}));
+      let inBox=0;
+      for(let i=0;i<N;i++){const p=pts[i]; if(p[0]<0.5&&p[1]<0.5)inBox++;
+        svg.appendChild(svgEl('circle',{cx:(x0+p[0]*S).toFixed(1),cy:(TY+(1-p[1])*S).toFixed(1),r:1.7,fill:color,'fill-opacity':0.7}));}
+      return Math.abs(inBox/N - 0.25);
+    }
+    function draw(){
+      svg.textContent='';
+      const halton=[]; for(let i=0;i<N;i++) halton.push([radicalInverse(2,i),radicalInverse(3,i)]);
+      const er=panel(LX, rnd, 'var(--rand)', 'random');
+      const eh=panel(RX, halton, 'var(--qmc)', 'Halton (bases 2, 3)');
+      svg.appendChild(txt(LX+S/2,TY+S+22,'area 0.25 test box',{'font-size':11,fill:'#8a8f9c','text-anchor':'middle'}));
+      svg.appendChild(txt(RX+S/2,TY+S+22,'area 0.25 test box',{'font-size':11,fill:'#8a8f9c','text-anchor':'middle'}));
+      document.getElementById('sc-er').textContent=er.toFixed(4);
+      document.getElementById('sc-eh').textContent=eh.toFixed(4);
+    }
+    document.getElementById('sc-roll').onclick=()=>{reroll();draw();};
+    const sl=document.getElementById('sc-n');
+    sl.addEventListener('input',()=>{N=Math.pow(2,+sl.value);document.getElementById('sc-nval').textContent=N;draw();});
+    draw();
+  })();
+
+  // ===================================================================
+  // Figure 2 — van der Corput fill-the-gaps
+  // ===================================================================
+  (function(){
+    const svg=document.getElementById('vdc');
+    const X0=40,X1=560,Y=86;
+    let base=2, n=8;
+    function draw(){
+      svg.textContent='';
+      svg.appendChild(svgEl('line',{x1:X0,y1:Y,x2:X1,y2:Y,stroke:'#cbd0d9','stroke-width':1.4}));
+      [0,0.25,0.5,0.75,1].forEach(t=>{const x=X0+t*(X1-X0);svg.appendChild(svgEl('line',{x1:x,y1:Y-4,x2:x,y2:Y+4,stroke:'#9aa0ad'}));svg.appendChild(txt(x,Y+20,t.toString(),{'font-size':10,fill:'#8a8f9c','text-anchor':'middle'}));});
+      const showLabels=n<=16;
+      for(let i=0;i<n;i++){const v=radicalInverse(base,i); const x=X0+v*(X1-X0); const last=(i===n-1);
+        svg.appendChild(svgEl('line',{x1:x,y1:Y-(last?22:14),x2:x,y2:Y+(last?22:14),stroke:last?'var(--vdc)':'#9aa6b4','stroke-width':last?2.4:1.4}));
+        svg.appendChild(svgEl('circle',{cx:x,cy:Y-(last?22:14),r:last?3.4:2,fill:last?'var(--vdc)':'#9aa6b4'}));
+        if(showLabels) svg.appendChild(txt(x,Y-(last?30:22),i.toString(),{'font-size':10,fill:last?'var(--vdc)':'#8a8f9c','text-anchor':'middle','font-weight':last?600:400}));
+      }
+      svg.appendChild(txt(X0,Y+38,'newest point (#'+(n-1)+') = '+radicalInverse(base,n-1).toFixed(4)+', base '+base,{'font-size':11.5,fill:'var(--vdc)'}));
+    }
+    const btn={2:'vd-2',3:'vd-3',5:'vd-5'};
+    Object.keys(btn).forEach(b=>document.getElementById(btn[b]).onclick=()=>{base=+b;Object.values(btn).forEach(id=>document.getElementById(id).classList.remove('sel'));document.getElementById(btn[b]).classList.add('sel');draw();});
+    const sl=document.getElementById('vd-n');
+    sl.addEventListener('input',()=>{n=+sl.value;document.getElementById('vd-nval').textContent=n;draw();});
+    draw();
+  })();
+
+  // ===================================================================
+  // Figure 3 — convergence log-log
+  // ===================================================================
+  (function(){
+    const svg=document.getElementById('conv');
+    const X0=64,X1=560,Y0=28,Y1=300, EX0=4,EX1=14, EY0=-5,EY1=0;  // x: 2^4..2^14, y: 10^-5..10^0
+    const xm=N=>X0+(Math.log2(N)-EX0)/(EX1-EX0)*(X1-X0);
+    const ym=e=>Y1-(Math.log10(clamp(e,1e-5,1))-EY0)/(EY1-EY0)*(Y1-Y0);
+    function f(x,y){return Math.exp(x+y);}
+    function backdrop(){
+      svg.textContent='';
+      svg.appendChild(svgEl('line',{x1:X0,y1:Y1,x2:X1,y2:Y1,stroke:'#cbd0d9','stroke-width':1.2}));
+      svg.appendChild(svgEl('line',{x1:X0,y1:Y0,x2:X0,y2:Y1,stroke:'#cbd0d9','stroke-width':1.2}));
+      for(let e=EX0;e<=EX1;e+=2){const x=xm(Math.pow(2,e));svg.appendChild(svgEl('line',{x1:x,y1:Y0,x2:x,y2:Y1,stroke:'#eef0f4'}));svg.appendChild(txt(x,Y1+16,(Math.pow(2,e)).toLocaleString(),{'font-size':9.5,fill:'#8a8f9c','text-anchor':'middle'}));}
+      for(let e=EY0;e<=EY1;e++){const y=ym(Math.pow(10,e));svg.appendChild(svgEl('line',{x1:X0,y1:y,x2:X1,y2:y,stroke:'#eef0f4'}));svg.appendChild(txt(X0-6,y+4,'10^'+e,{'font-size':10,fill:'#8a8f9c','text-anchor':'end'}));}
+      svg.appendChild(txt((X0+X1)/2,Y1+36,'number of points N  (log scale)',{'font-size':12.5,fill:'#5b6472','text-anchor':'middle'}));
+      svg.appendChild(txt(16,(Y0+Y1)/2,'absolute error  (log scale)',{'font-size':12.5,fill:'#5b6472','text-anchor':'middle',transform:`rotate(-90 16 ${(Y0+Y1)/2})`}));
+      // reference slopes anchored at N=16
+      const r12=N=>1.22/Math.sqrt(N), r1=N=>1.0/N;
+      svg.appendChild(polyline([[xm(16),ym(r12(16))],[xm(16384),ym(r12(16384))]],'#9aa0ad',1.6,'6 4'));
+      svg.appendChild(polyline([[xm(16),ym(r1(16))],[xm(16384),ym(r1(16384))]],'#9aa0ad',1.6,'6 4'));
+      svg.appendChild(txt(xm(1024),ym(r12(1024))+15,'slope −½',{'font-size':11,fill:'#8a8f9c'}));
+      svg.appendChild(txt(xm(700),ym(r1(700))-7,'slope −1',{'font-size':11,fill:'#8a8f9c'}));
+      svg.appendChild(svgEl('g',{id:'conv-data'}));
+      // legend
+      svg.appendChild(svgEl('line',{x1:X1-200,y1:Y0+10,x2:X1-174,y2:Y0+10,stroke:'var(--rand)','stroke-width':3}));
+      svg.appendChild(txt(X1-168,Y0+14,'random (RMS)',{'font-size':12,fill:'#5b6472'}));
+      svg.appendChild(svgEl('line',{x1:X1-200,y1:Y0+28,x2:X1-174,y2:Y0+28,stroke:'var(--qmc)','stroke-width':3}));
+      svg.appendChild(txt(X1-168,Y0+32,'Halton',{'font-size':12,fill:'#5b6472'}));
+    }
+    function fitSlope(pts){const xs=pts.map(p=>Math.log10(p[0])),ys=pts.map(p=>Math.log10(p[1]));const n=xs.length,mx=xs.reduce((a,b)=>a+b)/n,my=ys.reduce((a,b)=>a+b)/n;let num=0,den=0;for(let i=0;i<n;i++){num+=(xs[i]-mx)*(ys[i]-my);den+=(xs[i]-mx)**2;}return num/den;}
+    function run(){
+      backdrop();
+      const Ns=[16,64,256,1024,4096,16384], kT=48;
+      const rp=[],hp=[]; let seed=12345;
+      function rng(){ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; }
+      Ns.forEach(N=>{
+        let sumSq=0;
+        for(let t=0;t<kT;t++){let s=0;for(let i=0;i<N;i++)s+=f(rng(),rng()); const e=s/N-EXACT; sumSq+=e*e;}
+        rp.push([N,Math.sqrt(sumSq/kT)]);
+        let s=0; for(let i=0;i<N;i++)s+=f(radicalInverse(2,i),radicalInverse(3,i)); hp.push([N,Math.abs(s/N-EXACT)]);
+      });
+      const layer=document.getElementById('conv-data');
+      layer.appendChild(polyline(rp.map(p=>[xm(p[0]),ym(p[1])]),'var(--rand)',2.4));
+      layer.appendChild(polyline(hp.map(p=>[xm(p[0]),ym(p[1])]),'var(--qmc)',2.4));
+      rp.forEach(p=>layer.appendChild(svgEl('circle',{cx:xm(p[0]),cy:ym(p[1]),r:2.6,fill:'var(--rand)'})));
+      hp.forEach(p=>layer.appendChild(svgEl('circle',{cx:xm(p[0]),cy:ym(p[1]),r:2.6,fill:'var(--qmc)'})));
+      document.getElementById('cv-sr').textContent=fitSlope(rp).toFixed(2);
+      document.getElementById('cv-sh').textContent=fitSlope(hp).toFixed(2);
+    }
+    document.getElementById('cv-run').onclick=run;
+    document.getElementById('cv-reset').onclick=()=>{backdrop();document.getElementById('cv-sr').textContent='—';document.getElementById('cv-sh').textContent='—';};
+    backdrop();
+  })();
+})();
+</script>
+
+</body>
+</html>

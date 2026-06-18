@@ -65,7 +65,7 @@
 <h1>Importance sampling</h1>
 <p class="sub">06_importance_sampling.cpp — the single biggest lever on Monte Carlo noise: spend your samples where the integrand is big by choosing a sampling density shaped like it.</p>
 
-<p class="lead">Example 03 showed that the estimator $\frac1N\sum f(X_i)/p(X_i)$ is unbiased for <em>any</em> density $p$. Example 05 showed how to actually draw from a non-uniform $p$. Now we cash that in: by choosing $p$ to resemble $f$, the ratio $f/p$ barely varies from sample to sample, the average stops fluctuating, and the variance — the noise — collapses. This is the same move a path tracer makes when it samples the BRDF lobes instead of firing rays blindly.</p>
+<p class="lead"><a href="03_monte_carlo_integration.html">Example 03</a> showed that the estimator $\frac1N\sum f(X_i)/p(X_i)$ is unbiased for <em>any</em> density $p$. <a href="05_sampling_distributions.html">Example 05</a> showed how to actually draw from a non-uniform $p$. Now we cash that in: by choosing $p$ to resemble $f$, the ratio $f/p$ barely varies from sample to sample, the average stops fluctuating, and the variance — the noise — collapses. This is the same move a path tracer makes when it samples the BRDF lobes instead of firing rays blindly.</p>
 
 <div class="callout key">
 <strong>One-sentence summary.</strong> The estimator averages the ratio $f(X)/p(X)$; if $p$ is shaped like $f$ that ratio is nearly constant so its variance is small, and in the unreachable ideal $p=f/I$ the ratio is exactly $I$ every time (zero variance) — so picking $p$ to track where $f$ is large cuts noise dramatically <em>without</em> introducing any bias.
@@ -81,11 +81,11 @@
 
 <h2>1. The lever: any $p$ is unbiased, but not equally noisy</h2>
 
-<p>Recall the general estimator and its mean from example 03 — unbiased for any valid $p$:</p>
+<p>Recall the general estimator and its mean from <a href="03_monte_carlo_integration.html">example 03</a> — unbiased for any valid $p$:</p>
 
 $$I=\int f(x)\,dx=\mathbb E_{X\sim p}\!\left[\frac{f(X)}{p(X)}\right].$$
 
-<p>Example 04 then told us the noise is set by the <em>variance</em> of the thing being averaged, here the per-sample value $Y=f(X)/p(X)$. So the bias is fixed (zero) no matter what $p$ we pick — but the variance $\operatorname{Var}[Y]$, and therefore the noise, is entirely ours to control through $p$.</p>
+<p><a href="04_variance_and_clt.html">Example 04</a> then told us the noise is set by the <em>variance</em> of the thing being averaged, here the per-sample value $Y=f(X)/p(X)$. So the bias is fixed (zero) no matter what $p$ we pick — but the variance $\operatorname{Var}[Y]$, and therefore the noise, is entirely ours to control through $p$.</p>
 
 
 <h2>2. The idea: flatten the ratio $f/p$</h2>
@@ -122,7 +122,7 @@ $$I=\int f(x)\,dx=\mathbb E_{X\sim p}\!\left[\frac{f(X)}{p(X)}\right].$$
 
 <ol>
 <li><strong>Uniform:</strong> $p(x)=1$, so the per-sample value is just $e^X$.</li>
-<li><strong>Importance:</strong> $p(x)=\tfrac23(1+x)$ — a straight line that leans the same way $e^x$ does. It is easy to sample by inversion (example 05): its CDF is $P(x)=\tfrac{x+x^2/2}{3/2}$, and solving $P(X)=U$ gives</li>
+<li><strong>Importance:</strong> $p(x)=\tfrac23(1+x)$ — a straight line that leans the same way $e^x$ does. It is easy to sample by inversion (<a href="05_sampling_distributions.html">example 05</a>): its CDF is $P(x)=\tfrac{x+x^2/2}{3/2}$, and solving $P(X)=U$ gives</li>
 </ol>
 
 $$X=-1+\sqrt{1+3U}.$$
@@ -166,7 +166,7 @@ $$\operatorname{Var}_{\text{uniform}}\approx0.242,\qquad \operatorname{Var}_{\te
 <h2>5. The code</h2>
 <p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/06_importance_sampling.cpp" target="_blank" rel="noopener"><code>06_importance_sampling.cpp</code></a>.</p>
 
-<p>Two Welford passes (example 01) accumulate the per-sample <em>variance</em> of each method’s estimator value, then compare:</p>
+<p>Two Welford passes (<a href="01_random_and_estimators.html">example 01</a>) accumulate the per-sample <em>variance</em> of each method’s estimator value, then compare:</p>
 
 <pre><code>auto f    = [](double x){ return std::exp(x); };
 auto pImp = [](double x){ return (2.0/3.0)*(1.0 + x); };           // density ∝ leans like e^x

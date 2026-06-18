@@ -142,7 +142,7 @@ $$\operatorname{Var}[\hat I_{\text{strat}}]\;\approx\;\frac{1}{12\,N^3}\int_0^1\
 
 <h2>5. Convergence: faster than 1/√N</h2>
 
-<p>Plot the RMS error against $N$ on log–log axes and the two methods separate by their <em>slope</em>: plain MC falls at slope $-\tfrac12$ (the universal $1/\sqrt N$ from example 02), while stratified falls at slope $\approx-\tfrac32$. That steeper line is the headline — stratification doesn’t just shift the constant (as importance sampling did), it improves the <em>rate</em> for smooth 1-D integrands.</p>
+<p>Plot the RMS error against $N$ on log–log axes and the two methods separate by their <em>slope</em>: plain MC falls at slope $-\tfrac12$ (the universal $1/\sqrt N$ from <a href="02_estimating_pi.html">example 02</a>), while stratified falls at slope $\approx-\tfrac32$. That steeper line is the headline — stratification doesn’t just shift the constant (as importance sampling did), it improves the <em>rate</em> for smooth 1-D integrands.</p>
 
 <figure>
 <svg id="conv" viewBox="0 0 600 360" role="img" aria-label="Log-log RMS error versus N for plain and stratified, with reference slopes."></svg>
@@ -157,7 +157,7 @@ $$\operatorname{Var}[\hat I_{\text{strat}}]\;\approx\;\frac{1}{12\,N^3}\int_0^1\
 
 <h2>6. The catch: the curse of dimensionality</h2>
 
-<p>A full stratified grid in $d$ dimensions needs $N^d$ cells to keep $N$ subdivisions per axis. At $d=2$ that is fine (an image plane of pixels), but light paths are high-dimensional — many bounces, each with 2+ random numbers — and $N^d$ explodes. So renderers do <strong>not</strong> build a full grid. Instead they stratify <em>per dimension</em> (each random dimension gets its own 1-D stratification or a shuffled assignment, as in Latin hypercube sampling, example 29) or switch to <strong>low-discrepancy</strong> sequences that stay well-spread in high dimensions without a grid (examples 11, 16, 42).</p>
+<p>A full stratified grid in $d$ dimensions needs $N^d$ cells to keep $N$ subdivisions per axis. At $d=2$ that is fine (an image plane of pixels), but light paths are high-dimensional — many bounces, each with 2+ random numbers — and $N^d$ explodes. So renderers do <strong>not</strong> build a full grid. Instead they stratify <em>per dimension</em> (each random dimension gets its own 1-D stratification or a shuffled assignment, as in Latin hypercube sampling, example 29) or switch to <strong>low-discrepancy</strong> sequences that stay well-spread in high dimensions without a grid (examples <a href="11_low_discrepancy.html">11</a>, 16, 42).</p>
 
 <div class="callout warn">
 <strong>Why not just stratify everything?</strong> Because $N^d$ cells means a useful $N$ becomes astronomically expensive past a few dimensions, and most cells would never get a sample. The high-dimensional substitutes keep stratification’s “well-spread” benefit while paying only $O(N)$.
@@ -174,7 +174,7 @@ $$\operatorname{Var}[\hat I_{\text{strat}}]\;\approx\;\frac{1}{12\,N^3}\int_0^1\
 <h2>8. The code</h2>
 <p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/07_stratified_sampling.cpp" target="_blank" rel="noopener"><code>07_stratified_sampling.cpp</code></a>.</p>
 
-<p>Two estimators per trial, with a Welford pass (example 01) over the trials to measure each method’s variance:</p>
+<p>Two estimators per trial, with a Welford pass (<a href="01_random_and_estimators.html">example 01</a>) over the trials to measure each method’s variance:</p>
 
 <pre><code>const int N = 64;             // samples per estimate = number of strata
 for (int t = 0; t &lt; kTrials; ++t) {
@@ -205,7 +205,7 @@ printf("variance reduction factor: %.1fx\n", varPlain / varStrat);</code></pre>
 <li><strong>The recipe.</strong> $x_i=(i+U_i)/N$ instead of $x_i=U_i$. Still an average, still unbiased — the jitter keeps it so.</li>
 <li><strong>Variance = sum of within-stratum variances.</strong> Each cell is $1/N$ wide, so for smooth $f$ each piece is tiny; total variance $\sim1/N^3$, error $\sim1/N^{1.5}$.</li>
 <li><strong>It improves the rate, not just the constant.</strong> Slope $-\tfrac32$ vs plain’s $-\tfrac12$; the reduction grows as $N^2$. (Contrast importance sampling, which lowered the constant at the same $-\tfrac12$ rate.)</li>
-<li><strong>Curse of dimensionality.</strong> A full grid needs $N^d$ cells; high-dimensional rendering uses per-dimension stratification (Latin hypercube, ex. 29) or low-discrepancy sequences (ex. 11, 16, 42) instead.</li>
+<li><strong>Curse of dimensionality.</strong> A full grid needs $N^d$ cells; high-dimensional rendering uses per-dimension stratification (Latin hypercube, ex. 29) or low-discrepancy sequences (ex. <a href="11_low_discrepancy.html">11</a>, 16, 42) instead.</li>
 <li><strong>It’s the renderer’s pixel/lens/time/light jitter</strong> — 2-D stratification of the image plane, essentially free anti-noise.</li>
 </ul>
 

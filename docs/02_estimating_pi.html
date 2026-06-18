@@ -262,7 +262,7 @@ for (long long i = 0; i &lt; 100000000; ++i) {
 <li><strong>Variance reduction shrinks $C$, not the exponent.</strong> Importance sampling, stratification, and MIS (later examples) lower the constant; nothing unbiased beats $1/\sqrt N$. This is the thread that runs through the whole series — and it connects back to the variance you learned to measure in example&nbsp;01.</li>
 </ul>
 
-<p class="small">References — the $1/\sqrt N$ rate is the Central Limit Theorem applied to the sample mean (see example 04). · Bernoulli standard error $\sqrt{p(1-p)/N}$ is standard; see e.g. Sheldon Ross, <em>A First Course in Probability</em>. · For Monte Carlo in rendering, Pharr, Jakob &amp; Humphreys, <em>Physically Based Rendering</em>, ch. 13 (“Monte Carlo Integration”).</p>
+<p class="small">References — the $1/\sqrt N$ rate is the Central Limit Theorem applied to the sample mean (see <a href="04_variance_and_clt.html">example 04</a>). · Bernoulli standard error $\sqrt{p(1-p)/N}$ is standard; see e.g. Sheldon Ross, <em>A First Course in Probability</em>. · For Monte Carlo in rendering, Pharr, Jakob &amp; Humphreys, <em>Physically Based Rendering</em>, ch. 13 (“Monte Carlo Integration”).</p>
 
 </div>
 
@@ -333,11 +333,11 @@ for (long long i = 0; i &lt; 100000000; ++i) {
       ll.appendChild(svgEl('line',{x1:A.X0,y1:A.Y0,x2:A.X0,y2:A.Y1,stroke:'#cbd0d9','stroke-width':1.2}));
       for(let e=A.EX0;e<=A.EX1;e++){const x=axm(Math.pow(10,e));
         ll.appendChild(svgEl('line',{x1:x,y1:A.Y0,x2:x,y2:A.Y1,stroke:'#eef0f4'}));
-        ll.appendChild(txt(x,A.Y1+16,'10^'+e,{'font-size':10.5,fill:'#8a8f9c','text-anchor':'middle'}));}
+        ll.appendChild(txt(x,A.Y1+22,'10^'+e,{'font-size':10.5,fill:'#8a8f9c','text-anchor':'middle'}));}
       for(let e=A.EY0;e<=A.EY1;e++){const y=aym(Math.pow(10,e));
         ll.appendChild(svgEl('line',{x1:A.X0,y1:y,x2:A.X1,y2:y,stroke:'#eef0f4'}));
         ll.appendChild(txt(A.X0-6,y+4,'10^'+e,{'font-size':10.5,fill:'#8a8f9c','text-anchor':'end'}));}
-      ll.appendChild(txt((A.X0+A.X1)/2,A.Y1+32,'number of darts N  (log scale)',{'font-size':12.5,fill:'#5b6472','text-anchor':'middle'}));
+      ll.appendChild(txt((A.X0+A.X1)/2,A.Y1+40,'number of darts N  (log scale)',{'font-size':12.5,fill:'#5b6472','text-anchor':'middle'}));
       ll.appendChild(txt(16,(A.Y0+A.Y1)/2,'absolute error  (log scale)',{'font-size':12.5,fill:'#5b6472','text-anchor':'middle',transform:`rotate(-90 16 ${(A.Y0+A.Y1)/2})`}));
       // predicted C/sqrt(N) straight line
       ll.appendChild(polyline([[axm(100),aym(C/Math.sqrt(100))],[axm(1e6),aym(C/Math.sqrt(1e6))]],'var(--pred)',2.2,'6 4'));
@@ -354,9 +354,9 @@ for (long long i = 0; i &lt; 100000000; ++i) {
       rn.appendChild(svgEl('line',{x1:B.X0,y1:B.Y0,x2:B.X0,y2:B.Y1,stroke:'#cbd0d9','stroke-width':1.2}));
       for(let e=B.EX0;e<=B.EX1;e++){const x=bxm(Math.pow(10,e));
         rn.appendChild(svgEl('line',{x1:x,y1:B.Y0,x2:x,y2:B.Y1,stroke:'#eef0f4'}));
-        rn.appendChild(txt(x,B.Y1+16,'10^'+e,{'font-size':10.5,fill:'#8a8f9c','text-anchor':'middle'}));}
+        rn.appendChild(txt(x,B.Y1+22,'10^'+e,{'font-size':10.5,fill:'#8a8f9c','text-anchor':'middle'}));}
       [0,1,2,3].forEach(t=>{rn.appendChild(txt(B.X0-6,bym(t)+4,t.toFixed(0),{'font-size':10.5,fill:'#8a8f9c','text-anchor':'end'}));});
-      rn.appendChild(txt((B.X0+B.X1)/2,B.Y1+32,'number of darts N  (log scale)',{'font-size':12.5,fill:'#5b6472','text-anchor':'middle'}));
+      rn.appendChild(txt((B.X0+B.X1)/2,B.Y1+40,'number of darts N  (log scale)',{'font-size':12.5,fill:'#5b6472','text-anchor':'middle'}));
       rn.appendChild(txt(16,(B.Y0+B.Y1)/2,'error × √N',{'font-size':12.5,fill:'#5b6472','text-anchor':'middle',transform:`rotate(-90 16 ${(B.Y0+B.Y1)/2})`}));
       // constant line at C
       rn.appendChild(svgEl('line',{x1:B.X0,y1:bym(C),x2:B.X1,y2:bym(C),stroke:'var(--pred)','stroke-width':2,'stroke-dasharray':'6 4'}));

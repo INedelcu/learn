@@ -63,7 +63,7 @@
 <h1>Hemisphere sampling: uniform vs cosine-weighted</h1>
 <p class="sub">08_hemisphere_sampling.cpp — where the series meets the path tracer. The rendering equation is a hemisphere integral with a cosine factor; sampling directions <em>proportional to that cosine</em> cancels it and slashes the noise.</p>
 
-<p class="lead">A surface point gathers light from every direction in the hemisphere above it, weighted by $\cos\theta$ (Lambert’s law — light arriving at a grazing angle is spread thin). We estimate that integral by sampling directions $\omega$ from a density $p(\omega)$ and averaging $f_r L_i\cos\theta / p(\omega)$. The choice of $p$ is the importance-sampling lever from example 06, now in its most important guise: matching $p$ to the $\cos\theta$ in the integrand.</p>
+<p class="lead">A surface point gathers light from every direction in the hemisphere above it, weighted by $\cos\theta$ (Lambert’s law — light arriving at a grazing angle is spread thin). We estimate that integral by sampling directions $\omega$ from a density $p(\omega)$ and averaging $f_r L_i\cos\theta / p(\omega)$. The choice of $p$ is the importance-sampling lever from <a href="06_importance_sampling.html">example 06</a>, now in its most important guise: matching $p$ to the $\cos\theta$ in the integrand.</p>
 
 <div class="callout key">
 <strong>One-sentence summary.</strong> Sampling the hemisphere <em>cosine-weighted</em> ($p=\cos\theta/\pi$) instead of uniformly ($p=1/2\pi$) makes the $\cos\theta$ factor cancel in the estimator $f_r L_i\cos\theta/p$ — for the pure cosine integral that cancellation is total (every sample returns the exact answer, zero variance), and for diffuse bounces it reduces the Lambertian weight to just the albedo.</p>
@@ -149,7 +149,7 @@ $$r=\sqrt{u_1},\quad \phi=2\pi u_2,\quad (x,y)=(r\cos\phi,\ r\sin\phi),\quad z=\
 
 <h2>4. Why cosine-weighting wins: the cosine cancels</h2>
 
-<p>This is the zero-variance ideal of example 06, realized. When the integrand contains a $\cos\theta$ and you sample with $p\propto\cos\theta$, that factor divides out of $f/p$. The file shows it on two integrals with known answers:</p>
+<p>This is the zero-variance ideal of <a href="06_importance_sampling.html">example 06</a>, realized. When the integrand contains a $\cos\theta$ and you sample with $p\propto\cos\theta$, that factor divides out of $f/p$. The file shows it on two integrals with known answers:</p>
 
 <table>
 <thead><tr><th>integral</th><th>exact</th><th>uniform estimator $f/p$</th><th>cosine estimator $f/p$</th></tr></thead>
@@ -235,7 +235,7 @@ $\dfrac{f_r\,L_i\,\cos\theta}{p}=\dfrac{(\rho/\pi)\,L_i\,\cos\theta}{\cos\theta/
 <h2>8. The code</h2>
 <p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/08_hemisphere_sampling.cpp" target="_blank" rel="noopener"><code>08_hemisphere_sampling.cpp</code></a>.</p>
 
-<p>Each iteration draws one sample with each strategy and feeds the per-sample estimator value into an online mean/variance accumulator (Welford, example 01):</p>
+<p>Each iteration draws one sample with each strategy and feeds the per-sample estimator value into an online mean/variance accumulator (Welford, <a href="01_random_and_estimators.html">example 01</a>):</p>
 
 <pre><code>// uniform over solid angle:  p = 1/(2π),  z = cosθ uniform in [0,1]
 double z = u1;  double pdf = 1.0/(2.0*PI);
@@ -261,7 +261,7 @@ printf("variance reduction (2): %.1fx\n", uni2.var()/cos2.var());  // ~3.9x</cod
 <li><strong>It is the diffuse bounce.</strong> Cosine-weighted sampling reduces the Lambertian weight to plain albedo — the principle behind <code>SampleDiffuseLambert</code>.</li>
 </ul>
 
-<p class="small">References — hemisphere sampling and Malley’s method: Pharr, Jakob &amp; Humphreys, <em>Physically Based Rendering</em>, §13.6 (“2D Sampling with Multidimensional Transformations”); cosine-weighted diffuse sampling in the renderer: <code>BRDF.hlsl</code> (<a href="https://github.com/INedelcu/PathTracingDemo/blob/main/Assets/Shaders/BRDF.hlsl#L148" target="_blank" rel="noopener">SampleDiffuseLambert</a>). Importance sampling background: example 06.</p>
+<p class="small">References — hemisphere sampling and Malley’s method: Pharr, Jakob &amp; Humphreys, <em>Physically Based Rendering</em>, §13.6 (“2D Sampling with Multidimensional Transformations”); cosine-weighted diffuse sampling in the renderer: <code>BRDF.hlsl</code> (<a href="https://github.com/INedelcu/PathTracingDemo/blob/main/Assets/Shaders/BRDF.hlsl#L148" target="_blank" rel="noopener">SampleDiffuseLambert</a>). Importance sampling background: <a href="06_importance_sampling.html">example 06</a>.</p>
 
 </div>
 

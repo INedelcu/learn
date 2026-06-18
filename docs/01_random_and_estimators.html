@@ -104,7 +104,7 @@ $$\operatorname{Var}[X]=\int_0^1\Big(x-\tfrac12\Big)^2 dx=\frac1{12}\approx 0.08
   <line x1="80" y1="180" x2="80" y2="40" stroke="#9aa0ad" stroke-width="1.5"/>
   <!-- density rectangle: x in [0,1] maps to [120,520], height 1 maps to y=70 -->
   <rect x="120" y="70" width="400" height="110" fill="#dbe7f3" stroke="var(--est)" stroke-width="1.6"/>
-  <text x="320" y="60" text-anchor="middle" font-size="13.5" fill="var(--est)">density = 1 on [0,1)</text>
+  <text x="205" y="60" text-anchor="middle" font-size="13.5" fill="var(--est)">density = 1 on [0,1)</text>
   <!-- mean line -->
   <line x1="320" y1="40" x2="320" y2="180" stroke="var(--true)" stroke-width="2" stroke-dasharray="5 4"/>
   <text x="326" y="52" font-size="13.5" fill="var(--true)" font-weight="600">E[X] = 1/2</text>
@@ -161,7 +161,7 @@ $$\bar x_n=\frac1n\sum_{i=1}^{n}x_i .$$
 </tbody>
 </table>
 
-<p>Watch it happen live. The x-axis is logarithmic, so each step right is a tenfold increase in samples — and notice it takes roughly $10\times$ the samples to win each additional correct digit. That painfully slow $\propto1/\sqrt n$ rate is the headline of examples 02 and 04.</p>
+<p>Watch it happen live. The x-axis is logarithmic, so each step right is a tenfold increase in samples — and notice it takes roughly $10\times$ the samples to win each additional correct digit. That painfully slow $\propto1/\sqrt n$ rate is the headline of examples <a href="02_estimating_pi.html">02</a> and <a href="04_variance_and_clt.html">04</a>.</p>
 
 <figure>
 <svg id="conv" viewBox="0 0 600 340" role="img" aria-label="Running mean and variance estimates converging toward their true values as the sample count grows."></svg>
@@ -418,7 +418,7 @@ for (long long i = 0; i &lt; 10000000; ++i) {
         svg.appendChild(svgEl('line',{x1:xv,y1:Y0,x2:xv,y2:Y1,stroke:'#eef0f4','stroke-width':1}));
         svg.appendChild(txt(xv,Y1+16,'10^'+e,{'font-size':10.5,fill:'#8a8f9c','text-anchor':'middle'}));
       }
-      svg.appendChild(txt((X0+X1)/2,Y1+32,'number of samples n  (log scale)',{'font-size':12.5,fill:'#5b6472','text-anchor':'middle'}));
+      svg.appendChild(txt((X0+X1)/2,Y1+38,'number of samples n  (log scale)',{'font-size':12.5,fill:'#5b6472','text-anchor':'middle'}));
       // true-value lines
       svg.appendChild(svgEl('line',{x1:X0,y1:ym(0.5),x2:X1,y2:ym(0.5),stroke:'var(--true)','stroke-width':1.3,'stroke-dasharray':'5 4'}));
       svg.appendChild(txt(X1-2,ym(0.5)-6,'mean → 0.5',{'font-size':11.5,fill:'var(--true)','text-anchor':'end'}));
