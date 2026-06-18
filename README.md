@@ -1,9 +1,11 @@
 # Monte Carlo & Probability for Path Tracing — a C++ tutorial series
 
+**📖 Interactive companion site: https://inedelcu.github.io/Learn/** — each example explained with typeset math, annotated code, and live in-browser figures.
+
 Forty-two small, self-contained C++ programs that build up the probability and
 statistics behind Monte Carlo integration, in the order you'd want to learn
-them, and connect each idea back to how the path tracer in `C:\Work` actually
-works. Inspired by the analysis in **pbrt** (*Physically Based Rendering*,
+them, and connect each idea back to how the [PathTracingDemo](https://github.com/INedelcu/PathTracingDemo)
+path tracer actually works. Inspired by the analysis in **pbrt** (*Physically Based Rendering*,
 Pharr, Jakob & Humphreys) and a CDF-theory demo from the HDRP investigations —
 see References below.
 
@@ -132,7 +134,7 @@ Windows, so `.\view_images.ps1` re-encodes every PPM to PNG (`-Open` also opens
 - `highdim_halton.png` (a high-dim pair collapsed onto diagonal stripes) vs
   `highdim_scrambled.png` (stripes broken by digit scrambling) (42).
 
-## How each idea shows up in the path tracer (`C:\Work`)
+## How each idea shows up in the [path tracer](https://github.com/INedelcu/PathTracingDemo)
 
 These aren't abstract — every concept maps onto a specific piece of the renderer:
 
@@ -235,6 +237,6 @@ you can trust that a mismatch means a real difference, not RNG luck.
 - D. Mitchell, A. Netravali — *Reconstruction Filters in Computer Graphics*
   (SIGGRAPH 1988). The Mitchell filter in example 39.
 - The `Distribution2D` marginal/conditional pattern (examples 14–15) follows
-  pbrt and a CDF-theory demo in `C:\Work\HDRP PT Investigations\CDF-Theory`.
+  pbrt's marginal/conditional CDF sampling.
 - See the path tracer's own `README.md` "References" for the BRDF/sampling
   publications (Heitz 2018 VNDF, Duff et al. 2017, Wächter & Binder 2019, etc.).
