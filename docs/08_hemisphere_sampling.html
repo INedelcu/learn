@@ -305,26 +305,65 @@ printf("variance reduction (2): %.1fx\n", uni2.var()/cos2.var());  // ~3.9x</cod
     }
     function regen(){ pts=[]; for(let i=0;i<N;i++) pts.push(genDir()); }
     new p5(function(p){
-      p.setup=function(){ const c=p.createCanvas(600,382,p.WEBGL); c.parent('disk3d'); regen(); };
+    p.setup=function(){ const c=p.createCanvas(600,382,p.WEBGL); c.parent('disk3d'); regen(); 
+    // 3/4 view that matches the old rotateX(-0.5) rotateY(-0.3),
+    // but now orbiting around (0, -R, 0) — 1 data-unit up the Y axis.
+    const rx=0.5, ry=0.3;
+    const d=(p.height/2)/Math.tan(Math.PI/6); // default focal distance ≈ 331
+    p.camera(0, 0, 900,        
+        0, -0.3*R, 0,                   // look-at: 1 unit up in data space
+        0,  1, 0                        // up vector
+       );
+    };
       p.draw=function(){
         p.background(247,248,251);                 // light theme, matches the figure card
         p.orbitControl();
-        p.rotateX(-1.0);                            // default 3/4 view looking down at the dome
+        p.rotateX(-0.5);
+        p.rotateY(-0.3);
         p.ambientLight(255);                        // full ambient → materials show flat, crisp colors
         // ground disk (data xy-plane = p5 x-z plane at y=0)
-        p.push(); p.noStroke(); p.fill(235,239,245); p.rotateX(p.HALF_PI); p.circle(0,0,2*R); p.pop();
+        p.push(); p.noStroke(); p.fill(235,239,245); p.rotateX(p.HALF_PI); p.ellipse(0, 0, 2*R, 2*R, 128); p.pop();
         // rim + latitude guide rings imply the dome
         p.noFill(); p.stroke(205,212,222); p.strokeWeight(1);
-        p.push(); p.rotateX(p.HALF_PI); p.circle(0,0,2*R); p.pop();
+        p.push(); p.rotateX(p.HALF_PI); p.ellipse(0, 0, 2*R, 2*R, 50); p.pop();
         [0.33,0.66].forEach(function(zz){ const rr=Math.sqrt(1-zz*zz)*R;
-          p.push(); p.translate(0,-zz*R,0); p.rotateX(p.HALF_PI); p.circle(0,0,2*rr); p.pop(); });
+          p.push(); p.translate(0,-zz*R,0); p.rotateX(p.HALF_PI); p.ellipse(0, 0, 2*rr, 2*rr, 50); p.pop(); });
+        // X axis (red)
+        p.stroke(210,50,50); p.strokeWeight(2.5); p.line(0,0,0, R*1.32,0,0); p.noStroke();
+        p.push(); p.translate(R*1.32,0,0); p.rotateZ(-p.HALF_PI); p.ambientMaterial(210,50,50); p.cone(6,16); p.pop();
         // surface normal (blue), arrow pointing up (-y)
         p.stroke(43,108,176); p.strokeWeight(2.5); p.line(0,0,0, 0,-R*1.32,0); p.noStroke();
-        p.push(); p.translate(0,-R*1.32,0); p.rotateX(p.PI); p.ambientMaterial(43,108,176); p.cone(6,16); p.pop();
+        p.push(); p.translate(0,-R*1.32,0); p.rotateX(p.PI); p.ambientMaterial(43,108,176); p.cone(6,16); p.pop();        
+        // Z axis (green)
+        p.stroke(50,160,80); p.strokeWeight(2.5); p.line(0,0,0, 0,0,R*1.32); p.noStroke();
+        p.push(); p.translate(0,0,R*1.32); p.rotateX(p.HALF_PI); p.ambientMaterial(50,160,80); p.cone(6,16); p.pop();
         // the sampled directions
-        const c=COL[mode];
+        const c=COL[mode];        
+        p.push();
+        p.fill(c[0],c[1],c[2], 200);
         for(let i=0;i<pts.length;i++){ const q=pts[i];
-          p.push(); p.translate(q[0],q[1],q[2]); p.ambientMaterial(c[0],c[1],c[2]); p.sphere(2.6,6,4); p.pop(); }
+            p.push();
+            p.translate(q[0],q[1],q[2]);
+            // Billboard: neutralise the rotation in the MV matrix so the
+            // circle's plane stays perpendicular to the view direction.
+            const mv = p._renderer.uMVMatrix.mat4;
+            mv[0]=1; mv[1]=0; mv[2]=0;   // reset column 0
+            mv[4]=0; mv[5]=1; mv[6]=0;   // reset column 1
+            mv[8]=0; mv[9]=0; mv[10]=1;  // reset column 2
+            // mv[12..14] = the translated eye-space position — keep it
+            p.ellipse(0, 0, 3, 3, 12);
+            p.pop(); }
+        p.pop();
+        // their projection on the ground plane, to show the disk pattern
+        p.push();
+        p.fill(128, 128, 128, 64);
+        for(let i=0;i<pts.length;i++){ const q=pts[i];
+            p.push();
+            p.translate(q[0],-1,q[2]);
+            p.rotateX(-p.HALF_PI);
+            p.ellipse(0, 0, 3, 3, 12);
+            p.pop(); }
+        p.pop();
       };
     });
     function setMode(m){ mode=m; regen();

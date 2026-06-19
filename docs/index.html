@@ -85,6 +85,51 @@ The whole series is, ultimately, about one formula — estimating an integral as
       <span class="tags"><span class="tag">the f/p estimator</span><span class="tag">unbiasedness</span><span class="tag">rendering equation</span></span>
     </span>
   </a>
+  
+  <a class="entry" href="04_variance_and_clt.html">
+    <span class="num">04</span>
+    <span class="body">
+      <h3>Variance, the CLT &amp; error bars</h3>
+      <p class="d">The estimate is itself a random variable. Proves variance falls as $1/N$, uses the Central Limit Theorem to give it a Normal shape, and builds the standard error and 95% confidence intervals — then verifies the coverage empirically.</p>
+      <span class="tags"><span class="tag">estimator variance</span><span class="tag">central limit theorem</span><span class="tag">confidence intervals</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="05_sampling_distributions.html">
+    <span class="num">05</span>
+    <span class="body">
+      <h3>Sampling a chosen distribution</h3>
+      <p class="d">Two recipes for turning a Uniform[0,1) draw into a sample from any density $p(x)$: inversion (invert the CDF — exact and waste-free, e.g. $\sqrt U$ and the exponential's $-\ln(1-U)/\lambda$) and rejection (throw darts under the curve — universal but accepts only $1/M$).</p>
+      <span class="tags"><span class="tag">inverse-CDF sampling</span><span class="tag">rejection sampling</span><span class="tag">free-flight distance</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="06_importance_sampling.html">
+    <span class="num">06</span>
+    <span class="body">
+      <h3>Importance sampling</h3>
+      <p class="d">The biggest lever on Monte Carlo noise: choose a sampling density $p$ shaped like the integrand so the ratio $f/p$ stays nearly constant. Shows the zero-variance ideal $p\propto f$, a ~9× reduction from one crude linear density, and why the renderer samples the GGX/cosine lobes.</p>
+      <span class="tags"><span class="tag">variance reduction</span><span class="tag">choosing p</span><span class="tag">BRDF lobe sampling</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="07_stratified_sampling.html">
+    <span class="num">07</span>
+    <span class="body">
+      <h3>Stratified sampling</h3>
+      <p class="d">Stop samples from clumping: split the domain into $N$ cells and jitter one sample into each, $x_i=(i+U_i)/N$. The variance becomes a sum of tiny within-cell pieces, so for smooth integrands it falls like $1/N^3$ (error $\propto1/N^{1.5}$) — a different convergence rate, not just a smaller constant. It's the renderer's pixel jitter.</p>
+      <span class="tags"><span class="tag">stratification</span><span class="tag">faster than 1/√N</span><span class="tag">pixel jitter</span></span>
+    </span>
+  </a>
+  
+  <a class="entry" href="08_hemisphere_sampling.html">
+    <span class="num">08</span>
+    <span class="body">
+      <h3>Hemisphere sampling: uniform vs cosine</h3>
+      <p class="d">Where the series meets the renderer. The reflectance integral carries a $\cos\theta$ factor; sampling directions cosine-weighted ($p=\cos\theta/\pi$, via Malley's disk-lift) cancels it — zero variance for $\int\cos\theta$, and the reason a diffuse bounce weight reduces to plain albedo.</p>
+      <span class="tags"><span class="tag">cosine-weighted</span><span class="tag">Malley's method</span><span class="tag">diffuse bounce</span></span>
+    </span>
+  </a>
 
 </div>
 
