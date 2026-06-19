@@ -9,6 +9,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
         onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+<script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
 
 <style>
   :root{
@@ -54,6 +55,11 @@
   button.sel{background:var(--ink); color:#fff; border-color:var(--ink)}
   button:active{transform:translateY(1px)}
   .big{font-size:20px; font-variant-numeric:tabular-nums; font-weight:600}
+  #disk3d{position:relative; display:flex; justify-content:center; min-height:382px}
+  #disk3d canvas{display:block; border:1px solid var(--line); border-radius:8px; touch-action:none}
+  .fig3d-key{position:absolute; top:10px; left:10px; font-size:12.5px; line-height:1.55; color:var(--muted);
+    background:rgba(255,255,255,.72); padding:7px 10px; border:1px solid var(--line); border-radius:8px; pointer-events:none}
+  .fig3d-key b{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -132,10 +138,15 @@ $$r=\sqrt{u_1},\quad \phi=2\pi u_2,\quad (x,y)=(r\cos\phi,\ r\sin\phi),\quad z=\
 
 <h2>3. See the difference</h2>
 
-<p>Look straight down the normal so the hemisphere flattens to the unit disk (each direction plotted at its projected $(x,y)$). The contrast is stark, and it <em>is</em> Malley’s method made visible: cosine-weighting fills the disk <strong>uniformly</strong>, while uniform-solid-angle piles samples up at the rim — the grazing directions that the $\cos\theta$ factor will mostly discard.</p>
+<p>Here are the sampled directions on the hemisphere itself, in 3-D — <strong>drag to orbit, scroll to zoom</strong>. The contrast is immediate: <span style="color:var(--uni)">uniform-solid-angle</span> scatters evenly over the whole dome, while <span style="color:var(--cos)">cosine-weighting</span> bunches the directions toward the normal at the top, starving the near-horizon directions the $\cos\theta$ factor discards anyway. Orbit to look straight <em>down</em> the normal and the dome flattens to the unit disk — there cosine fills it evenly (Malley’s method) while uniform crowds the rim.</p>
 
 <figure>
-<svg id="disk" viewBox="0 0 600 320" role="img" aria-label="Top-down view of the hemisphere as a disk, with samples scattered by the chosen strategy."></svg>
+<div id="disk3d" role="img" aria-label="Interactive 3D hemisphere of sampled directions; drag to orbit.">
+  <div class="fig3d-key">
+    <b>drag</b> to rotate · <b>scroll</b> to zoom<br>
+    <span style="color:var(--normal)">▲</span> normal &nbsp; <span style="color:var(--uni)">●</span> uniform &nbsp; <span style="color:var(--cos)">●</span> cosine
+  </div>
+</div>
 <div class="ctl">
   strategy:
   <button id="dk-uni">uniform (solid angle)</button>
@@ -143,7 +154,7 @@ $$r=\sqrt{u_1},\quad \phi=2\pi u_2,\quad (x,y)=(r\cos\phi,\ r\sin\phi),\quad z=\
   <span style="margin-left:auto"></span>
   <button id="dk-roll">Re-roll</button>
 </div>
-<figcaption>Figure 2. The hemisphere from above (center = normal/pole, rim = horizon/grazing). <span style="color:var(--cos)">Cosine-weighted</span> samples fill the disk evenly — a uniform point on the disk <em>is</em> a cosine-weighted direction (Malley). <span style="color:var(--uni)">Uniform-solid-angle</span> samples crowd the rim, spending effort on grazing directions the cosine factor down-weights.</figcaption>
+<figcaption>Figure 2. The upper hemisphere of directions, in 3-D (drag to orbit). Each dot is a sampled direction on the unit hemisphere; the blue arrow is the surface normal. <span style="color:var(--cos)">Cosine-weighted</span> samples cluster toward the normal (the top); <span style="color:var(--uni)">uniform-solid-angle</span> samples spread evenly over the whole dome — wasting effort on grazing directions the cosine factor down-weights. Orbit to the top-down view to recover the disk picture (cosine fills it evenly, uniform crowds the rim).</figcaption>
 </figure>
 
 
@@ -278,37 +289,53 @@ printf("variance reduction (2): %.1fx\n", uni2.var()/cos2.var());  // ~3.9x</cod
   function txt(x,y,s,attrs){const e=svgEl('text',Object.assign({x,y},attrs||{}));e.textContent=s;return e;}
 
   // ===================================================================
-  // Figure 2 — top-down disk scatter
+  // Figure 2 — 3D hemisphere of sampled directions (p5.js WebGL)
   // ===================================================================
   (function(){
-    const svg=document.getElementById('disk');
-    const cx=300, cy=160, R=132;
-    let mode='cos';
-    function sample(){ // returns projected (px,py) in disk coords (radius<=1)
-      const u1=Math.random(), u2=Math.random(), phi=2*PI*u2;
-      let r;
-      if(mode==='uni'){ const z=u1; r=Math.sqrt(1-z*z); }   // uniform solid angle
-      else { r=Math.sqrt(u1); }                              // cosine (Malley: r=sqrt(u1))
-      return [r*Math.cos(phi), r*Math.sin(phi)];
+    const R=150, N=650;
+    const COL={uni:[221,107,32], cos:[47,158,100]};   // --uni (orange), --cos (green)
+    let mode='cos', pts=[];
+    // one unit direction (data z = cosθ = "up"), returned in p5 coords (z-up -> -y)
+    function genDir(){
+      const u1=Math.random(), u2=Math.random(), ph=2*Math.PI*u2;
+      let z,r;
+      if(mode==='uni'){ z=u1; r=Math.sqrt(Math.max(0,1-z*z)); }      // uniform solid angle
+      else { r=Math.sqrt(u1); z=Math.sqrt(Math.max(0,1-u1)); }        // cosine-weighted (Malley)
+      return [r*Math.cos(ph)*R, -z*R, r*Math.sin(ph)*R];
     }
-    function draw(){
-      svg.textContent='';
-      // disk outline + guide rings
-      svg.appendChild(svgEl('circle',{cx,cy,r:R,fill:'#f4f7fb',stroke:'var(--normal)','stroke-width':1.4}));
-      [0.33,0.66].forEach(t=>svg.appendChild(svgEl('circle',{cx,cy,r:R*t,fill:'none',stroke:'#e1e6ee','stroke-width':1})));
-      svg.appendChild(svgEl('circle',{cx,cy,r:2.6,fill:'var(--normal)'}));
-      svg.appendChild(txt(cx,cy-R-8,'horizon (grazing, θ≈90°)',{'font-size':11.5,fill:'#8a8f9c','text-anchor':'middle'}));
-      svg.appendChild(txt(cx+8,cy+14,'normal (θ=0)',{'font-size':11,fill:'var(--normal)'}));
-      const col=mode==='uni'?'var(--uni)':'var(--cos)';
-      for(let i=0;i<700;i++){const p=sample(); svg.appendChild(svgEl('circle',{cx:(cx+p[0]*R).toFixed(1),cy:(cy+p[1]*R).toFixed(1),r:1.7,fill:col,'fill-opacity':0.5}));}
-      // side label
-      svg.appendChild(txt(cx+R+18,cy-4,mode==='uni'?'uniform:':'cosine:',{'font-size':12.5,fill:col,'font-weight':600,'text-anchor':'start'}));
-      svg.appendChild(txt(cx+R+18,cy+14,mode==='uni'?'rim-crowded':'fills evenly',{'font-size':12,fill:'#5b6472','text-anchor':'start'}));
-    }
-    function setMode(m){mode=m;document.getElementById('dk-uni').classList.toggle('sel',m==='uni');document.getElementById('dk-cos').classList.toggle('sel',m==='cos');draw();}
-    document.getElementById('dk-uni').onclick=()=>setMode('uni');
-    document.getElementById('dk-cos').onclick=()=>setMode('cos');
-    document.getElementById('dk-roll').onclick=draw;
+    function regen(){ pts=[]; for(let i=0;i<N;i++) pts.push(genDir()); }
+    new p5(function(p){
+      p.setup=function(){ const c=p.createCanvas(600,382,p.WEBGL); c.parent('disk3d'); regen(); };
+      p.draw=function(){
+        p.background(247,248,251);                 // light theme, matches the figure card
+        p.orbitControl();
+        p.rotateX(-1.0);                            // default 3/4 view looking down at the dome
+        p.ambientLight(255);                        // full ambient → materials show flat, crisp colors
+        // ground disk (data xy-plane = p5 x-z plane at y=0)
+        p.push(); p.noStroke(); p.fill(235,239,245); p.rotateX(p.HALF_PI); p.circle(0,0,2*R); p.pop();
+        // rim + latitude guide rings imply the dome
+        p.noFill(); p.stroke(205,212,222); p.strokeWeight(1);
+        p.push(); p.rotateX(p.HALF_PI); p.circle(0,0,2*R); p.pop();
+        [0.33,0.66].forEach(function(zz){ const rr=Math.sqrt(1-zz*zz)*R;
+          p.push(); p.translate(0,-zz*R,0); p.rotateX(p.HALF_PI); p.circle(0,0,2*rr); p.pop(); });
+        // surface normal (blue), arrow pointing up (-y)
+        p.stroke(43,108,176); p.strokeWeight(2.5); p.line(0,0,0, 0,-R*1.32,0); p.noStroke();
+        p.push(); p.translate(0,-R*1.32,0); p.rotateX(p.PI); p.ambientMaterial(43,108,176); p.cone(6,16); p.pop();
+        // the sampled directions
+        const c=COL[mode];
+        for(let i=0;i<pts.length;i++){ const q=pts[i];
+          p.push(); p.translate(q[0],q[1],q[2]); p.ambientMaterial(c[0],c[1],c[2]); p.sphere(2.6,6,4); p.pop(); }
+      };
+    });
+    function setMode(m){ mode=m; regen();
+      document.getElementById('dk-uni').classList.toggle('sel',m==='uni');
+      document.getElementById('dk-cos').classList.toggle('sel',m==='cos'); }
+    document.getElementById('dk-uni').onclick=function(){ setMode('uni'); };
+    document.getElementById('dk-cos').onclick=function(){ setMode('cos'); };
+    document.getElementById('dk-roll').onclick=function(){ regen(); };
+    // verification hook: mean cosθ over many draws (uniform→0.5, cosine→2/3)
+    window.__fig2={ meanCos:function(m,K){ const old=mode; mode=m; let s=0; for(let i=0;i<K;i++) s+=-genDir()[1]/R; mode=old; return s/K; },
+                    get mode(){return mode;}, get n(){return pts.length;} };
     setMode('cos');
   })();
 

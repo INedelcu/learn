@@ -89,7 +89,7 @@
 <figure>
 <svg id="scatter" viewBox="0 0 600 360" role="img" aria-label="Two unit squares of points: random (clumpy) and Halton (evenly spread), each with a test box."></svg>
 <div class="ctl">
-  N = <b id="sc-nval">256</b> points
+  N = <b id="sc-nval" style="display:inline-block; min-width:2.8em; text-align:right; font-variant-numeric:tabular-nums">256</b> points
   <input id="sc-n" type="range" min="4" max="10" value="8" step="1">
   <button id="sc-roll">Re-roll random</button>
 </div>
@@ -117,7 +117,7 @@ $$\text{base 2:}\quad 0,\ \tfrac12,\ \tfrac14,\ \tfrac34,\ \tfrac18,\ \tfrac58,\
   <button id="vd-3">3</button>
   <button id="vd-5">5</button>
   <span style="margin-left:auto"></span>
-  first <b id="vd-nval">8</b> points
+  first <b id="vd-nval" style="display:inline-block; min-width:1.4em; text-align:right; font-variant-numeric:tabular-nums">8</b> points
   <input id="vd-n" type="range" min="1" max="40" value="8" step="1">
 </div>
 <figcaption>Figure 2. The van der Corput sequence (digit-mirroring radical inverse). Each new point — the <span style="color:var(--vdc)">highlighted</span> one — lands in the largest remaining gap, so the prefix of any length is well spread. Higher bases fill more slowly but the same way.</figcaption>
