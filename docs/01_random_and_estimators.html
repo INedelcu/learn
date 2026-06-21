@@ -221,7 +221,18 @@ $$\begin{aligned}
    =\bar x_{n-1}+\frac{x_n-\bar x_{n-1}}{n}.
 \end{aligned}$$
 
-<p>So defining the deviation-from-the-old-mean $\delta=x_n-\bar x_{n-1}$, the mean inches over by $\delta/n$. The second quantity is $M_2=\sum_{i=1}^n (x_i-\bar x_n)^2$, the sum of squared deviations, and it has its own exact recurrence:</p>
+<p>So defining the deviation-from-the-old-mean $\delta=x_n-\bar x_{n-1}$, the mean inches over by $\delta/n$. The second quantity is $M_2=\sum_{i=1}^n (x_i-\bar x_n)^2$, the sum of squared deviations, and it has its own exact recurrence — less obvious than the mean's, because moving the mean changes <em>every</em> term in the sum, not just the new one. Here is where it comes from: write each $M_2$ in the §4 form $\sum_i x_i^2-n\bar x^2$ so the shared $\sum_{i&lt;n}x_i^2$ cancels, then substitute the mean recurrence $(n-1)\bar x_{n-1}=n\bar x_n-x_n$ and collect, using $n(\bar x_n-\bar x_{n-1})=\delta$:</p>
+
+$$\begin{aligned}
+M_{2,n}-M_{2,n-1}
+  &=x_n^2-n\,\bar x_n^2+(n-1)\,\bar x_{n-1}^2
+   =x_n^2-n\,\bar x_n^2+\bar x_{n-1}\big(n\,\bar x_n-x_n\big)\\
+  &=x_n\big(x_n-\bar x_{n-1}\big)-n\,\bar x_n\big(\bar x_n-\bar x_{n-1}\big)
+   =x_n\big(x_n-\bar x_{n-1}\big)-\bar x_n\big(x_n-\bar x_{n-1}\big)\\
+  &=(x_n-\bar x_{n-1})(x_n-\bar x_n).
+\end{aligned}$$
+
+<p>So the increment factors into a single product, giving the update</p>
 
 $$M_{2,n}=M_{2,n-1}+(x_n-\bar x_{n-1})(x_n-\bar x_n)=M_{2,n-1}+\delta\,(x_n-\bar x_n).$$
 

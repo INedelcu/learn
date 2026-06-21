@@ -152,7 +152,7 @@ $$S=e\,(1+\rho+\rho^2+\rho^3+\cdots)=\frac{e}{1-\rho}.$$
   continuation prob q = <b id="wk-qval">0.80</b>
   <input id="wk-q" type="range" min="50" max="95" value="80" step="1">
   <button id="wk-roll">Re-roll path</button>
-  <span class="small">this path: bounces = <b id="wk-steps" style="color:var(--rr)">—</b> · estimate s = <b id="wk-s">—</b></span>
+  <span class="small">this path: bounces = <b id="wk-steps" style="color:var(--rr)">—</b> · estimate s=<b id="wk-s">—</b></span>
 </div>
 <figcaption>Figure 3. One path. Green links are surviving coin flips; the red cap is termination. Each vertex adds $e\cdot\text{weight}$; on survival the weight is multiplied by $\rho/q$. At $q=\rho=0.8$ the weight stays $1$, so the estimate is just $e\times$(number of bounces). Re-roll: the depth varies, but the average is right.</figcaption>
 </figure>
@@ -195,11 +195,22 @@ $$\mathbb E[\text{steps}]=1+q+q^2+\cdots=\frac{1}{1-q},$$
 
 <h2 id="6">6. Choosing $q$: the variance–cost tradeoff<a class="hlink" href="#6" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
 
-<p>If roulette is unbiased for any $q$, why not pick a tiny $q$ and stop almost immediately? Because the compensating $1/q$ blows up the surviving weight, and the variance with it. The per-path variance for this model is</p>
+<p>If roulette is unbiased for any $q$, why not pick a tiny $q$ and stop almost immediately? Because the compensating $1/q$ blows up the surviving weight, and the variance with it. To see exactly how, use the fact that a roulette path is <strong>self-similar</strong>: its estimate $s$ is the first vertex's $e$, plus — only if it survives the coin (probability $q$) — the factor $\rho/q$ times an independent fresh path $s'$ drawn from the very same process:</p>
 
-$$\operatorname{Var}=\frac{e^2+2e\rho S}{\,1-\rho^2/q\,}-S^2 ,$$
+$$s=e+B\,\frac{\rho}{q}\,s',\qquad B\sim\mathrm{Bernoulli}(q),\quad s'\stackrel{d}{=}s\ \text{independent of }B.$$
 
-<p>which <strong>diverges as $q\to\rho^2$ from above</strong> — set $q\le\rho^2$ and the variance is infinite (fireflies). Push $q\to1$ and the variance vanishes, but the path never terminates ($\text{cost}=1/(1-q)\to\infty$). The standard choice $q=\rho$ (set from the throughput) keeps the weight exactly $1$ — bounded, no spikes — which is the practical sweet spot.</p>
+<p>Taking the expectation recovers unbiasedness, $\mathbb E[s]=e+q\cdot\tfrac{\rho}{q}\,\mathbb E[s]=e+\rho\,\mathbb E[s]=S$. Squaring and using $\mathbb E[B]=\mathbb E[B^2]=q$ gives a one-line recurrence for the second moment $V=\mathbb E[s^2]$:</p>
+
+$$V=e^2+2e\,\tfrac{\rho}{q}\,q\,S+\Big(\tfrac{\rho}{q}\Big)^{2}q\,V
+   =e^2+2e\rho S+\frac{\rho^2}{q}\,V
+   \;\Longrightarrow\;
+   V=\frac{e^2+2e\rho S}{\,1-\rho^2/q\,}.$$
+
+<p>Subtracting $S^2$ gives the per-path variance:</p>
+
+$$\operatorname{Var}=\mathbb E[s^2]-S^2=\frac{e^2+2e\rho S}{\,1-\rho^2/q\,}-S^2 .$$
+
+<p>The recurrence makes the blow-up obvious: the path's second moment feeds back on itself with gain $\rho^2/q$, so it <strong>diverges as $q\to\rho^2$ from above</strong> — set $q\le\rho^2$ and the variance is infinite (fireflies). Push $q\to1$ and the variance vanishes, but the path never terminates ($\text{cost}=1/(1-q)\to\infty$). The standard choice $q=\rho$ (set from the throughput) keeps the weight exactly $1$ — bounded, no spikes — and lands at a finite $\dfrac{e^2+2e\rho S}{1-\rho}-S^2=\dfrac{1+8}{0.2}-25=20$ here; it is the practical sweet spot.</p>
 
 <figure>
 <svg id="trade" viewBox="0 0 600 300" role="img" aria-label="Variance and average bounces as functions of the continuation probability, showing the divergence at rho-squared and the cost growth toward 1."></svg>
@@ -231,6 +242,26 @@ for (long long p = 0; p &lt; kPaths; ++p) {
 // avg bounces/path ≈ 1/(1-q) = 5</code></pre>
 
 <p>Because $q=\rho$, the <code>weight /= q; weight *= rho;</code> pair leaves the weight at $1$, so the loop reduces to “count $e$ per surviving bounce.” The mean lands on $5$ (unbiased) where fixed truncation always fell short.</p>
+
+<p class="small">Output (5M paths, seed 10):</p>
+
+<pre><code>True sum S = e/(1-rho) = 5.000000
+
+Fixed truncation after K bounces (biased):
+   K        estimate        missing
+   1        1.800000        3.200000
+   2        2.440000        2.560000
+   4        3.361600        1.638400
+   8        4.328911        0.671089
+  16        4.887410        0.112590
+  32        4.996831        0.003169
+
+Russian roulette, q = 0.80:
+  estimate ......... 5.000566   (true S = 5, UNBIASED)
+  std error ........ 0.002002   -> per-path variance ~ 20.0
+  avg bounces/path . 5.0006     (theory 1/(1-q) = 5)</code></pre>
+
+<p>Truncation climbs toward $5$ but stays short by exactly the discarded tail $S\rho^{K+1}$ — even at $K=8$ it is still $0.67$ too dark. Roulette instead sits on $5$; over $5$M paths the std error of $0.0020$ pins the per-path variance at $0.0020^2\times5{,}000{,}000\approx20$ — the value the recurrence predicted — and each path terminates in $5$ bounces on average.</p>
 
 
 <h2 id="9">9. Takeaways<a class="hlink" href="#9" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
