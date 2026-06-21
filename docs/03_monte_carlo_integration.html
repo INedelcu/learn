@@ -166,6 +166,12 @@ $$\mathbb E\!\left[\frac{f(X)}{p(X)}\right]=\int_a^b\frac{f(x)}{p(x)}\,p(x)\,dx=
 <li>In the extreme, $p\propto f$ makes $f/p$ exactly constant — <em>zero variance</em>, every sample lands on the answer.</li>
 </ul>
 
+<p>That extreme is worth seeing explicitly. The only density proportional to a nonnegative $f$ and integrating to $1$ is $p(x)=f(x)/I$; then the ratio is the same at <em>every</em> sample,</p>
+
+$$\frac{f(X)}{p(X)}=\frac{f(X)}{f(X)/I}=I,$$
+
+<p>a constant, so its variance is exactly $0$ — one sample already returns $I$. You can't actually build this $p$ (it needs $I$, the unknown you're after), but it is the target importance sampling chases: the closer $p$ is to $f/I$, the flatter $f/p$ and the lower the noise.</p>
+
 <p>Below, all three densities estimate the same integral $\int_0^1 e^x\,dx=e-1$. Switch between them: the estimate lands on $1.718$ every time (unbiased, as promised), but the <strong>spread of the $f/p$ values</strong> — and therefore the noise — collapses as $p$ better matches $f$.</p>
 
 <figure>
@@ -220,6 +226,12 @@ $$\int_0^1 e^x\,dx=e-1\approx1.7182818,\qquad\qquad\int_0^\pi \sin x\,dx=2 .$$
 <h2 id="6">6. Convergence: the same 1/√N as everything else<a class="hlink" href="#6" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
 
 <p>Because the estimator is a sample mean, its error obeys the law from <a href="02_estimating_pi.html">example 02</a>: absolute error $\propto1/\sqrt N$, a straight line of slope $-\tfrac12$ on log–log axes. Both integrands follow it; only the constant out front differs (it is set by the variance of $f/p$, i.e. by how much each integrand wiggles).</p>
+
+<p>Concretely, the estimator is the sample mean of the i.i.d. values $Y_i=f(X_i)/p(X_i)$, so the variance-of-the-mean result from <a href="02_estimating_pi.html#4">example&nbsp;02</a> applies verbatim:</p>
+
+$$\operatorname{Var}[\hat I_N]=\frac1N\operatorname{Var}\!\left[\frac{f(X)}{p(X)}\right],\qquad \operatorname{SE}[\hat I_N]=\frac{\operatorname{std}(f/p)}{\sqrt N}.$$
+
+<p>The constant multiplying $1/\sqrt N$ is therefore exactly the standard deviation of the $f/p$ values — the very spread you watched collapse in <a href="#4">Figure&nbsp;2</a>. Matching $p$ to $f$ shrinks that standard deviation; nothing changes the $1/\sqrt N$ rate itself.</p>
 
 <figure>
 <svg id="conv" viewBox="0 0 600 350" role="img" aria-label="Log-log convergence of the absolute error for both integrals, against a one-over-root-N reference."></svg>
@@ -287,17 +299,22 @@ auto gSin = [](double x){ return std::sin(x); };   // exact: 2
 EstimateIntegral(fExp, 0.0, 1.0, n, rng);
 EstimateIntegral(gSin, 0.0, kPi, n, rng);</code></pre>
 
-<p>The decade tables it prints converge like this (digits depend on the seed):</p>
+<p>Running it prints both decade tables; the actual numbers:</p>
 
 <table>
-<thead><tr><th class="num">N</th><th class="num">∫eˣ estimate (→1.7182818)</th><th class="num">∫sin estimate (→2)</th></tr></thead>
+<thead><tr><th class="num">N</th><th class="num">∫eˣ estimate (→ 1.7182818)</th><th class="num">∫sin estimate (→ 2)</th></tr></thead>
 <tbody>
-<tr><td class="num">10</td><td class="num">1.62…</td><td class="num">2.13…</td></tr>
-<tr><td class="num">1,000</td><td class="num">1.709…</td><td class="num">1.98…</td></tr>
-<tr><td class="num">100,000</td><td class="num">1.7178…</td><td class="num">2.001…</td></tr>
-<tr><td class="num">10,000,000</td><td class="num">1.71829…</td><td class="num">2.0000…</td></tr>
+<tr><td class="num">10</td><td class="num">1.7953481</td><td class="num">2.4031904</td></tr>
+<tr><td class="num">100</td><td class="num">1.7399219</td><td class="num">2.0464641</td></tr>
+<tr><td class="num">1,000</td><td class="num">1.7489107</td><td class="num">1.9908366</td></tr>
+<tr><td class="num">10,000</td><td class="num">1.7218429</td><td class="num">1.9941386</td></tr>
+<tr><td class="num">100,000</td><td class="num">1.7171601</td><td class="num">2.0021413</td></tr>
+<tr><td class="num">1,000,000</td><td class="num">1.7183730</td><td class="num">2.0001530</td></tr>
+<tr><td class="num">10,000,000</td><td class="num">1.7182829</td><td class="num">1.9997677</td></tr>
 </tbody>
 </table>
+
+<p>By ten million samples $\int e^x$ is right to six places and $\int\sin$ to three — and the error in both columns shrinks at the same $1/\sqrt N$ crawl, regardless of the integrand.</p>
 
 
 <h2 id="9">9. Takeaways<a class="hlink" href="#9" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>

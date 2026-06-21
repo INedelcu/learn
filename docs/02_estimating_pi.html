@@ -97,7 +97,7 @@
 
 <h2 id="1">1. The idea: area as a probability<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
 
-<p>Scatter darts uniformly over the unit square $[0,1]\times[0,1]$. A dart at $(x,y)$ counts as a <strong>hit</strong> when it lands inside the quarter circle $x^2+y^2\le1$. Because the darts are uniform, the probability of a hit is just the area of the hit region divided by the area of the square:</p>
+<p>Scatter darts uniformly over the unit square $[0,1]\times[0,1]$. A dart at $(x,y)$ counts as a <strong>hit</strong> when it lands inside the quarter circle $x^2+y^2\le1$. A full unit circle has area $\pi r^2=\pi$, so this quarter of it has area $\tfrac14\pi$. Because the darts are uniform, the probability of a hit is just the area of the hit region divided by the area of the square:</p>
 
 $$p=\Pr[\text{hit}]=\frac{\text{area of quarter circle}}{\text{area of square}}=\frac{\pi/4}{1}=\frac{\pi}{4}\approx0.7854 .$$
 
@@ -169,13 +169,25 @@ $$\hat\pi_N=4\cdot\hat p_N=\frac4N\sum_{i=1}^N I_i .$$
 
 <h2 id="4">4. The 1/√N law — where the slowness comes from<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
 
-<p>Every Monte Carlo estimate is an average of $N$ independent samples, and the variance of an average of independent things is the per-sample variance divided by $N$:</p>
+<p>Every Monte Carlo estimate is an average of $N$ independent samples, and two facts about variance fix how fast its scatter shrinks: a constant pulled outside the variance gets squared, $\operatorname{Var}[aX]=a^2\operatorname{Var}[X]$, and for <em>independent</em> terms the variance of a sum is the sum of the variances. Apply both to $\hat p_N=\frac1N\sum_i I_i$:</p>
 
-$$\operatorname{Var}[\hat p_N]=\frac{\operatorname{Var}[I_i]}{N},\qquad\text{so}\qquad \operatorname{SE}[\hat p_N]=\frac{\sigma}{\sqrt N}.$$
+$$\begin{aligned}
+\operatorname{Var}[\hat p_N]=\operatorname{Var}\!\Big[\tfrac1N\sum_{i=1}^N I_i\Big]
+  &=\frac1{N^2}\sum_{i=1}^N\operatorname{Var}[I_i]
+   =\frac{N\,\operatorname{Var}[I_i]}{N^2}
+   =\frac{\operatorname{Var}[I_i]}{N},\\
+\text{so}\quad \operatorname{SE}[\hat p_N]&=\sqrt{\operatorname{Var}[\hat p_N]}=\frac{\sigma}{\sqrt N},\qquad \sigma=\sqrt{\operatorname{Var}[I_i]}.
+\end{aligned}$$
 
-<p>The standard error — the typical size of the error — therefore carries a $1/\sqrt N$, no matter the problem. For our Bernoulli darts the per-sample variance is the textbook $p(1-p)$, so the standard error of the $\pi$ estimate is</p>
+<p>The standard error — the typical size of the estimate's error — therefore carries a $1/\sqrt N$, no matter the problem. For our Bernoulli darts each trial is $I_i\in\{0,1\}$, so $I_i^2=I_i$ and the per-sample variance follows from the same $\overline{x^2}-\bar x^{\,2}$ identity used in <a href="01_random_and_estimators.html#4">example&nbsp;01</a>:</p>
+
+$$\operatorname{Var}[I_i]=\mathbb E[I_i^2]-\mathbb E[I_i]^2=p-p^2=p(1-p).$$
+
+<p>The estimator is $\hat\pi_N=4\hat p_N$, and scaling by $4$ multiplies the standard error by $4$, so</p>
 
 $$\operatorname{SE}[\hat\pi_N]=4\sqrt{\frac{p(1-p)}{N}}=\frac{C}{\sqrt N},\qquad C=4\sqrt{p(1-p)}\approx1.642 .$$
+
+<p>Plugging in the hit probability $p=\pi/4\approx0.785$ gives $p(1-p)\approx0.1686$, so $C=4\sqrt{0.1686}\approx1.642$ — the constant the diagnostics below keep circling.</p>
 
 <div class="callout warn">
 <strong>The brutal arithmetic of $1/\sqrt N$.</strong> Because the error scales as $N^{-1/2}$:
@@ -189,7 +201,11 @@ This is exactly why path-traced images are noisy and why the noise is so stubbor
 
 <h2 id="5">5. Watch the error fall — and track its prediction<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
 
-<p>Plotting the absolute error against $N$ on <strong>log–log</strong> axes turns the power law $\text{error}\approx C\,N^{-1/2}$ into a straight line of slope $-\tfrac12$. The measured error (blue) rattles around the predicted line (orange) — same slope, same ballpark — confirming the formula really does describe the noise.</p>
+<p>Plotting the absolute error against $N$ on <strong>log–log</strong> axes turns the power law $\text{error}\approx C\,N^{-1/2}$ into a straight line. Take the logarithm of both sides:</p>
+
+$$\log(\text{error})\approx\log C-\tfrac12\log N,$$
+
+<p>a line in $\log N$ with slope $-\tfrac12$ and intercept $\log C$. The measured error (blue) rattles around that predicted line (orange) — same slope, same ballpark — confirming the formula really does describe the noise.</p>
 
 <figure>
 <svg id="loglog" viewBox="0 0 600 360" role="img" aria-label="Log-log plot of absolute error versus sample count, with the predicted one-over-root-N line."></svg>
@@ -223,7 +239,11 @@ This is exactly why path-traced images are noisy and why the noise is so stubbor
 
 <h2 id="7">7. The price of precision<a class="hlink" href="#7" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
 
-<p>Invert the law to see the cost. To reach a target error $\varepsilon$ you need about $N\approx\left(C/\varepsilon\right)^2$ samples. Drag the target error and watch the required sample count explode quadratically.</p>
+<p>Invert the law to see the cost. Set the standard error equal to a target $\varepsilon$ and solve for $N$:</p>
+
+$$\varepsilon=\frac{C}{\sqrt N}\;\Longrightarrow\;\sqrt N=\frac{C}{\varepsilon}\;\Longrightarrow\;N\approx\Big(\frac{C}{\varepsilon}\Big)^2.$$
+
+<p>The square is the whole story: the required sample count grows <em>quadratically</em> as the target error shrinks. Drag $\varepsilon$ below and watch $N$ explode.</p>
 
 <figure>
 <div class="ctl">
@@ -264,7 +284,22 @@ for (long long i = 0; i &lt; 100000000; ++i) {
     }
 }</code></pre>
 
-<p>Two things to read off the output: <code>err</code> and <code>pred</code> stay in the same ballpark (the formula works), and <code>err*sqrtN</code> wobbles around $\sim1.64$ instead of trending to zero (the rate is exactly $1/\sqrt N$).</p>
+<p>Running it (seed 2, 100 million darts) prints one row per decade:</p>
+
+<table>
+<thead><tr><th class="num">samples $N$</th><th class="num">$\hat\pi_N$</th><th class="num">abs error</th><th class="num">pred. $C/\sqrt N$</th><th class="num">error$\times\sqrt N$</th></tr></thead>
+<tbody>
+<tr><td class="num">100</td><td class="num">3.160000</td><td class="num">0.018407</td><td class="num">0.164218</td><td class="num">0.1841</td></tr>
+<tr><td class="num">1,000</td><td class="num">3.120000</td><td class="num">0.021593</td><td class="num">0.051930</td><td class="num">0.6828</td></tr>
+<tr><td class="num">10,000</td><td class="num">3.142800</td><td class="num">0.001207</td><td class="num">0.016422</td><td class="num">0.1207</td></tr>
+<tr><td class="num">100,000</td><td class="num">3.143640</td><td class="num">0.002047</td><td class="num">0.005193</td><td class="num">0.6474</td></tr>
+<tr><td class="num">1,000,000</td><td class="num">3.142012</td><td class="num">0.000419</td><td class="num">0.001642</td><td class="num">0.4193</td></tr>
+<tr><td class="num">10,000,000</td><td class="num">3.142376</td><td class="num">0.000783</td><td class="num">0.000519</td><td class="num">2.4759</td></tr>
+<tr><td class="num">100,000,000</td><td class="num">3.141569</td><td class="num">0.000024</td><td class="num">0.000164</td><td class="num">0.2397</td></tr>
+</tbody>
+</table>
+
+<p>Two things to read off it: the <strong>abs error</strong> and the predicted <strong>$C/\sqrt N$</strong> stay within a small factor of each other all the way down (the formula really does describe the noise), and the last column, <strong>error$\times\sqrt N$</strong>, never trends toward zero — it just rattles in a band of order $C\approx1.64$. (Each row is one run, so that column is itself noisy — formally a half-normal with scale $C$, mean $\approx1.3$ — which is why these seven snapshots scatter; Figure 4 plots it continuously and the flat band is unmistakable.)</p>
 
 
 <h2 id="9">9. Takeaways<a class="hlink" href="#9" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
