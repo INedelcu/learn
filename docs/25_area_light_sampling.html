@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>25 — Sampling area lights: triangles &amp; spheres — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --correct:#2f9e64; --wrong:#e53e3e; --cone:#2b6cb0; --hemi:#dd6b20; --gold:#d9a500; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--correct)}
+  .callout.warn{border-left-color:var(--wrong)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:160px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button.sel{background:var(--ink); color:#fff; border-color:var(--ink)}
+  button:active{transform:translateY(1px)}
+  canvas{display:block; width:100%; max-width:240px; margin:0 auto; image-rendering:auto; border:1px solid var(--line); border-radius:8px; background:#fff}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Sampling area lights: triangles &amp; spheres</h1>
+<p class="sub">25_area_light_sampling.cpp — next-event estimation needs a point on the light, and every light shape needs its own warp: barycentric coordinates for a triangle, a cone of directions for a sphere.</p>
+
+<p class="lead">Next-event estimation (<a href="24_nee_mis.html#1">example 24</a>) only works if you can draw a good sample <em>on</em> the light. Each shape needs its own area-uniform map — and getting the Jacobian (<a href="23_change_of_variables.html#1">example 23</a>) right is what keeps it unbiased. Two carry most of the weight in a renderer: the <strong>triangle</strong>, the universal mesh-light primitive, and the <strong>sphere</strong>, which is far better sampled over the cone of directions it subtends than over its surface.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> A uniform triangle point uses barycentric coordinates with a square-root warp — $\sqrt{u_1}$ is the Jacobian fix, giving $\mathbb E[b_i]=\tfrac13$ (the mean sample is the centroid); a sphere is sampled by aiming inside the cone of half-angle $\theta_{\max}$ ($\sin\theta_{\max}=R/d$) it subtends, with $\cos\theta=1-u_1(1-\cos\theta_{\max})$ and pdf $1/\bigl(2\pi(1-\cos\theta_{\max})\bigr)$ — which recovers the exact irradiance $I=\pi(R/d)^2$ with vastly lower variance than firing rays at the whole hemisphere.</p>
+</div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--correct)"></i> correct (area-uniform)</span>
+  <span><i class="dot" style="background:var(--wrong)"></i> naive (clumps)</span>
+  <span><i class="swatch" style="border-color:var(--cone)"></i> cone (solid-angle) sampling</span>
+  <span><i class="swatch" style="border-color:var(--hemi)"></i> uniform hemisphere</span>
+</div>
+
+
+<h2 id="1">1. To light a point, sample the light<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Direct lighting (<a href="24_nee_mis.html#1">example 24</a>) integrates over the light's surface, so it needs samples drawn on that surface — area-uniform at least, solid-angle-aware where it helps. Each light shape is a different change of variables from the unit square $[0,1)^2$, and each carries a Jacobian that must be respected or the samples are biased toward one part of the light. Here are the two workhorses.</p>
+
+
+<h2 id="2">2. Triangles: barycentric coordinates with a square root<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>A point in a triangle is a barycentric blend $P=b_0A+b_1B+b_2C$ with $b_0+b_1+b_2=1$. The area-uniform map from two uniforms is</p>
+$$s=\sqrt{u_1},\qquad b_0=1-s,\qquad b_1=u_2\,s,\qquad b_2=1-b_0-b_1.$$
+<p>The square root is the Jacobian fix from <a href="23_change_of_variables.html#2">example 23</a> — using $s=u_1$ instead bunches points toward vertex $A$, because equal steps in $b_0$ cover unequal areas of the triangle. That the warp is correct is easy to verify in expectation: with $s=\sqrt{u_1}$,</p>
+$$\mathbb E[b_0]=\mathbb E[1-\sqrt{u_1}]=1-\!\int_0^1\!\sqrt u\,du=1-\tfrac23=\tfrac13,\qquad
+  \mathbb E[b_1]=\mathbb E[u_2]\,\mathbb E[\sqrt{u_1}]=\tfrac12\cdot\tfrac23=\tfrac13,$$
+<p>and $\mathbb E[b_2]=\tfrac13$ by subtraction. All three average $\tfrac13$, so the mean sample is the centroid $(A+B+C)/3$ — the signature of a uniform fill. The C++ run confirms it over 4M samples: mean barycentric $(0.3334,\,0.3333,\,0.3333)$, mean position $(0.6657,0.9989,0)$ against the centroid $(0.6667,1,0)$. Toggle the square root off below and watch the cloud collapse toward $A$:</p>
+
+<figure>
+<canvas id="fig-tri" width="240" height="260"></canvas>
+<div class="ctl">
+  map:
+  <button id="tr-correct" class="sel">correct  s = √u₁</button>
+  <button id="tr-naive">naive  s = u₁</button>
+  <button id="tr-roll">Re-roll</button>
+</div>
+<div class="panel">
+  <div class="row"><span>mean barycentric (target ⅓, ⅓, ⅓)</span><b id="tr-bary" style="color:var(--correct)">—</b></div>
+  <div class="row"><span>mean position vs centroid</span><b id="tr-pos">—</b></div>
+</div>
+<figcaption>Figure 1. $2500$ barycentric samples in triangle $A(0,0),B(2,0),C(0,3)$. <span style="color:var(--correct)">Correct ($s=\sqrt{u_1}$)</span> fills the triangle evenly and the barycentrics average $\tfrac13$. <span style="color:var(--wrong)">Naive ($s=u_1$)</span> jams points into vertex $A$ — equal $b_0$ steps map to ever-wider strips toward $BC$, so per-area density spikes at $A$ and the mean drifts off the centroid.</figcaption>
+</figure>
+
+
+<h2 id="3">3. Spheres: sample the cone, not the surface<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>For a sphere you could sample its surface, but most of it faces away or misses the shading point's view. Far better: a sphere of radius $R$ seen from distance $d$ fills a <strong>cone</strong> of half-angle $\theta_{\max}$ with $\sin\theta_{\max}=R/d$, and you sample directions uniformly inside that cone. Uniform in solid angle means the density is constant, $1/\Omega$, over $\Omega=\int_0^{2\pi}\!\int_0^{\theta_{\max}}\sin\theta\,d\theta\,d\phi=2\pi(1-\cos\theta_{\max})$. Since $d\omega=\sin\theta\,d\theta\,d\phi$, uniform solid angle makes $\cos\theta$ <em>uniform</em> on $[\cos\theta_{\max},1]$, so by inversion (<a href="05_sampling_distributions.html#2">example 05</a>):</p>
+$$\cos\theta=1-u_1\,(1-\cos\theta_{\max}),\qquad \phi=2\pi u_2,\qquad
+  p(\omega)=\frac{1}{2\pi(1-\cos\theta_{\max})}.$$
+<p>To test it, estimate the unshadowed irradiance from an overhead sphere of unit radiance, $I=\int_{\text{cone}}\cos\theta\,d\omega$. That integral has a closed form:</p>
+$$I=\int_0^{2\pi}\!\!\int_0^{\theta_{\max}}\cos\theta\,\sin\theta\,d\theta\,d\phi
+  =2\pi\cdot\tfrac12\sin^2\theta_{\max}=\pi\sin^2\theta_{\max}=\pi\Big(\frac{R}{d}\Big)^2.$$
+<p>Cone sampling hits the answer ($I=\pi(R/d)^2=0.125664$ for $R/d=0.2$) with tiny variance, because $\cos\theta$ barely varies inside a small cone. Uniform-hemisphere sampling, by contrast, only contributes when a direction happens to fall in the cone — a fraction $1-\cos\theta_{\max}$ of the hemisphere — so almost every sample is wasted. The C++ run makes the gap brutal:</p>
+
+<table>
+<thead><tr><th>strategy</th><th class="num">mean → I</th><th class="num">variance</th></tr></thead>
+<tbody>
+<tr><td><span class="dot" style="background:var(--cone)"></span> cone (solid-angle)</td><td class="num">0.125664</td><td class="num">5.48e−7</td></tr>
+<tr><td><span class="dot" style="background:var(--hemi)"></span> uniform hemisphere</td><td class="num">0.126394</td><td class="num">7.70e−1</td></tr>
+</tbody>
+</table>
+<p>That is a <strong>1.4 million×</strong> variance reduction for a sphere subtending just $0.127\,\text{sr}$ — and the smaller the light, the bigger the win. Slide the radius and watch the cone tighten, the irradiance fall as $(R/d)^2$, and the hemisphere hit-fraction collapse:</p>
+
+<figure>
+<svg id="fig-cone" viewBox="0 0 600 280" role="img" aria-label="A shading point sampling a sphere over the cone of directions it subtends."></svg>
+<div class="ctl">
+  sphere radius $R$ = <b id="co-rval" style="display:inline-block; min-width:2.4em; text-align:right; font-variant-numeric:tabular-nums">0.20</b>
+  <input id="co-r" type="range" min="3" max="60" value="20" step="1"> <span class="small">(distance $d=1$)</span>
+</div>
+<div class="panel">
+  <div class="row"><span>half-angle $\theta_{\max}=\arcsin(R/d)$</span><b id="co-th" style="color:var(--cone)">—</b></div>
+  <div class="row"><span>exact $I=\pi(R/d)^2$</span><b id="co-I" style="color:var(--gold)">—</b></div>
+  <div class="row"><span>cone-sampled $I$ (live MC)</span><b id="co-mc" style="color:var(--cone)">—</b></div>
+  <div class="row"><span>hemisphere hit-fraction $1-\cos\theta_{\max}$</span><b id="co-hit" style="color:var(--hemi)">—</b></div>
+</div>
+<figcaption>Figure 2. The shading point sees the sphere as a cone of half-angle $\theta_{\max}$. Cone sampling spends every direction inside it; uniform-hemisphere sampling lands inside only a fraction $1-\cos\theta_{\max}$ of the time (shown shrinking as $R$ drops). The live cone estimate sits on the closed form $\pi(R/d)^2$ at every radius.</figcaption>
+</figure>
+
+
+<h2 id="4">4. In the renderer<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>These are the per-shape samplers next-event estimation calls. The <strong>triangle</strong> map samples mesh lights and emissive geometry — any light a modeler builds is triangles, and the $\sqrt{u_1}$ warp is what keeps an emissive quad or a glowing model uniformly sampled. <strong>Cone sampling</strong> handles spherical and disk lights, and its solid-angle pdf $1/(2\pi(1-\cos\theta_{\max}))$ plugs straight into the light-vs-BSDF MIS of <a href="24_nee_mis.html#3">example 24</a>. A renderer with many lights first picks one (the discrete sampler of <a href="14_tabulated_cdf_sampling.html#7">example 14</a>), then samples a point on it with exactly these maps.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/25_area_light_sampling.cpp" target="_blank" rel="noopener"><code>25_area_light_sampling.cpp</code></a>.</p>
+
+<p>Each sampler is a few lines: the triangle's square-root barycentrics, and the cone's $\cos\theta$ inversion.</p>
+
+<pre class="language-cpp"><code class="language-cpp">// TRIANGLE: area-uniform barycentric point (the sqrt is the Jacobian fix).
+float su = std::sqrt(u1);
+float b0 = 1.0f - su, b1 = u2 * su, b2 = 1.0f - b0 - b1;
+Vec3 P = A*b0 + B*b1 + C*b2;                       // E[b_i] = 1/3 -> centroid
+
+// SPHERE: sample the cone it subtends (sin theta_max = R/d).
+double cosMax = std::sqrt(1.0 - (R/d)*(R/d));
+double ct  = 1.0 - u1 * (1.0 - cosMax);            // cos(theta), uniform in [cosMax,1]
+double st  = std::sqrt(1.0 - ct*ct), ph = 2*PI*u2;
+Vec3 wc(st*std::cos(ph), st*std::sin(ph), ct);     // direction toward the sphere
+double pdf = 1.0 / (2*PI * (1.0 - cosMax));        // uniform solid angle in the cone
+// estimating I = integral cos(theta) dω over the cone gives pi*(R/d)^2 exactly.</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> Every light shape is a change of variables. A triangle is barycentric with $s=\sqrt{u_1}$, the Jacobian fix that makes $\mathbb E[b_i]=\tfrac13$ (uniform fill, mean = centroid). A sphere is best sampled over the cone it subtends — $\cos\theta=1-u_1(1-\cos\theta_{\max})$, pdf $1/(2\pi(1-\cos\theta_{\max}))$ — which recovers the exact irradiance $\pi(R/d)^2$ with up to a million-fold less variance than spraying the hemisphere. These are the samplers next-event estimation (<a href="24_nee_mis.html#1">24</a>) calls once it has chosen a light.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="24_nee_mis.html">24 — Next-event estimation &amp; MIS</a>. Builds on: <a href="23_change_of_variables.html">23 — Change of variables</a>, <a href="24_nee_mis.html">24 — NEE</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  const PI=Math.PI;
+
+  // ---------- Figure 1: triangle barycentric sampling ----------
+  (function(){
+    const cv=document.getElementById('fig-tri'); if(!cv) return;
+    const ctx=cv.getContext('2d'), W=cv.width, Hc=cv.height;
+    const A=[0,0], B=[2,0], C=[0,3];
+    const pad=24;
+    const xmin=-0.2,xmax=2.3,ymin=-0.2,ymax=3.3;
+    const mx=x=>pad+(x-xmin)/(xmax-xmin)*(W-2*pad);
+    const my=y=>Hc-pad-(y-ymin)/(ymax-ymin)*(Hc-2*pad);
+    let mode='correct';
+    function draw(){
+      ctx.clearRect(0,0,W,Hc); ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,Hc);
+      // outline
+      ctx.strokeStyle='#9aa0ad'; ctx.lineWidth=1.4; ctx.beginPath();
+      ctx.moveTo(mx(A[0]),my(A[1])); ctx.lineTo(mx(B[0]),my(B[1])); ctx.lineTo(mx(C[0]),my(C[1])); ctx.closePath(); ctx.stroke();
+      ctx.fillStyle='#5b6472'; ctx.font='12px sans-serif';
+      ctx.fillText('A',mx(A[0])-12,my(A[1])+4); ctx.fillText('B',mx(B[0])+4,my(B[1])+4); ctx.fillText('C',mx(C[0])-4,my(C[1])-6);
+      const col=(mode==='correct')?'rgba(47,158,100,0.6)':'rgba(229,62,62,0.6)';
+      ctx.fillStyle=col;
+      let sb0=0,sb1=0,sb2=0,sx=0,sy=0; const N=2500;
+      for(let i=0;i<N;i++){
+        const u1=Math.random(), u2=Math.random();
+        const s=(mode==='correct')?Math.sqrt(u1):u1;
+        const b0=1-s, b1=u2*s, b2=1-b0-b1;
+        const x=A[0]*b0+B[0]*b1+C[0]*b2, y=A[1]*b0+B[1]*b1+C[1]*b2;
+        sb0+=b0; sb1+=b1; sb2+=b2; sx+=x; sy+=y;
+        ctx.fillRect(mx(x)-1.0,my(y)-1.0,2,2);
+      }
+      // centroid marker
+      ctx.strokeStyle='#d9a500'; ctx.lineWidth=2;
+      const gx=mx((A[0]+B[0]+C[0])/3), gy=my((A[1]+B[1]+C[1])/3);
+      ctx.beginPath();ctx.moveTo(gx-5,gy);ctx.lineTo(gx+5,gy);ctx.moveTo(gx,gy-5);ctx.lineTo(gx,gy+5);ctx.stroke();
+      document.getElementById('tr-bary').textContent='('+(sb0/N).toFixed(3)+', '+(sb1/N).toFixed(3)+', '+(sb2/N).toFixed(3)+')';
+      document.getElementById('tr-bary').style.color=(mode==='correct')?'var(--correct)':'var(--wrong)';
+      document.getElementById('tr-pos').textContent='('+(sx/N).toFixed(3)+', '+(sy/N).toFixed(3)+') vs (0.667, 1.000)';
+    }
+    document.getElementById('tr-correct').addEventListener('click',()=>{mode='correct';document.getElementById('tr-correct').classList.add('sel');document.getElementById('tr-naive').classList.remove('sel');draw();});
+    document.getElementById('tr-naive').addEventListener('click',()=>{mode='naive';document.getElementById('tr-naive').classList.add('sel');document.getElementById('tr-correct').classList.remove('sel');draw();});
+    document.getElementById('tr-roll').addEventListener('click',draw);
+    draw();
+  })();
+
+  // ---------- Figure 2: sphere cone sampling ----------
+  (function(){
+    const svg=document.getElementById('fig-cone'); if(!svg) return;
+    const sl=document.getElementById('co-r');
+    const gS=el('g'); svg.appendChild(gS);
+    const gD=el('g'); svg.appendChild(gD);
+    const d=1.0, Py=240, cx=300, scale=150;            // shading point at bottom
+    function coneMC(cosMax,N){let s=0;for(let i=0;i<N;i++){const ct=1-Math.random()*(1-cosMax);s+=ct*(2*PI*(1-cosMax));}return s/N;}
+    function draw(){
+      while(gD.firstChild)gD.removeChild(gD.firstChild);
+      const R=+sl.value/100;
+      const sinMax=R/d, cosMax=Math.sqrt(Math.max(0,1-sinMax*sinMax)), thMax=Math.asin(sinMax);
+      const Cy=Py-d*scale;                              // sphere center
+      // ground + point
+      gD.appendChild(el('line',{x1:120,y1:Py,x2:480,y2:Py,stroke:'#cbd0d9'}));
+      gD.appendChild(el('circle',{cx:cx,cy:Py,r:4,fill:'var(--ink)'}));
+      gD.appendChild(txt(cx,Py+18,'shading point',{'font-size':11.5,fill:'var(--muted)','text-anchor':'middle'}));
+      // cone (tangent lines to sphere), half-angle thMax about +z (straight up)
+      const Lx=cx-Math.tan(thMax)*(d*scale), Rx=cx+Math.tan(thMax)*(d*scale);
+      gD.appendChild(el('path',{d:'M'+cx+','+Py+' L'+Lx+','+Cy+' L'+Rx+','+Cy+' Z',fill:'var(--cone)','fill-opacity':0.10,stroke:'none'}));
+      gD.appendChild(el('line',{x1:cx,y1:Py,x2:Lx,y2:Cy,stroke:'var(--cone)','stroke-width':1.2}));
+      gD.appendChild(el('line',{x1:cx,y1:Py,x2:Rx,y2:Cy,stroke:'var(--cone)','stroke-width':1.2}));
+      // sphere
+      gD.appendChild(el('circle',{cx:cx,cy:Cy,r:R*scale,fill:'var(--gold)','fill-opacity':0.25,stroke:'var(--gold)','stroke-width':1.6}));
+      gD.appendChild(txt(cx+R*scale+8,Cy,'sphere R',{'font-size':11.5,fill:'var(--gold)'}));
+      // d label
+      gD.appendChild(el('line',{x1:cx-Math.tan(thMax)*(d*scale)-18,y1:Py,x2:cx-Math.tan(thMax)*(d*scale)-18,y2:Cy,stroke:'#9aa0ad','stroke-width':1}));
+      gD.appendChild(txt(cx-Math.tan(thMax)*(d*scale)-22,(Py+Cy)/2,'d',{'font-size':12,fill:'var(--muted)','text-anchor':'end'}));
+      gD.appendChild(txt(cx+6,(Py+Cy)/2,'θmax',{'font-size':11.5,fill:'var(--cone)'}));
+      // readouts
+      const I=PI*sinMax*sinMax;
+      document.getElementById('co-rval').textContent=R.toFixed(2);
+      document.getElementById('co-th').textContent=(thMax*180/PI).toFixed(1)+'°';
+      document.getElementById('co-I').textContent=I.toFixed(5);
+      document.getElementById('co-mc').textContent=coneMC(cosMax,60000).toFixed(5);
+      document.getElementById('co-hit').textContent=((1-cosMax)*100).toFixed(2)+'%';
+    }
+    sl.addEventListener('input',draw); draw();
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

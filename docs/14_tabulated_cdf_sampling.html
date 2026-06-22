@@ -159,7 +159,9 @@ $$\text{find }i\ \text{such that}\quad F_i\le u&lt;F_{i+1}.$$
 
 <p><strong>Continuous</strong> — a real-valued position, e.g. a sub-texel coordinate on the environment map. Interpolate <em>within</em> the bin using how far $u$ reached across its cumulative step:</p>
 $$t=\frac{u-F_i}{F_{i+1}-F_i},\qquad x=i+t\ \in[i,i+1).$$
-<p>Since each bin is one unit wide, the density at the sample is just the bin's mass, $p(x)=F_{i+1}-F_i=p_i$ — the value MIS (<a href="09_multiple_importance_sampling.html#3">example 09</a>) needs as the pdf of this strategy.</p>
+<p>The density at the sample is just the bin's mass — here is why. Conditioned on landing in bin $i$ (probability $p_i$), $u$ is uniform on $[F_i,F_{i+1})$, and $t$ rescales that interval linearly onto $[0,1)$, so $x$ is <em>uniform</em> across the unit-wide bin. Its density is therefore $\Pr[\text{bin }i]$ times the uniform density on a unit interval, $p_i\times 1$:</p>
+$$p(x)=F_{i+1}-F_i=p_i,\qquad x\in[i,i+1),$$
+<p>the value MIS (<a href="09_multiple_importance_sampling.html#3">example 09</a>) needs as the pdf of this strategy. (Sampling confirms it: within a sun bin the sub-positions come out flat to within noise.)</p>
 
 <p><strong>Discrete</strong> — just the index $i$. "Which of these $N$ lights do I shade?" is answered by the same prefix-sum CDF and the same binary search; you return the bin number and stop. No interpolation, no density-within-a-bin — the probability of picking light $i$ is exactly $p_i$.</p>
 

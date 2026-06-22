@@ -20,7 +20,7 @@
     font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
   .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
   h1{font-size:30px; line-height:1.2; margin:0 0 6px}
-  h2{font-size:18px; margin:40px 0 6px; color:var(--muted); font-weight:600; letter-spacing:.02em; text-transform:uppercase; font-size:13px}
+  h2{font-family:Georgia,"Iowan Old Style","Times New Roman",serif; font-size:19px; font-weight:600; color:var(--accent); margin:44px 0 10px; letter-spacing:0}
   p{margin:12px 0}
   .sub{color:var(--muted); font-size:15px; margin-top:0}
   a{color:var(--accent)}
@@ -227,6 +227,79 @@ The whole series is, ultimately, about one formula — estimating an integral as
       <h3>Importance-sampling a glossy BRDF: GGX VNDF</h3>
       <p class="d">The series' destination — the renderer's real specular sampler. The GGX microfacet lobe is sharp and view-dependent, so uniform hemisphere sampling almost never finds it. Heitz-2018 visible-normal sampling draws a half-vector from the normals visible to the viewer and reflects, after which the Monte Carlo weight collapses to the bounded $F\,G_2/G_1$. Validated against a quadrature reference to ~3 digits and hundreds-to-thousands of times less noisy than uniform — the very <code>SampleSpecularGGX</code> a path tracer fires for every glossy highlight.</p>
       <span class="tags"><span class="tag">GGX / microfacet</span><span class="tag">VNDF (Heitz 2018)</span><span class="tag">specular sampling</span></span>
+    </span>
+  </a>
+
+</div>
+
+<h2>BRDFs &amp; energy</h2>
+<div class="toc">
+
+  <a class="entry" href="20_fresnel.html">
+    <span class="num">20</span>
+    <span class="body">
+      <h3>Fresnel reflectance: exact vs Schlick</h3>
+      <p class="d">Every surface turns mirror-bright at grazing angles — the Fresnel ramp that multiplies every specular BRDF. The exact reflectance averages two polarizations of the electromagnetic boundary conditions (the refractive indices, or a metal's complex $n+ik$); Schlick approximates the whole curve as $F_0+(1-F_0)(1-\cos\theta)^5$ — exact at both endpoints by construction, within $0.036$ for glass and $0.015$ for the metal in between, needing only $F_0$ (from the IOR for dielectrics, the base color for metals). With a live $F(\theta)$ curve and a Fresnel-shaded sphere.</p>
+      <span class="tags"><span class="tag">Fresnel reflectance</span><span class="tag">Schlick approximation</span><span class="tag">F₀ from IOR / base color</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="21_white_furnace.html">
+    <span class="num">21</span>
+    <span class="body">
+      <h3>The white furnace test: energy conservation</h3>
+      <p class="d">Sit a surface inside a sphere glowing with radiance $1$: outgoing radiance becomes the directional albedo $E(\omega_o)=\int_{\mathcal H} f_r\cos\theta_i\,d\omega_i$, so energy conservation is simply $E\le1$ — invisible against the furnace when $E=1$, dark when $E&lt;1$, impossible when $E&gt;1$. Validated on Lambertian ($E=\rho$), the test exposes that single-scatter GGX conserves energy but loses up to half of it at high roughness by ignoring multiple bounces — the deficit a Kulla–Conty term, or the renderer's $(1-F_0)$ diffuse tint, adds back.</p>
+      <span class="tags"><span class="tag">directional albedo</span><span class="tag">energy conservation</span><span class="tag">multiple scattering</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="22_dielectric_refraction.html">
+    <span class="num">22</span>
+    <span class="body">
+      <h3>Refraction, Snell's law &amp; total internal reflection</h3>
+      <p class="d">At smooth glass a ray splits: a fraction $F$ reflects, $1-F$ refracts at the Snell-bent angle $n_i\sin\theta_i=n_t\sin\theta_t$. A path tracer picks one branch with probability $F$, and the branch probability cancels the Fresnel factor — so the glass weight collapses to the same bounded $G_2/G_1$ as opaque GGX. Past the critical angle $\theta_c=\arcsin(n_t/n_i)$ Snell has no solution and all light reflects (total internal reflection). With an interactive ray-split diagram and the $F(\theta)$ curves for both directions — the skeleton of the renderer's <code>SampleGlassGGX</code>.</p>
+      <span class="tags"><span class="tag">Snell's law</span><span class="tag">total internal reflection</span><span class="tag">stochastic reflect/refract</span></span>
+    </span>
+  </a>
+
+</div>
+
+<h2>Geometry of sampling</h2>
+<div class="toc">
+
+  <a class="entry" href="23_change_of_variables.html">
+    <span class="num">23</span>
+    <span class="body">
+      <h3>Change of variables: the Jacobian, area vs solid angle</h3>
+      <p class="d">Every sampler warps uniform numbers, and the Jacobian keeps it unbiased: $p_y=p_x/|J_T|$. The "obvious" disk map $r=u$ clumps points at the center (it ignores the polar Jacobian $r$); the area-uniform fix is $r=\sqrt u$, and Shirley's concentric map is uniform <em>and</em> low-distortion. The same rule converts an area-light pdf to solid angle via $d\omega=\cos\theta_\ell\,dA/r^2$ — the $r^2/\cos$ factor behind next-event estimation. With three live disk samplers and a disk-light solid-angle check.</p>
+      <span class="tags"><span class="tag">Jacobian</span><span class="tag">disk / lens sampling</span><span class="tag">area ↔ solid angle</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="24_nee_mis.html">
+    <span class="num">24</span>
+    <span class="body">
+      <h3>Next-event estimation &amp; light/BSDF MIS</h3>
+      <p class="d">Direct lighting can be sampled by aiming at the light (next-event estimation, pdf $r^2/(A\cos\theta_\ell)$) or by sampling the BSDF — and which one wins flips with roughness and light size, catastrophically. MIS (example 09) takes one of each and weights them by $w_i=p_i/\sum_j p_j$, staying within a small factor of the best and never the disastrous one: here the wrong single strategy costs $201\times$ in one scene and $26{,}967\times$ in the other, while MIS is robust to both. Veach's canonical result, on the two lobes a real renderer combines.</p>
+      <span class="tags"><span class="tag">next-event estimation</span><span class="tag">light vs BSDF MIS</span><span class="tag">balance / power heuristic</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="25_area_light_sampling.html">
+    <span class="num">25</span>
+    <span class="body">
+      <h3>Sampling area lights: triangles &amp; spheres</h3>
+      <p class="d">NEE needs a point on the light, and each shape is its own change of variables. A triangle uses barycentric coordinates with a square-root warp ($s=\sqrt{u_1}$, the Jacobian fix), giving $\mathbb E[b_i]=\tfrac13$ — a uniform fill whose mean is the centroid. A sphere is sampled over the cone it subtends ($\sin\theta_{\max}=R/d$, $\cos\theta=1-u_1(1-\cos\theta_{\max})$), which recovers the exact irradiance $\pi(R/d)^2$ with a ~million-fold lower variance than spraying the hemisphere. The per-shape samplers NEE calls.</p>
+      <span class="tags"><span class="tag">triangle barycentrics</span><span class="tag">sphere cone sampling</span><span class="tag">solid-angle pdf</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="26_orthonormal_basis.html">
+    <span class="num">26</span>
+    <span class="body">
+      <h3>Building an orthonormal basis around a normal</h3>
+      <p class="d">Every hemisphere/BRDF sampler works in a local frame with the normal at $(0,0,1)$; to use a sample you rotate it onto the real normal, $\boldsymbol\omega=\ell_x\mathbf b_1+\ell_y\mathbf b_2+\ell_z\mathbf n$, which needs two tangents. The naive cross-product breaks at the poles; Duff et al. (2017) build them branchlessly with a sign trick — $\mathbf b_1\!\cdot\!\mathbf n=0$ drops out of $n_x^2+n_y^2=1-n_z^2$, residual $2.9\times10^{-7}$ everywhere. Being a pure rotation, the map carries the distribution onto $\mathbf n$ untouched (cosine stays cosine, mean $\cos\theta=\tfrac23$). With a tiltable frame and rotated-sample views.</p>
+      <span class="tags"><span class="tag">orthonormal frame</span><span class="tag">Duff et al. 2017</span><span class="tag">local → world</span></span>
     </span>
   </a>
 

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>24 — Next-event estimation &amp; light/BSDF MIS — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --light:#d9a500; --bsdf:#2b6cb0; --mis:#2f9e64; --lobe:#dd6b20; --ref:#7c3aed; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--mis)}
+  .callout.warn{border-left-color:var(--lobe)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:150px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button:active{transform:translateY(1px)}
+  canvas{display:block; width:100%; max-width:300px; margin:0 auto; image-rendering:auto; border:1px solid var(--line); border-radius:8px; background:#fff}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Next-event estimation &amp; light/BSDF MIS</h1>
+<p class="sub">24_nee_mis.cpp — to light a point you can sample the BSDF and hope to hit a light, or sample a point on the light directly. Each is catastrophic in the scene that suits the other; MIS combines them and is robust to both.</p>
+
+<p class="lead">Direct lighting is an integral of incoming light times the BRDF. Sampling the <strong>BSDF</strong> (<a href="19_ggx_vndf_sampling.html#3">example 19</a>) and following the ray works for big soft lights but almost never hits a small bright one — mostly zeros, rare spikes. <strong>Next-event estimation</strong> fixes that by sampling a point <em>on the light</em> and connecting to it — but it fails the opposite way, spraying samples across a large light reflected in a near-mirror. Neither wins everywhere, which is precisely what <a href="09_multiple_importance_sampling.html#3">MIS (example 09)</a> was built for. This is Veach's canonical result, applied to the two strategies a real renderer combines.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> The direct-lighting integral can be sampled two ways — over the light's solid angle (next-event estimation, pdf $r^2/(A\cos\theta_\ell)$ from <a href="23_change_of_variables.html#3">example 23</a>) or by BSDF/VNDF sampling (pdf $G_1 D/4(n\!\cdot\!\omega_o)$ from example 19) — and which one wins flips with the scene; combining them per-sample with the balance heuristic $w_i=p_i/\sum_j p_j$ keeps the estimator unbiased and within a small factor of whichever strategy is best, never the disastrous one.</p>
+</div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--bsdf)"></i> BSDF samples (VNDF)</span>
+  <span><i class="dot" style="background:var(--light)"></i> light samples (on the disk)</span>
+  <span><i class="swatch" style="border-color:var(--mis)"></i> MIS (balance / power)</span>
+  <span><i class="dot" style="background:var(--ref)"></i> quadrature reference</span>
+</div>
+
+
+<h2 id="1">1. One integral, two ways to sample it<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The light reaching a shading point from an area light is an integral over the light's surface — the BRDF, the light's emission, and the two cosines and inverse-square that make up the geometry term:</p>
+$$L=\int_{\text{light}} f_r(\omega_o,\omega_i)\,L_e\,\cos\theta_i\,\frac{\cos\theta_\ell}{r^2}\,dA.$$
+<p>There are two natural importance strategies, and they sample <em>the same integral</em> in different measures:</p>
+<ul>
+<li><strong>Light sampling (NEE):</strong> pick a point on the light (uniform on its area, $p_A=1/A$), and convert to a solid-angle pdf with the <a href="23_change_of_variables.html#3">example-23 factor</a> $p_\ell(\omega_i)=r^2/(A\cos\theta_\ell)$. Every sample lands <em>on</em> the light, so it is never wasted on darkness — ideal for small lights.</li>
+<li><strong>BSDF sampling:</strong> draw a direction $\omega_i$ from the GGX VNDF (example 19), pdf $p_b(\omega_i)=G_1(\omega_o)D(h)/\bigl(4(n\!\cdot\!\omega_o)\bigr)$, and check whether it happens to hit the light. Every sample follows the lobe, so it is ideal when the lobe is sharp and the light is large.</li>
+</ul>
+<p>Because both pdfs are expressed in the same solid-angle measure, they can be compared and combined — the prerequisite for MIS.</p>
+
+
+<h2 id="2">2. Each strategy is catastrophic somewhere<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The two strategies' samples are plotted below as the directions $\omega_i$ they produce, looking straight down the hemisphere (the <span style="color:var(--mis)">✕</span> is the mirror direction, where the light sits). <span style="color:var(--bsdf)">BSDF samples</span> follow the GGX lobe; <span style="color:var(--light)">light samples</span> land on the light's disk. Slide the roughness and the light size and watch the mismatch appear:</p>
+
+<figure>
+<canvas id="fig-scene" width="300" height="300"></canvas>
+<div class="ctl">
+  roughness $\alpha$ = <b id="sc-aval" style="display:inline-block; min-width:2.6em; text-align:right; font-variant-numeric:tabular-nums">0.05</b>
+  <input id="sc-a" type="range" min="3" max="60" value="5" step="1">
+  &nbsp; light radius $R$ = <b id="sc-rval" style="display:inline-block; min-width:2.6em; text-align:right; font-variant-numeric:tabular-nums">0.60</b>
+  <input id="sc-r" type="range" min="6" max="80" value="60" step="1">
+  <button id="sc-roll">Re-roll</button>
+</div>
+<figcaption>Figure 1. Sampled directions on the hemisphere disk: <span style="color:var(--bsdf)">BSDF (VNDF)</span> follows the lobe, <span style="color:var(--light)">light sampling</span> covers the disk light. <strong>Sharp lobe + large light</strong> (low $\alpha$, big $R$): BSDF nails the lobe while light sampling sprays most of its samples where the BRDF is ~0. <strong>Broad lobe + small light</strong> (high $\alpha$, tiny $R$): light sampling pins the light while the BSDF lobe scatters everywhere and rarely hits it. The good strategy <em>flips</em>.</figcaption>
+</figure>
+
+
+<h2 id="3">3. MIS combines them — and is robust to both<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>MIS (<a href="09_multiple_importance_sampling.html#3">example 09</a>) takes one sample from each strategy and weights them so neither spike survives. With the light's pdf $p_\ell$ and the BSDF's pdf $p_b$ both in solid-angle measure, the <strong>balance heuristic</strong> weight for the light sample is $w_\ell=p_\ell/(p_\ell+p_b)$ and for the BSDF sample $w_b=p_b/(p_b+p_\ell)$, each pdf evaluated at its own sample — exactly the example-09 construction, unbiased for the same reason proved there. The C++ file measures the variance of each estimator over 3M samples on two deliberately opposite scenes:</p>
+
+<table>
+<thead><tr><th>scene</th><th>strategy</th><th class="num">mean → L</th><th class="num">variance</th></tr></thead>
+<tbody>
+<tr><td rowspan="3"><strong>smooth, large light</strong><br><span class="small">α=0.05, R=0.6 — ref 4.78977</span></td><td><span class="dot" style="background:var(--light)"></span> light only</td><td class="num">4.78030</td><td class="num">2.01e+2</td></tr>
+<tr><td><span class="dot" style="background:var(--bsdf)"></span> BSDF only</td><td class="num">4.79084</td><td class="num">9.97e−1 ✓ best</td></tr>
+<tr><td><span class="dot" style="background:var(--mis)"></span> MIS (power)</td><td class="num">4.79007</td><td class="num">3.47e+0</td></tr>
+<tr><td rowspan="3"><strong>rough, small light</strong><br><span class="small">α=0.30, R=0.08 — ref 0.06478</span></td><td><span class="dot" style="background:var(--light)"></span> light only</td><td class="num">0.06478</td><td class="num">1.18e−5 ✓ best</td></tr>
+<tr><td><span class="dot" style="background:var(--bsdf)"></span> BSDF only</td><td class="num">0.06509</td><td class="num">3.19e−1</td></tr>
+<tr><td><span class="dot" style="background:var(--mis)"></span> MIS (power)</td><td class="num">0.06478</td><td class="num">1.18e−5</td></tr>
+</tbody>
+</table>
+
+<p>Read the variance column and the whole point appears: <strong>the best single strategy flips</strong> — BSDF in the first scene (light sampling is $201\times$ worse), light in the second (BSDF is $26{,}967\times$ worse) — and <em>you don't know in advance which a given pixel needs</em>. MIS is within $3.5\times$ of the best in scene 1 and essentially equal to it in scene 2, never the catastrophic one. The <strong>power heuristic</strong> ($w_i\propto p_i^2$) pushes the losing technique's weight down harder than the balance heuristic, trimming MIS's small overhead over the best.</p>
+
+<figure>
+<svg id="fig-var" viewBox="0 0 600 300" role="img" aria-label="Log-scale variance bars for light, BSDF, and MIS in two scenes, showing the best strategy flips while MIS stays low."></svg>
+<figcaption>Figure 2. Estimator variance (log scale) in the two scenes. The <span style="color:var(--light)">light</span> and <span style="color:var(--bsdf)">BSDF</span> bars trade places — each is the tall, catastrophic one in the scene that doesn't suit it — while <span style="color:var(--mis)">MIS</span> stays low in both. Robustness, not a smaller constant, is the win: MIS never picks the disastrous strategy because it never has to choose.</figcaption>
+</figure>
+
+
+<h2 id="4">4. In the renderer<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>This is exactly how production direct lighting works, and the natural next step for the <a href="https://github.com/INedelcu/PathTracingDemo/blob/main/Assets/Shaders/Shading.hlsl">PathTracingDemo</a> renderer. Its single-scattering estimators already sample a light directly (the NEE half) and sample the BRDF lobe (the continuation half); MIS-weighting those two with the balance heuristic — light pdf vs BSDF pdf, both in solid angle — is the upgrade that makes glossy surfaces under area lights converge. It needs the light's solid-angle pdf (<a href="23_change_of_variables.html#3">example 23</a>), the VNDF pdf (example 19), and the weighting rule (example 09): every piece is already in the series.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/24_nee_mis.cpp" target="_blank" rel="noopener"><code>24_nee_mis.cpp</code></a>.</p>
+
+<p>One light sample and one BSDF sample per iteration; the balance heuristic weights each by its own pdf over the sum of both pdfs at that direction.</p>
+
+<pre class="language-cpp"><code class="language-cpp">// LIGHT sample: uniform point on the disk -> solid-angle pdf r^2/(A cos) (ex. 23)
+Vec3 P = sampleDiskUniform(L);  Vec3 wiL = normalize(P);
+double pL = (rL*rL*rL) / (PI * L.R*L.R * L.H);          // r^2 / (A cos_light)
+
+// BSDF sample: VNDF direction -> pdf G1 D / (4 n·wo) (ex. 19); may miss the light
+Vec3 wiB = GgxReflect(wo, SampleGgxVNDF(wo, a, u1, u2));
+double pB = BsdfPdf(wo, wiB, a);
+
+// balance heuristic: weight each sample by its own pdf / (sum of both pdfs)
+double pB_atL = BsdfPdf(wo, wiL, a);                    // the OTHER pdf at this dir
+double pL_atB = LightPdfSA(rB, L);
+double wL = pL / (pL + pB_atL);
+double wB = pB / (pB + pL_atB);
+est = wL * Contribution(wo,wiL) / pL  +  wB * Contribution(wo,wiB) / pB;
+// power heuristic: replace p by p^2 in the weights -> suppresses the loser harder</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> Direct lighting is one integral with two good importance strategies — sample the light (NEE), or sample the BSDF — and which is better flips with roughness and light size, unpredictably across an image. MIS takes one of each and weights them by $w_i=p_i/\sum_j p_j$ (balance) or $p_i^2/\sum_j p_j^2$ (power), staying within a small factor of the best strategy and never falling into the catastrophic one. It is example 09's heuristic applied to the light and BSDF pdfs of examples 23 and 19 — the backbone of production direct lighting.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="23_change_of_variables.html">23 — Change of variables</a>. Builds on: <a href="09_multiple_importance_sampling.html">09 — MIS</a>, <a href="19_ggx_vndf_sampling.html">19 — GGX VNDF</a>, <a href="23_change_of_variables.html">23 — Area ↔ solid angle</a>. Next: <a href="25_area_light_sampling.html">25 — Sampling area lights</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  const PI=Math.PI;
+  // --- Vec3 + GGX VNDF (same as examples 19/21) ---
+  const V=(x,y,z)=>({x,y,z});
+  const add=(a,b)=>V(a.x+b.x,a.y+b.y,a.z+b.z);
+  const scl=(a,s)=>V(a.x*s,a.y*s,a.z*s);
+  const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+  const cross=(a,b)=>V(a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x);
+  const norm=a=>{const l=Math.hypot(a.x,a.y,a.z)||1;return V(a.x/l,a.y/l,a.z/l);};
+  function sampleVNDF(wo,a,u1,u2){
+    let Vh=norm(V(a*wo.x,a*wo.y,wo.z));
+    let T1=(Vh.z<0.9999)?norm(cross(V(0,0,1),Vh)):V(1,0,0);
+    let T2=cross(Vh,T1);
+    let r=Math.sqrt(u1),phi=2*PI*u2,t1=r*Math.cos(phi),t2=r*Math.sin(phi);
+    let s=0.5*(1+Vh.z);
+    t2=(1-s)*Math.sqrt(Math.max(0,1-t1*t1))+s*t2;
+    let t3=Math.sqrt(Math.max(0,1-t1*t1-t2*t2));
+    let Nh=add(add(scl(T1,t1),scl(T2,t2)),scl(Vh,t3));
+    return norm(V(a*Nh.x,a*Nh.y,Math.max(1e-6,Nh.z)));
+  }
+  const reflect=(wo,h)=>add(scl(h,2*dot(wo,h)),scl(wo,-1));
+
+  // ---------- Figure 1: the two sample clouds on the hemisphere disk ----------
+  (function(){
+    const cv=document.getElementById('fig-scene'); if(!cv) return;
+    const ctx=cv.getContext('2d'), S=cv.width, Rd=S/2-10, cx=S/2, cy=S/2;
+    const slA=document.getElementById('sc-a'), slR=document.getElementById('sc-r');
+    const th=30*PI/180, wo=V(Math.sin(th),0,Math.cos(th)), dd=1.1547;
+    const Lc=V(-Math.sin(th)*dd, 0, Math.cos(th)*dd);   // light center (on mirror dir)
+    function base(){
+      ctx.clearRect(0,0,S,S); ctx.fillStyle='#fff'; ctx.fillRect(0,0,S,S);
+      ctx.strokeStyle='#cbd0d9'; ctx.beginPath(); ctx.arc(cx,cy,Rd,0,2*PI); ctx.stroke();
+      // mirror direction X
+      const m=reflect(wo,V(0,0,1));
+      ctx.strokeStyle='#2f9e64'; ctx.lineWidth=2;
+      const mx=cx+m.x*Rd, my=cy-m.y*Rd;
+      ctx.beginPath();ctx.moveTo(mx-6,my-6);ctx.lineTo(mx+6,my+6);ctx.moveTo(mx+6,my-6);ctx.lineTo(mx-6,my+6);ctx.stroke();
+    }
+    function draw(){
+      const a=+slA.value/100, R=+slR.value/100;
+      base();
+      // light samples (gold): uniform on disk -> direction
+      ctx.fillStyle='rgba(217,165,0,0.55)';
+      for(let i=0;i<700;i++){
+        const r0=R*Math.sqrt(Math.random()), ph=2*PI*Math.random();
+        const P=V(Lc.x+r0*Math.cos(ph), Lc.y+r0*Math.sin(ph), Lc.z);
+        const wi=norm(P);
+        ctx.fillRect(cx+wi.x*Rd-1.1, cy-wi.y*Rd-1.1, 2.2, 2.2);
+      }
+      // bsdf samples (blue): VNDF reflect
+      ctx.fillStyle='rgba(43,108,176,0.6)';
+      for(let i=0;i<700;i++){
+        const wi=reflect(wo, sampleVNDF(wo,a,Math.random(),Math.random()));
+        if(wi.z>0) ctx.fillRect(cx+wi.x*Rd-1.1, cy-wi.y*Rd-1.1, 2.2, 2.2);
+      }
+      document.getElementById('sc-aval').textContent=a.toFixed(2);
+      document.getElementById('sc-rval').textContent=R.toFixed(2);
+    }
+    slA.addEventListener('input',draw); slR.addEventListener('input',draw);
+    document.getElementById('sc-roll').addEventListener('click',draw); draw();
+  })();
+
+  // ---------- Figure 2: variance bars, two scenes (from the C++ run) ----------
+  (function(){
+    const svg=document.getElementById('fig-var'); if(!svg) return;
+    const data=[
+      {scene:'smooth, large light', bars:[['light',2.01e2,'var(--light)'],['BSDF',9.97e-1,'var(--bsdf)'],['MIS',3.47e0,'var(--mis)']]},
+      {scene:'rough, small light',  bars:[['light',1.18e-5,'var(--light)'],['BSDF',3.19e-1,'var(--bsdf)'],['MIS',1.18e-5,'var(--mis)']]}
+    ];
+    const x0=70,x1=560,top=40,bot=240;
+    const LMIN=-5, LMAX=3;                              // log10 axis 1e-5 .. 1e3
+    const ly=v=>bot-(Math.log10(v)-LMIN)/(LMAX-LMIN)*(bot-top);
+    for(let k=LMIN;k<=LMAX;k++){const y=ly(Math.pow(10,k));
+      svg.appendChild(el('line',{x1:x0,y1:y,x2:x1,y2:y,stroke:'#eef0f4'}));
+      svg.appendChild(txt(x0-8,y+4,'1e'+k,{'font-size':10.5,fill:'var(--muted)','text-anchor':'end'}));}
+    svg.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(txt(x0-40,top-16,'variance (log)',{'font-size':12,fill:'var(--muted)'}));
+    const groupW=(x1-x0)/2, bw=42, gap=14;
+    data.forEach((g,gi)=>{
+      const gx=x0+gi*groupW+40;
+      g.bars.forEach((b,bi)=>{
+        const x=gx+bi*(bw+gap), y=ly(b[1]);
+        svg.appendChild(el('rect',{x,y,width:bw,height:bot-y,fill:b[2],'fill-opacity':0.85,rx:3}));
+        svg.appendChild(txt(x+bw/2,y-5,b[1].toExponential(0).replace('e','e'),{'font-size':10,fill:b[2],'text-anchor':'middle'}));
+        svg.appendChild(txt(x+bw/2,bot+14,b[0],{'font-size':11,fill:'var(--muted)','text-anchor':'middle'}));
+      });
+      svg.appendChild(txt(gx+(3*bw+2*gap)/2,bot+32,g.scene,{'font-size':12,fill:'var(--ink)','text-anchor':'middle','font-weight':600}));
+      // best-marker
+    });
+    svg.appendChild(txt((x0+x1)/2,top-16,'best single strategy flips · MIS stays low in both',{'font-size':11.5,fill:'var(--mis)','text-anchor':'middle'}));
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

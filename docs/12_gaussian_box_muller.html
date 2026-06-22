@@ -120,6 +120,14 @@ $$\varphi(z_0)\,\varphi(z_1)=\frac{1}{2\pi}\,e^{-(z_0^2+z_1^2)/2}=\frac{1}{2\pi}
 <li>the <strong>squared radius</strong> $S=R^2$ is <strong>Exponential</strong> with mean 2 (the area element $r\,dr$ turns $e^{-r^2/2}$ into the exponential density $\tfrac12 e^{-s/2}$).</li>
 </ul>
 
+<div class="callout">
+<strong>Why — the Jacobian.</strong> Change the joint density from Cartesian to polar coordinates $(r,\theta)$. The area element carries a factor $r$ — $dz_0\,dz_1=r\,dr\,d\theta$ — so the density in $(r,\theta)$ is</p>
+$$p(r,\theta)=\frac{1}{2\pi}e^{-r^2/2}\cdot r=\underbrace{\frac{1}{2\pi}}_{\text{angle}}\cdot\underbrace{r\,e^{-r^2/2}}_{\text{radius}},\qquad r\ge0,\ \theta\in[0,2\pi).$$
+<p>It <em>factorizes</em>, so $\theta$ and $R$ are independent: $\theta$ is uniform on $[0,2\pi)$ (constant density $\tfrac{1}{2\pi}$), and $R$ carries the Rayleigh density $r\,e^{-r^2/2}$. Switch to the squared radius $S=R^2$, where $dS=2r\,dr$:</p>
+$$p_S(s)=r\,e^{-r^2/2}\,\frac{dr}{dS}=r\,e^{-s/2}\cdot\frac{1}{2r}=\tfrac12 e^{-s/2},$$
+<p style="margin-bottom:0">exactly the Exponential density with mean $2$. Its CDF is $1-e^{-s/2}$; inverting it (set $1-e^{-S/2}=1-U_1$) gives $S=-2\ln U_1$, i.e. $R=\sqrt{-2\ln U_1}$ — the radius line of the transform, with the angle line $\theta=2\pi U_2$.</p>
+</div>
+
 <p>Both are samplable by inversion: a uniform angle is just $2\pi U_2$, and the Exponential inverse-CDF gives $S=-2\ln U_1$, so $R=\sqrt{-2\ln U_1}$ (the same exponential trick as <a href="05_sampling_distributions.html#2">example 05</a>). Convert the polar sample $(R,\theta)$ back to Cartesian and you have your two normals.</p>
 
 <figure>
@@ -206,7 +214,19 @@ for (long long i = 0; i &lt; kPairs; ++i) {
 }
 // general normal:  X = mu + sigma * Z</code></pre>
 
-<p>The printed histogram traces $\varphi(x)$, the sample mean/variance come out $\approx 0$ and $\approx 1$, and the within-$1/2/3\sigma$ fractions land on $68.27/95.45/99.73\%$.</p>
+<p class="small">Output (10M samples, seed 12):</p>
+
+<pre><code>sample mean ....... -0.00042   (theory 0)
+sample variance ...  1.00141   (theory 1)
+
+within 1 sigma .... 68.233%   (theory 68.27%)
+within 2 sigma .... 95.434%   (theory 95.45%)
+within 3 sigma .... 99.728%   (theory 99.73%)
+
+X = mu + sigma*Z, mu=2.0, sigma=1.5:
+  sample mean = 1.9990 (theory 2.0),  sample std = 1.4987 (theory 1.5)</code></pre>
+
+<p>The histogram traces $\varphi(x)$ to the third decimal per bin; the moments hit $0$ and $1$, the three band fractions land on the textbook $68.27/95.45/99.73\%$, and the shifted–scaled stream reproduces $\mu=2,\ \sigma=1.5$ — three independent confirmations the output really is $\mathcal N(0,1)$.</p>
 
 
 <h2 id="8">8. Where the bell shows up in rendering<a class="hlink" href="#8" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>

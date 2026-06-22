@@ -183,6 +183,13 @@ $$p(v)\cdot p(u\mid v)=p(u,v),$$
 <li><strong>Importance:</strong> pick a texel with probability $\propto f$, estimator $f\,g/p = (\text{total})\cdot g$. The $f$ cancels: every sample returns the same order of magnitude, scaled only by the smooth $g$. Much lower variance.</li>
 </ul>
 
+<div class="callout">
+<strong>The variance, exactly.</strong> Both estimators are unbiased ($\mathbb E=I$), and each per-sample variance $\mathbb E[\text{est}^2]-I^2$ has a closed form. Uniform draws texel $(1/N)$ and returns $N f g$; importance draws texel $\propto f$ (so $p=f/\text{total}$) and returns $\text{total}\cdot g$:</p>
+$$\operatorname{Var}_{\text{unif}}=N\!\sum_{u,v} f^2 g^2-I^2,\qquad
+  \operatorname{Var}_{\text{imp}}=\text{total}\!\sum_{u,v} f\,g^2-I^2 .$$
+<p style="margin-bottom:0">Importance trades the spiky $f^2$ for a single power of $f$ — that is the entire win. It is not driven to <em>zero</em> because the smooth $g^2$ survives; only if $g$ were constant would $\sum f g^2$ collapse to $I^2/\text{total}$ and the variance vanish (the perfect-importance limit of <a href="06_importance_sampling.html#2">example 06</a>). Evaluated on this map the two formulas give $1.38\times10^7$ and $3.98\times10^6$ — the ${\approx}3.5\times$ reduction, recovered from the table without sampling at all.</p>
+</div>
+
 <figure>
 <svg id="fig-var" viewBox="0 0 600 240" role="img" aria-label="Bar chart comparing the estimator variance of uniform vs importance sampling."></svg>
 <figcaption>Figure 3. Estimator variance, from the C++ run (4M samples each). Importance sampling cuts it about $3.5\times$ here. It is "only" $3.5\times$, not enormous, because the estimator still carries the smooth factor $g$ that the map's density does <em>not</em> match — importance sampling cancels $f$, not $g$. Matching the <em>full</em> integrand would drive variance toward zero (<a href="06_importance_sampling.html#2">example 06</a>); matching the dominant, spiky factor is the practical win.</figcaption>

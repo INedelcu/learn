@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>26 — Building an orthonormal basis around a normal — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --b1:#2b6cb0; --b2:#2f9e64; --normal:#d9a500; --naive:#e53e3e; --samp:#7c3aed; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--b2)}
+  .callout.warn{border-left-color:var(--naive)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:160px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button:active{transform:translateY(1px)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Building an orthonormal basis around a normal</h1>
+<p class="sub">26_orthonormal_basis.cpp — every hemisphere and BRDF sampler works in a local frame where the normal is straight up. To use the directions it produces, you rotate them onto the real normal — which needs two tangents, built stably for any normal (Duff et al. 2017).</p>
+
+<p class="lead">The samplers in this series all produce directions in a <strong>local frame</strong> where the surface normal is $(0,0,1)$: cosine-weighted hemispheres (<a href="08_hemisphere_sampling.html#2">example 08</a>), GGX visible normals (<a href="19_ggx_vndf_sampling.html#3">example 19</a>). A real surface normal points some arbitrary way, so each sampled direction must be rotated from that local frame into world space — which means completing the normal into an orthonormal frame with two tangent vectors. The naive way to find them breaks at the poles; the renderer uses a branchless construction (Duff et al. 2017) that is stable for <em>every</em> normal.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> A sample $(\ell_x,\ell_y,\ell_z)$ in the local frame becomes the world direction $\ell_x\,\mathbf b_1+\ell_y\,\mathbf b_2+\ell_z\,\mathbf n$, so you need tangents $\mathbf b_1,\mathbf b_2$ with $(\mathbf b_1,\mathbf b_2,\mathbf n)$ orthonormal; the Duff–Burgess–Licea-Kane–Theobald sign trick builds them with no branches and no pole blow-up, and because the resulting map is a pure rotation it carries the local distribution onto $\mathbf n$ unchanged — a cosine-weighted lobe stays cosine-weighted, mean $\cos\theta=\tfrac23$.</p>
+</div>
+
+<div class="legend">
+  <span><i class="swatch" style="border-color:var(--b1)"></i> tangent $\mathbf b_1$</span>
+  <span><i class="swatch" style="border-color:var(--b2)"></i> tangent $\mathbf b_2$</span>
+  <span><i class="swatch" style="border-color:var(--normal)"></i> normal $\mathbf n$</span>
+  <span><i class="dot" style="background:var(--samp)"></i> rotated samples</span>
+</div>
+
+
+<h2 id="1">1. Why a local frame needs a basis<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>A cosine or GGX sampler returns a direction relative to "up" — the surface normal at $(0,0,1)$ — because the math (the $\cos\theta$, the lobe) is written around that axis. To trace the ray you need it in world space, aligned with the actual normal $\mathbf n$. Given two unit tangents $\mathbf b_1,\mathbf b_2$ perpendicular to $\mathbf n$ and to each other, the rotation is a single linear combination:</p>
+$$\boldsymbol\omega_{\text{world}}=\ell_x\,\mathbf b_1+\ell_y\,\mathbf b_2+\ell_z\,\mathbf n,$$
+<p>where $(\ell_x,\ell_y,\ell_z)$ is the local sample. The columns of this map are $(\mathbf b_1,\mathbf b_2,\mathbf n)$; for it to be a proper rotation — preserving lengths, angles, and the hemisphere — those three must form an <strong>orthonormal</strong>, right-handed frame. So the whole task reduces to: given $\mathbf n$, find two good tangents.</p>
+
+
+<h2 id="2">2. The naive trap and the Duff sign trick<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The obvious recipe is $\mathbf b_1=\widehat{\mathbf n\times\hat z}$, $\mathbf b_2=\mathbf n\times\mathbf b_1$. It works — until $\mathbf n$ nears $\pm\hat z$, where $\mathbf n\times\hat z\to\mathbf 0$ and the normalization divides by almost nothing: the frame spins wildly and then explodes. You can patch it with an <code>if</code> that switches the reference axis, but branches are unwelcome on a GPU. <strong>Duff et al. (2017)</strong> give a branchless construction that never degenerates, using the sign of $n_z$:</p>
+$$s=\operatorname{sign}(n_z),\quad a=\frac{-1}{s+n_z},\quad b=n_x n_y a,$$
+$$\mathbf b_1=\big(1+s\,n_x^2\,a,\;\; s\,b,\;\; -s\,n_x\big),\qquad
+  \mathbf b_2=\big(b,\;\; s+n_y^2\,a,\;\; -n_y\big).$$
+<p>The sign flips the construction between the two hemispheres so the denominator $s+n_z$ is never near zero — at the north pole $s+n_z=2$, at the south pole the sign makes it $-2$, never $0$. Drag the normal below (including straight to a pole) and watch the frame stay rigid and orthonormal:</p>
+
+<figure>
+<svg id="fig-tripod" viewBox="0 0 600 320" role="img" aria-label="An orthonormal frame (two tangents and the normal) drawn around a tiltable normal, staying perpendicular at every tilt."></svg>
+<div class="ctl">
+  normal tilt $\theta$ = <b id="tp-tval" style="display:inline-block; min-width:2.8em; text-align:right; font-variant-numeric:tabular-nums">55°</b>
+  <input id="tp-t" type="range" min="0" max="180" value="55" step="1">
+  &nbsp; azimuth $\phi$ = <b id="tp-pval" style="display:inline-block; min-width:2.8em; text-align:right; font-variant-numeric:tabular-nums">35°</b>
+  <input id="tp-p" type="range" min="0" max="360" value="35" step="1">
+  <button id="tp-pole">Snap to pole</button>
+</div>
+<div class="panel">
+  <div class="row"><span>$\mathbf b_1\!\cdot\!\mathbf b_2,\;\mathbf b_1\!\cdot\!\mathbf n,\;\mathbf b_2\!\cdot\!\mathbf n$</span><b id="tp-dots" style="color:var(--b2)">—</b></div>
+  <div class="row"><span>$|\mathbf b_1|,\;|\mathbf b_2|$</span><b id="tp-len">—</b></div>
+  <div class="row"><span>worst residual</span><b id="tp-res" style="color:var(--b1)">—</b></div>
+</div>
+<figcaption>Figure 1. The Duff frame around a tiltable normal (isometric view). <span style="color:var(--normal)">$\mathbf n$</span>, <span style="color:var(--b1)">$\mathbf b_1$</span>, <span style="color:var(--b2)">$\mathbf b_2$</span> stay mutually perpendicular and unit length at every tilt — the dot products hold at $0$ and the lengths at $1$ to floating-point precision, even when you snap $\mathbf n$ to a pole (where the naive cross-product method blows up). The C++ run over 200k random normals reports a worst residual of $2.9\times10^{-7}$.</figcaption>
+</figure>
+
+
+<h2 id="3">3. Why it's orthonormal — and stable<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The construction looks like magic, but $\mathbf b_1\!\cdot\!\mathbf n=0$ falls right out. Take the north hemisphere, $s=+1$ so $a=-1/(1+n_z)$, and use $n_x^2+n_y^2=1-n_z^2$:</p>
+$$\mathbf b_1\!\cdot\!\mathbf n=n_x(1+n_x^2 a)+n_y(n_x n_y a)+(-n_x)n_z
+  =n_x\Big[1+a\,(n_x^2+n_y^2)-n_z\Big]=n_x\Big[1+a(1-n_z^2)-n_z\Big].$$
+<p>Now $a(1-n_z^2)=-\dfrac{(1-n_z)(1+n_z)}{1+n_z}=-(1-n_z)$, so the bracket is $1-(1-n_z)-n_z=0$, hence $\mathbf b_1\!\cdot\!\mathbf n=0$. The south hemisphere is identical with $s=-1$ — and that sign is exactly what keeps $1/(s+n_z)$ away from its singularity, so the algebra above never divides by something tiny. The same kind of cancellation gives $\mathbf b_2\!\cdot\!\mathbf n=0$ and $\mathbf b_1\!\cdot\!\mathbf b_2=0$, with $|\mathbf b_1|=|\mathbf b_2|=1$; the C++ check confirms all of it at the floating-point floor ($2.9\times10^{-7}$) over 200k random normals plus both poles.</p>
+
+
+<h2 id="4">4. Carrying a distribution onto the normal<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Because $(\mathbf b_1,\mathbf b_2,\mathbf n)$ is orthonormal, the map $\boldsymbol\omega=\ell_x\mathbf b_1+\ell_y\mathbf b_2+\ell_z\mathbf n$ is a pure rotation — its Jacobian (<a href="23_change_of_variables.html#1">example 23</a>) is exactly $1$. A rotation preserves solid angle, so a distribution sampled in the local frame is carried onto $\mathbf n$ <em>unchanged</em>: a cosine-weighted lobe about $(0,0,1)$ becomes a cosine-weighted lobe about $\mathbf n$. The check is the cosine-weighted average from <a href="08_hemisphere_sampling.html#2">example 08</a>,</p>
+$$\mathbb E[\cos\theta]=\int_{\mathcal H}\cos\theta\,\frac{\cos\theta}{\pi}\,d\omega
+  =\frac1\pi\int_{\mathcal H}\cos^2\theta\,d\omega=\frac1\pi\cdot\frac{2\pi}{3}=\frac23,$$
+<p>which must hold about $\mathbf n$ after the rotation. Generating cosine-weighted samples in the local frame and rotating them onto a slanted $\mathbf n$, the C++ run gets mean $\cos\theta=0.66682$ (theory $0.66667$) with <em>zero</em> samples below the surface. Below, the rotated samples cluster around the tilted normal, all on its lit side:</p>
+
+<figure>
+<svg id="fig-samples" viewBox="0 0 600 300" role="img" aria-label="Cosine-weighted samples rotated into the frame of a tilted normal, all lying in its hemisphere."></svg>
+<div class="ctl">
+  normal tilt $\theta$ = <b id="sm-tval" style="display:inline-block; min-width:2.8em; text-align:right; font-variant-numeric:tabular-nums">50°</b>
+  <input id="sm-t" type="range" min="0" max="85" value="50" step="1">
+  <button id="sm-roll">Re-roll</button>
+</div>
+<div class="panel">
+  <div class="row"><span>mean $\cos\theta$ about $\mathbf n$ (theory ⅔)</span><b id="sm-cos" style="color:var(--samp)">—</b></div>
+  <div class="row"><span>samples below the surface</span><b id="sm-below" style="color:var(--b2)">—</b></div>
+</div>
+<figcaption>Figure 2. Cosine-weighted local samples rotated through $(\mathbf b_1,\mathbf b_2,\mathbf n)$ onto a tilted <span style="color:var(--normal)">normal</span> (isometric view). The lobe tilts <em>with</em> the normal and every sample lands in its hemisphere — the rotation moved the distribution without distorting it, so the mean $\cos\theta$ about $\mathbf n$ stays at $\tfrac23$.</figcaption>
+</figure>
+
+
+<h2 id="5">5. In the renderer<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>This is the small but essential plumbing under every direction sample the renderer takes. <a href="https://github.com/INedelcu/PathTracingDemo/blob/main/Assets/Shaders/Utils.hlsl">PathTracingDemo</a>'s <code>BuildOrthonormalBasis</code> is this exact Duff construction; the closest-hit shaders call it to turn a cosine-weighted diffuse bounce or a GGX visible-normal sample — both produced in the local $(0,0,1)$ frame — into a world-space ray around the shading normal. Branchless and pole-stable matters because a renderer evaluates it at every bounce of every path, on the GPU, for normals pointing in every direction; a frame that wobbled near the poles would streak artifacts across exactly the grazing silhouettes where they are most visible.</p>
+
+
+<h2 id="6">6. The code<a class="hlink" href="#6" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/26_orthonormal_basis.cpp" target="_blank" rel="noopener"><code>26_orthonormal_basis.cpp</code></a>.</p>
+
+<p>Five lines, no branches, stable everywhere — then a sample is rotated with one linear combination.</p>
+
+<pre class="language-cpp"><code class="language-cpp">// Duff et al. 2017 — branchless orthonormal basis. n must be unit length.
+void OrthonormalBasis(const Vec3&amp; n, Vec3&amp; b1, Vec3&amp; b2) {
+    float sign = std::copysignf(1.0f, n.z);          // +/-1, never 0
+    float a = -1.0f / (sign + n.z);                  // denominator never near 0
+    float b = n.x * n.y * a;
+    b1 = Vec3(1.0f + sign*n.x*n.x*a,  sign*b,           -sign*n.x);
+    b2 = Vec3(b,                       sign + n.y*n.y*a, -n.y);
+}
+
+// use it: a local sample (ell) becomes a world direction around n.
+Vec3 world = b1*local.x + b2*local.y + n*local.z;    // pure rotation, Jacobian 1</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> Every hemisphere/BRDF sampler works in a local frame with the normal at $(0,0,1)$; using its output means rotating onto the real normal, $\boldsymbol\omega=\ell_x\mathbf b_1+\ell_y\mathbf b_2+\ell_z\mathbf n$, which needs an orthonormal $(\mathbf b_1,\mathbf b_2,\mathbf n)$. The Duff sign trick builds the tangents with no branches and no pole blow-up — $\mathbf b_1\!\cdot\!\mathbf n=0$ drops out of $n_x^2+n_y^2=1-n_z^2$ — and since the map is a pure rotation it carries the sampling distribution onto $\mathbf n$ untouched (cosine stays cosine, mean $\cos\theta=\tfrac23$). It is the transform under every bounce the renderer traces.
+</div>
+
+<p class="small" style="margin-top:34px">The latest entry in the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="25_area_light_sampling.html">25 — Sampling area lights</a>. Builds on: <a href="08_hemisphere_sampling.html">08 — Hemisphere sampling</a>, <a href="23_change_of_variables.html">23 — Change of variables</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  const PI=Math.PI;
+  // --- Duff et al. 2017 ---
+  function onb(n){
+    const sign = n.z>=0?1:-1;
+    const a = -1/(sign+n.z);
+    const b = n.x*n.y*a;
+    const b1={x:1+sign*n.x*n.x*a, y:sign*b, z:-sign*n.x};
+    const b2={x:b, y:sign+n.y*n.y*a, z:-n.y};
+    return [b1,b2];
+  }
+  const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+  const len=a=>Math.hypot(a.x,a.y,a.z);
+  function normalDir(th,ph){return {x:Math.sin(th)*Math.cos(ph), y:Math.sin(th)*Math.sin(ph), z:Math.cos(th)};}
+  // isometric projection: z up, viewed from above-front
+  const AX=Math.cos(PI/6), AY=Math.sin(PI/6);
+  function proj(v, cx, cy, scale){
+    const X=(v.x - v.y)*AX, Y=(v.x + v.y)*AY - v.z;
+    return [cx + X*scale, cy + Y*scale];   // +z -> up (Y has -v.z, screen y down => up)
+  }
+
+  // ---------- Figure 1: the tripod ----------
+  (function(){
+    const svg=document.getElementById('fig-tripod'); if(!svg) return;
+    const slT=document.getElementById('tp-t'), slP=document.getElementById('tp-p');
+    const cx=300, cy=200, scale=120;
+    function arrow(svgEl,from,to,color,label){
+      const A=proj(from,cx,cy,scale), B=proj(to,cx,cy,scale);
+      svgEl.appendChild(el('line',{x1:A[0],y1:A[1],x2:B[0],y2:B[1],stroke:color,'stroke-width':2.6,'marker-end':'url(#oh-'+color.replace(/[^a-z]/g,'')+')'}));
+      svgEl.appendChild(txt(B[0]+(B[0]>=cx?6:-6),B[1]+(B[1]>=cy?14:-6),label,{'font-size':12.5,fill:color,'text-anchor':B[0]>=cx?'start':'end','font-weight':600}));
+    }
+    function defs(){
+      const d=el('defs');
+      ['var(--b1)','var(--b2)','var(--normal)'].forEach(c=>{const m=el('marker',{id:'oh-'+c.replace(/[^a-z]/g,''),markerWidth:8,markerHeight:8,refX:6,refY:3,orient:'auto'});m.appendChild(el('path',{d:'M0,0 L6,3 L0,6 Z',fill:c}));d.appendChild(m);});
+      return d;
+    }
+    function draw(){
+      while(svg.firstChild)svg.removeChild(svg.firstChild);
+      svg.appendChild(defs());
+      const th=+slT.value*PI/180, ph=+slP.value*PI/180;
+      const n=normalDir(th,ph); const [b1,b2]=onb(n);
+      // faint ground plane axes (x,y)
+      [{x:1.1,y:0,z:0},{x:0,y:1.1,z:0}].forEach(ax=>{const A=proj({x:0,y:0,z:0},cx,cy,scale),B=proj(ax,cx,cy,scale);svg.appendChild(el('line',{x1:A[0],y1:A[1],x2:B[0],y2:B[1],stroke:'#e6e9ef','stroke-width':1}));});
+      arrow(svg,{x:0,y:0,z:0},b1,'var(--b1)','b₁');
+      arrow(svg,{x:0,y:0,z:0},b2,'var(--b2)','b₂');
+      arrow(svg,{x:0,y:0,z:0},n,'var(--normal)','n');
+      svg.appendChild(el('circle',{cx:cx,cy:cy,r:3,fill:'#9aa0ad'}));
+      // residuals
+      const d12=dot(b1,b2), d1n=dot(b1,n), d2n=dot(b2,n);
+      const res=Math.max(Math.abs(d12),Math.abs(d1n),Math.abs(d2n),Math.abs(len(b1)-1),Math.abs(len(b2)-1));
+      document.getElementById('tp-tval').textContent=(+slT.value)+'°';
+      document.getElementById('tp-pval').textContent=(+slP.value)+'°';
+      document.getElementById('tp-dots').textContent=d12.toExponential(1)+', '+d1n.toExponential(1)+', '+d2n.toExponential(1);
+      document.getElementById('tp-len').textContent=len(b1).toFixed(5)+', '+len(b2).toFixed(5);
+      document.getElementById('tp-res').textContent=res.toExponential(2);
+    }
+    slT.addEventListener('input',draw); slP.addEventListener('input',draw);
+    document.getElementById('tp-pole').addEventListener('click',()=>{slT.value=0;draw();});
+    draw();
+  })();
+
+  // ---------- Figure 2: rotated cosine samples ----------
+  (function(){
+    const svg=document.getElementById('fig-samples'); if(!svg) return;
+    const slT=document.getElementById('sm-t');
+    const cx=300, cy=200, scale=120;
+    function arrow(from,to,color,label){
+      const A=proj(from,cx,cy,scale), B=proj(to,cx,cy,scale);
+      svg.appendChild(el('line',{x1:A[0],y1:A[1],x2:B[0],y2:B[1],stroke:color,'stroke-width':2.6,'marker-end':'url(#sh)'}));
+      svg.appendChild(txt(B[0]+6,B[1]-4,label,{'font-size':12.5,fill:color,'font-weight':600}));
+    }
+    function draw(){
+      while(svg.firstChild)svg.removeChild(svg.firstChild);
+      const d=el('defs'); const m=el('marker',{id:'sh',markerWidth:8,markerHeight:8,refX:6,refY:3,orient:'auto'});m.appendChild(el('path',{d:'M0,0 L6,3 L0,6 Z',fill:'var(--normal)'}));d.appendChild(m); svg.appendChild(d);
+      const th=+slT.value*PI/180, ph=35*PI/180;
+      const n=normalDir(th,ph); const [b1,b2]=onb(n);
+      // ground axes
+      [{x:1.2,y:0,z:0},{x:0,y:1.2,z:0}].forEach(ax=>{const A=proj({x:0,y:0,z:0},cx,cy,scale),B=proj(ax,cx,cy,scale);svg.appendChild(el('line',{x1:A[0],y1:A[1],x2:B[0],y2:B[1],stroke:'#e6e9ef','stroke-width':1}));});
+      let sumc=0, below=0; const N=500;
+      for(let i=0;i<N;i++){
+        const u1=Math.random(), u2=Math.random();
+        const r=Math.sqrt(u1), a2=2*PI*u2;
+        const local={x:r*Math.cos(a2), y:r*Math.sin(a2), z:Math.sqrt(Math.max(0,1-u1))};
+        const w={x:b1.x*local.x+b2.x*local.y+n.x*local.z,
+                 y:b1.y*local.x+b2.y*local.y+n.y*local.z,
+                 z:b1.z*local.x+b2.z*local.y+n.z*local.z};
+        const c=dot(w,n); sumc+=c; if(c<-1e-5)below++;
+        const P=proj({x:w.x*0.92,y:w.y*0.92,z:w.z*0.92},cx,cy,scale);
+        svg.appendChild(el('circle',{cx:P[0],cy:P[1],r:1.6,fill:'var(--samp)','fill-opacity':0.5}));
+      }
+      arrow({x:0,y:0,z:0},n,'var(--normal)','n');
+      svg.appendChild(el('circle',{cx:cx,cy:cy,r:3,fill:'#9aa0ad'}));
+      document.getElementById('sm-tval').textContent=(+slT.value)+'°';
+      document.getElementById('sm-cos').textContent=(sumc/N).toFixed(4);
+      document.getElementById('sm-below').textContent=below;
+    }
+    slT.addEventListener('input',draw);
+    document.getElementById('sm-roll').addEventListener('click',draw);
+    draw();
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

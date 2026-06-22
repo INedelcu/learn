@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>23 — Change of variables: the Jacobian, area vs solid angle — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --wrong:#e53e3e; --correct:#2f9e64; --concentric:#7c3aed; --light:#d9a500; --geo:#2b6cb0; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--correct)}
+  .callout.warn{border-left-color:var(--wrong)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:150px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button:active{transform:translateY(1px)}
+  .three{display:flex; gap:14px; flex-wrap:wrap; justify-content:center}
+  .three>div{flex:1 1 180px; text-align:center; min-width:160px}
+  canvas{display:block; width:100%; max-width:200px; margin:0 auto; image-rendering:auto; border:1px solid var(--line); border-radius:8px; background:#fff}
+  .pcap{font-size:14px; font-weight:600; margin:8px 0 2px}
+  .met{font-size:12.5px; color:var(--muted); font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Change of variables: the Jacobian, area vs solid angle</h1>
+<p class="sub">23_change_of_variables.cpp — every sampler warps uniform numbers into points or directions, and the Jacobian is the bookkeeping that keeps the density honest. Get it wrong and your lens, area-light, and BRDF samples are quietly biased.</p>
+
+<p class="lead">Every sampling routine in this series — inversion, cosine hemispheres, GGX, environment maps — is a <strong>change of variables</strong>: feed in uniform numbers, warp them into the shape you want. The rule that keeps the result unbiased is the Jacobian: when you stretch space, the density has to shrink by the same factor. Skip it and you get a silent bias — the classic example being the disk map that looks right and piles every sample at the center. This page is the geometry that underlies the next few: disk and lens sampling, and the area-to-solid-angle conversion that next-event estimation runs on.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> A map $y=T(x)$ transforms a density by $p_y(y)=p_x(x)/|J_T(x)|$ where $|J_T|$ is how much $T$ stretches area/volume; the polar map's Jacobian is $r$, so uniform $(r,\phi)$ clumps at the disk center and the area-uniform radius is $r=\sqrt{u}$; and the area↔solid-angle Jacobian $d\omega=\cos\theta_\ell\,dA/r^2$ turns an area-light pdf into a solid-angle pdf via the factor $r^2/\cos\theta_\ell$ — the geometry term behind next-event estimation.</p>
+</div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--wrong)"></i> naive $r=u$ (biased)</span>
+  <span><i class="dot" style="background:var(--correct)"></i> correct $r=\sqrt{u}$</span>
+  <span><i class="dot" style="background:var(--concentric)"></i> concentric (Shirley)</span>
+  <span><i class="dot" style="background:var(--light)"></i> area ↔ solid angle</span>
+</div>
+
+
+<h2 id="1">1. Every sampler is a change of variables<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Inversion (<a href="05_sampling_distributions.html#2">example 05</a>) took $U\sim[0,1)$ and warped it through the inverse CDF. Box–Muller (<a href="12_gaussian_box_muller.html#3">example 12</a>) warped two uniforms into the plane. Every sampler is a map $y=T(x)$, and the law that keeps densities consistent under it is the <strong>change-of-variables formula</strong>:</p>
+$$y=T(x),\quad X\sim p_x \;\;\Longrightarrow\;\; p_y(y)=\frac{p_x(x)}{|J_T(x)|},\qquad
+  |J_T(x)|=\left|\det\frac{\partial T}{\partial x}\right|.$$
+<p>The Jacobian $|J_T|$ is the local stretch factor — the ratio of output volume to input volume. Where the map <em>expands</em> space, samples spread out and the density drops; where it <em>compresses</em>, they bunch and the density rises. The whole job of getting a sampler right is tracking that factor; getting it wrong tilts the density without any error message.</p>
+
+
+<h2 id="2">2. Sampling a disk: the trap and the fix<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>To sample a disk it is tempting to write $r=u_1$, $\phi=2\pi u_2$. It is wrong. The polar map $(x,y)=(r\cos\phi,\,r\sin\phi)$ has Jacobian</p>
+$$\left|\det\frac{\partial(x,y)}{\partial(r,\phi)}\right|
+  =\left|\det\begin{pmatrix}\cos\phi & -r\sin\phi\\ \sin\phi & r\cos\phi\end{pmatrix}\right|=r,$$
+<p>so feeding it uniform $(r,\phi)$ gives a disk density $p(x,y)=p(r,\phi)/r\propto 1/r$ — diverging at the center. The points pile into the middle. To make the disk <em>area</em>-uniform ($p(x,y)=1/\pi$) the radius must instead be drawn with density $p(r)\propto r$. Its CDF is the enclosed-area fraction,</p>
+$$F(r)=\frac{\pi r^2}{\pi\,1^2}=r^2 \;\Longrightarrow\; r=\sqrt{u}\quad(\text{inversion, example 05}),$$
+<p>which is the one-character fix: $r=\sqrt{u}$. <strong>Shirley's concentric map</strong> reaches the same uniform density a different way — it maps the square $[-1,1]^2$ to the disk in wedges — and is additionally <em>low-distortion</em>: neighbouring square samples stay neighbours on the disk, so a stratified or low-discrepancy grid (<a href="16_sampling_patterns_2d.html#1">example 16</a>) survives the warp, which $r=\sqrt u$ scrambles. Below, $1500$ points each way; the metric is the fraction landing in the inner half-radius (uniform → $25\%$, since that inner disk is a quarter of the area).</p>
+
+<figure>
+<div class="three">
+  <div><div class="pcap" style="color:var(--wrong)">naive r = u</div><canvas id="d-naive" width="200" height="200"></canvas><div class="met" id="m-naive">—</div></div>
+  <div><div class="pcap" style="color:var(--correct)">correct r = √u</div><canvas id="d-sqrt" width="200" height="200"></canvas><div class="met" id="m-sqrt">—</div></div>
+  <div><div class="pcap" style="color:var(--concentric)">concentric</div><canvas id="d-conc" width="200" height="200"></canvas><div class="met" id="m-conc">—</div></div>
+</div>
+<div class="ctl"><button id="d-roll">Re-roll</button><span class="small">inner-half-radius share — uniform target is 25%</span></div>
+<figcaption>Figure 1. The same point count, three maps. <span style="color:var(--wrong)">Naive $r=u$</span> jams points into the center (≈50% inside the inner half-radius — double the correct share); <span style="color:var(--correct)">$r=\sqrt u$</span> and <span style="color:var(--concentric)">concentric</span> are area-uniform (≈25%). The C++ radius histogram says the same: the naive per-bin density spikes to $2.55$ at the center and decays as $\sim1/r$, while both correct maps sit flat at $1/\pi\approx0.32$.</figcaption>
+</figure>
+
+
+<h2 id="3">3. Area vs solid angle: the $r^2/\cos$ factor<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The same idea, in 3-D, connects two ways to integrate light from an area source. A small patch of light of area $dA$, sitting a distance $r$ away with its normal tilted at angle $\theta_\ell$ to the line of sight, presents a <em>foreshortened</em> area $dA\cos\theta_\ell$; dividing by $r^2$ (inverse-square falloff) gives the solid angle it covers at the shading point:</p>
+$$d\omega=\frac{\cos\theta_\ell}{r^2}\,dA.$$
+<p>That is the Jacobian between the area measure and the solid-angle measure. Equating probability mass under the two, $p_\omega\,d\omega=p_A\,dA$, converts one density to the other:</p>
+$$p_\omega=p_A\,\frac{dA}{d\omega}=p_A\,\frac{r^2}{\cos\theta_\ell}.$$
+<p>So a sample drawn uniformly on a light's area ($p_A=1/A$) has solid-angle density $p_\omega=r^2/(A\cos\theta_\ell)$ — the exact factor next-event estimation (<a href="14_tabulated_cdf_sampling.html#5">the pdf MIS needs</a>) uses to weigh an area-light sample against a BRDF sample. To check the conversion, the file estimates the solid angle a disk light subtends by sampling its area and multiplying by $r^2/\cos\theta_\ell$, against a quadrature reference and the on-axis closed form.</p>
+
+<figure>
+<svg id="fig-geo" viewBox="0 0 600 300" role="img" aria-label="A shading point lit by a disk light: the solid angle it subtends, estimated by area sampling vs analytic."></svg>
+<div class="ctl">
+  light height $H$ = <b id="g-hval" style="display:inline-block; min-width:2.4em; text-align:right; font-variant-numeric:tabular-nums">1.2</b>
+  <input id="g-h" type="range" min="6" max="25" value="12" step="1">
+  &nbsp; radius $R$ = <b id="g-rval" style="display:inline-block; min-width:2.4em; text-align:right; font-variant-numeric:tabular-nums">0.5</b>
+  <input id="g-r" type="range" min="2" max="10" value="5" step="1">
+</div>
+<div class="panel">
+  <div class="row"><span>area-sampling + $r^2/\cos\theta_\ell$ (MC)</span><b id="g-mc" style="color:var(--correct)">—</b></div>
+  <div class="row"><span>analytic $2\pi\!\left(1-\tfrac{H}{\sqrt{H^2+R^2}}\right)$</span><b id="g-an" style="color:var(--light)">—</b></div>
+</div>
+<figcaption>Figure 2. A disk light of radius $R$ at height $H$ on the axis above a shading point. Sampling the light's <em>area</em> uniformly and converting each sample with $r^2/\cos\theta_\ell$ estimates the solid angle it subtends; it matches the closed form $2\pi(1-\cos\alpha_{\max})$ with $\cos\alpha_{\max}=H/\sqrt{H^2+R^2}$ (exact for an on-axis disk). At $H{=}1.2,\,R{=}0.5$ the C++ run gives $0.4833$ sr all three ways (MC, quadrature, analytic).</figcaption>
+</figure>
+
+
+<h2 id="4">4. In the renderer<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Both halves are everyday renderer geometry. The disk map is how a path tracer samples a <strong>thin lens</strong> for depth of field (jitter the ray origin over the aperture disk) and how it samples a <strong>disk-shaped light</strong> — and it must be the area-uniform $r=\sqrt u$ (or concentric), or the bokeh and the light both brighten toward their centers. The $r^2/\cos\theta_\ell$ factor is the bridge that lets the renderer aim a ray <em>at a light</em> and still weigh it correctly against a BRDF-sampled ray: that is <strong>next-event estimation</strong>, the subject of <a href="24_nee_mis.html#1">example 24</a>, where this conversion turns an area sample into the solid-angle pdf MIS compares. Get the Jacobian right here and those two pieces compose without bias.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/23_change_of_variables.cpp" target="_blank" rel="noopener"><code>23_change_of_variables.cpp</code></a>.</p>
+
+<p>The correct disk radius is one <code>sqrt</code>; the area→solid-angle conversion is one $r^2/\cos$ factor on each area sample.</p>
+
+<pre class="language-cpp"><code class="language-cpp">// area-uniform disk: the Jacobian of polar coords is r, so draw r with CDF r^2.
+float r   = std::sqrt(rng.NextFloat());        // r = sqrt(u)  (NOT r = u)
+float phi = 2.0f * kPi * rng.NextFloat();
+float x = r * std::cos(phi), y = r * std::sin(phi);
+
+// estimate the solid angle a disk light subtends by sampling its AREA (p = 1/A)
+// and converting each sample to solid-angle measure with r^2 / cos(theta_light):
+double sum = 0.0;
+for (int i = 0; i &lt; M; ++i) {
+    float rr = R * std::sqrt(rng.NextFloat()), ph = 2*kPi*rng.NextFloat();   // area-uniform
+    double px = rr*std::cos(ph), py = rr*std::sin(ph);
+    double r  = std::sqrt(px*px + py*py + H*H);     // distance to the sample
+    double cosLight = H / r;                        // light faces the point
+    sum += cosLight / (r*r);                        // integrand  cos/r^2
+}
+double omega = sum * (A / M);                       // E[cos/r^2] * A  ==  Omega</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> Sampling is warping uniform numbers, and the Jacobian $p_y=p_x/|J_T|$ is what keeps the density correct under the warp. The polar Jacobian $r$ is why area-uniform disk sampling needs $r=\sqrt u$, not $r=u$ — the difference between even bokeh and a bright blob. The area↔solid-angle Jacobian $d\omega=\cos\theta_\ell\,dA/r^2$ gives the $r^2/\cos\theta_\ell$ factor that converts an area-light pdf to solid angle, the geometric heart of next-event estimation.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="22_dielectric_refraction.html">22 — Dielectric refraction</a>. Builds on: <a href="05_sampling_distributions.html">05 — Sampling distributions</a>. Next: <a href="24_nee_mis.html">24 — Next-event estimation</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  const PI=Math.PI;
+
+  // ---------- Figure 1: three disk samplers ----------
+  (function(){
+    const N=1500;
+    function naive(){const r=Math.random(),p=2*PI*Math.random();return [r*Math.cos(p),r*Math.sin(p)];}
+    function sqrtu(){const r=Math.sqrt(Math.random()),p=2*PI*Math.random();return [r*Math.cos(p),r*Math.sin(p)];}
+    function conc(){
+      let a=2*Math.random()-1, b=2*Math.random()-1;
+      if(a===0&&b===0)return [0,0];
+      let r,phi;
+      if(Math.abs(a)>Math.abs(b)){r=a;phi=PI/4*(b/a);}
+      else{r=b;phi=PI/2-PI/4*(a/b);}
+      return [r*Math.cos(phi),r*Math.sin(phi)];
+    }
+    function drawDisk(id,gen,col,mid){
+      const cv=document.getElementById(id); if(!cv) return;
+      const ctx=cv.getContext('2d'), S=cv.width, R=S/2-6, cx=S/2, cy=S/2;
+      ctx.clearRect(0,0,S,S); ctx.fillStyle='#fff'; ctx.fillRect(0,0,S,S);
+      ctx.strokeStyle='#cbd0d9'; ctx.beginPath(); ctx.arc(cx,cy,R,0,2*PI); ctx.stroke();
+      ctx.strokeStyle='#e6e9ef'; ctx.beginPath(); ctx.arc(cx,cy,R*0.5,0,2*PI); ctx.stroke();  // inner half-radius
+      ctx.fillStyle=col; let inner=0;
+      for(let i=0;i<N;i++){const p=gen(); const r=Math.hypot(p[0],p[1]); if(r<0.5)inner++;
+        ctx.fillRect(cx+p[0]*R-1.1, cy-p[1]*R-1.1, 2.2, 2.2);}
+      document.getElementById(mid).innerHTML='inner-half share <b>'+(inner/N*100).toFixed(0)+'%</b>';
+    }
+    function roll(){
+      drawDisk('d-naive',naive,'#e53e3e','m-naive');
+      drawDisk('d-sqrt',sqrtu,'#2f9e64','m-sqrt');
+      drawDisk('d-conc',conc,'#7c3aed','m-conc');
+    }
+    document.getElementById('d-roll').addEventListener('click',roll); roll();
+  })();
+
+  // ---------- Figure 2: disk-light solid angle ----------
+  (function(){
+    const svg=document.getElementById('fig-geo'); if(!svg) return;
+    const slH=document.getElementById('g-h'), slR=document.getElementById('g-r');
+    const gS=el('g'); svg.appendChild(gS);
+    const gD=el('g'); svg.appendChild(gD);
+    function mcOmega(H,R,M){            // area-sample the disk, convert with r^2/cos
+      const A=PI*R*R; let s=0;
+      for(let i=0;i<M;i++){const rr=R*Math.sqrt(Math.random()), ph=2*PI*Math.random();
+        const x=rr*Math.cos(ph), y=rr*Math.sin(ph); const r=Math.sqrt(x*x+y*y+H*H);
+        s+=(H/r)/(r*r);}
+      return s*A/M;
+    }
+    function draw(){
+      while(gD.firstChild)gD.removeChild(gD.firstChild);
+      const H=+slH.value/10, R=+slR.value/10;
+      // schematic side view: point P at bottom, disk light at top
+      const cx=300, Py=250, scale=70;
+      const Ly=Py-H*scale, halfw=R*scale;
+      // ground + point
+      gD.appendChild(el('line',{x1:120,y1:Py,x2:480,y2:Py,stroke:'#cbd0d9'}));
+      gD.appendChild(el('circle',{cx:cx,cy:Py,r:4,fill:'var(--geo)'}));
+      gD.appendChild(txt(cx,Py+18,'shading point',{'font-size':11.5,fill:'var(--geo)','text-anchor':'middle'}));
+      // the subtended cone
+      gD.appendChild(el('path',{d:'M'+cx+','+Py+' L'+(cx-halfw)+','+Ly+' L'+(cx+halfw)+','+Ly+' Z',fill:'var(--light)','fill-opacity':0.10,stroke:'none'}));
+      gD.appendChild(el('line',{x1:cx,y1:Py,x2:cx-halfw,y2:Ly,stroke:'var(--light)','stroke-width':1.2}));
+      gD.appendChild(el('line',{x1:cx,y1:Py,x2:cx+halfw,y2:Ly,stroke:'var(--light)','stroke-width':1.2}));
+      // disk light (edge-on bar) + normal facing down
+      gD.appendChild(el('line',{x1:cx-halfw,y1:Ly,x2:cx+halfw,y2:Ly,stroke:'var(--light)','stroke-width':5}));
+      gD.appendChild(el('line',{x1:cx,y1:Ly,x2:cx,y2:Ly+22,stroke:'#9aa0ad','stroke-width':1,'stroke-dasharray':'3 3'}));
+      gD.appendChild(txt(cx+halfw+6,Ly+4,'disk light  (R, area A)',{'font-size':11.5,fill:'var(--light)'}));
+      // H label
+      gD.appendChild(el('line',{x1:cx-halfw-22,y1:Py,x2:cx-halfw-22,y2:Ly,stroke:'#9aa0ad','stroke-width':1}));
+      gD.appendChild(txt(cx-halfw-26,(Py+Ly)/2,'H',{'font-size':12,fill:'var(--muted)','text-anchor':'end'}));
+      // a sample patch + its ray (r) and dω annotation
+      const sx=cx+halfw*0.45;
+      gD.appendChild(el('line',{x1:cx,y1:Py,x2:sx,y2:Ly,stroke:'var(--correct)','stroke-width':1.4,'stroke-dasharray':'4 3'}));
+      gD.appendChild(el('circle',{cx:sx,cy:Ly,r:3,fill:'var(--correct)'}));
+      gD.appendChild(txt((cx+sx)/2+6,(Py+Ly)/2,'r',{'font-size':12,fill:'var(--correct)'}));
+      gD.appendChild(txt(cx+10,Py-14,'dω = cosθℓ dA / r²',{'font-size':12,fill:'var(--ink)'}));
+      // readouts
+      const an=2*PI*(1-H/Math.sqrt(H*H+R*R));
+      const mc=mcOmega(H,R,150000);
+      document.getElementById('g-hval').textContent=H.toFixed(1);
+      document.getElementById('g-rval').textContent=R.toFixed(1);
+      document.getElementById('g-mc').textContent=mc.toFixed(4)+' sr';
+      document.getElementById('g-an').textContent=an.toFixed(4)+' sr';
+    }
+    slH.addEventListener('input',draw); slR.addEventListener('input',draw); draw();
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

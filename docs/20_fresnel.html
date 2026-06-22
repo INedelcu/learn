@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>20 — Fresnel reflectance: exact vs Schlick — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --exact:#2f9e64; --schlick:#dd6b20; --diel:#2b6cb0; --metal:#7c3aed; --f0:#d9a500; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--exact)}
+  .callout.warn{border-left-color:var(--schlick)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:160px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button.sel{background:var(--ink); color:#fff; border-color:var(--ink)}
+  button:active{transform:translateY(1px)}
+  .twocanvas{display:flex; gap:16px; flex-wrap:wrap; justify-content:center}
+  .twocanvas>div{flex:1 1 200px; text-align:center; min-width:170px}
+  canvas{display:block; width:100%; max-width:220px; margin:0 auto; image-rendering:auto; border:1px solid var(--line); border-radius:8px; background:#fff}
+  .pcap{font-size:14px; font-weight:600; margin:8px 0 4px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Fresnel reflectance: exact equations vs Schlick</h1>
+<p class="sub">20_fresnel.cpp — every surface turns mirror-bright at grazing angles. That ramp is the Fresnel term that multiplies essentially every BRDF; the renderer evaluates it with one cheap power of Schlick's approximation.</p>
+
+<p class="lead">Look at the rim of any sphere, or a road under a low sun: the surface reflects far more light where you see it edge-on than head-on. That angular ramp is <strong>Fresnel reflectance</strong> $F(\theta)$ — the fraction of light reflected rather than transmitted, as a function of the angle to the surface normal. It is a multiplier on the specular term of <a href="19_ggx_vndf_sampling.html#2">every microfacet BRDF</a>, evaluated on every shading sample. The exact equations come from electromagnetics; <strong>Schlick's approximation</strong> replaces them with a single $(1-\cos\theta)^5$. This page derives where both come from, and measures exactly how close Schlick gets.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> Fresnel ramps reflectance from $F_0$ at normal incidence up to $1$ at grazing; the exact value averages two polarizations of the electromagnetic boundary conditions (a function of the refractive indices), while Schlick approximates the whole curve as $F(\theta)=F_0+(1-F_0)(1-\cos\theta)^5$ — <em>exact</em> at both endpoints by construction, within a few percent in between, needing only the single number $F_0$ (from the IOR for dielectrics, from the base color for metals).</p>
+</div>
+
+<div class="legend">
+  <span><i class="swatch" style="border-color:var(--exact)"></i> exact Fresnel</span>
+  <span><i class="swatch" style="border-color:var(--schlick)"></i> Schlick approximation</span>
+  <span><i class="dot" style="background:var(--f0)"></i> $F_0$ (normal incidence)</span>
+</div>
+
+
+<h2 id="1">1. The grazing-angle ramp<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>At normal incidence ($\theta=0$, looking straight down at the surface) only a little light reflects — for glass, about $4\%$. As the view tilts toward grazing ($\theta\to90°$) the reflectance climbs, reaching $100\%$ exactly at the horizon for <em>every</em> material. That is why still water is nearly transparent overhead but a perfect mirror in the distance. The curve below is $F(\theta)$; pick a material and compare the <span style="color:var(--exact)">exact</span> reflectance against <span style="color:var(--schlick)">Schlick</span>'s one-line fit.</p>
+
+<figure>
+<svg id="fig-curve" viewBox="0 0 600 320" role="img" aria-label="Fresnel reflectance versus angle of incidence, exact equations against Schlick's approximation."></svg>
+<div class="ctl">
+  material:
+  <button class="mb sel" data-m="glass">glass</button>
+  <button class="mb" data-m="water">water</button>
+  <button class="mb" data-m="diamond">diamond</button>
+  <button class="mb" data-m="metal">metal</button>
+</div>
+<div class="panel">
+  <div class="row"><span>$F_0$ (normal incidence)</span><b id="cv-f0" style="color:var(--f0)">—</b></div>
+  <div class="row"><span>$F(85°)$ exact / Schlick</span><b id="cv-85" style="color:var(--exact)">—</b></div>
+  <div class="row"><span>max abs error (Schlick vs exact)</span><b id="cv-err" style="color:var(--schlick)">—</b></div>
+</div>
+<figcaption>Figure 1. Reflectance $F$ vs angle of incidence. The <span style="color:var(--exact)">exact</span> curve (solid) and <span style="color:var(--schlick)">Schlick</span> (dashed) both start at <span style="color:var(--f0)">$F_0$</span> and rise to $1$ at $90°$ — they agree exactly at both ends. Dielectrics (glass, water, diamond) start near-black and ramp late; the metal starts already bright. Note the metal's exact curve dips slightly before rising, a wiggle the monotonic Schlick form cannot follow.</figcaption>
+</figure>
+
+
+<h2 id="2">2. The exact equations, and where $F_0$ comes from<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Light is an electromagnetic wave, and the boundary conditions at a flat interface split it into two polarizations — parallel and perpendicular to the plane of incidence — that reflect by different amounts. For a <strong>dielectric</strong> (glass, water) with indices $n_i$ (incident side) and $n_t$ (transmitted side), with $\cos\theta_t$ from Snell's law, the reflectances are</p>
+$$r_\parallel=\frac{n_t\cos\theta_i-n_i\cos\theta_t}{n_t\cos\theta_i+n_i\cos\theta_t},\qquad
+  r_\perp=\frac{n_i\cos\theta_i-n_t\cos\theta_t}{n_i\cos\theta_i+n_t\cos\theta_t},\qquad
+  F=\tfrac12\big(r_\parallel^2+r_\perp^2\big),$$
+<p>the $\tfrac12$ averaging the two polarizations for unpolarized light. A <strong>conductor</strong> (metal) uses the same construction but with a <em>complex</em> index $n+i\,k$; the absorption coefficient $k$ is what makes metals both highly reflective and tinted.</p>
+
+<div class="callout">
+<strong>Where $F_0$ comes from.</strong> Schlick needs only the reflectance at normal incidence. Set $\theta_i=0$, so $\cos\theta_i=\cos\theta_t=1$, and the dielectric formulas collapse: $r_\parallel=\dfrac{n_t-n_i}{n_t+n_i}$ and $r_\perp=-\dfrac{n_t-n_i}{n_t+n_i}$ — equal in magnitude — so both squares are the same and</p>
+$$F_0=\left(\frac{n_t-n_i}{n_t+n_i}\right)^2\ \text{(dielectric)},\qquad
+  F_0=\frac{(n-1)^2+k^2}{(n+1)^2+k^2}\ \text{(conductor)} .$$
+<p style="margin-bottom:0">Glass into air ($n_i=1,\,n_t=1.5$) gives $F_0=(0.5/2.5)^2=0.04$ — the famous "4% spec" of dielectrics. The metal here ($n=0.2,\,k=3$) gives $F_0=(0.8^2+9)/(1.2^2+9)=9.64/10.44=0.923$: most light reflects even head-on, which is what "looks metallic" means.</p>
+</div>
+
+
+<h2 id="3">3. Schlick's approximation<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Snell's law, two polarizations, a square root, a complex index — too much for a value computed millions of times per frame. Schlick (1994) replaces all of it with one interpolation between $F_0$ and $1$, steered by a fifth power of $(1-\cos\theta)$:</p>
+$$\boxed{\,F(\theta)=F_0+(1-F_0)\,(1-\cos\theta)^5\,}$$
+<p>The only material input is $F_0$. And it is <strong>exact at both endpoints by construction</strong>: at normal incidence $\cos\theta=1$, so $(1-\cos\theta)^5=0$ and $F=F_0$; at grazing $\cos\theta=0$, so $(1-\cos\theta)^5=1$ and $F=F_0+(1-F_0)=1$. The fifth power is chosen so the ramp in between hugs the true curve — the rest of this page checks how well.</p>
+
+
+<h2 id="4">4. How close is Schlick?<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The C++ file tabulates exact vs Schlick for glass and the metal across the whole angular sweep. The numbers it prints:</p>
+
+<table>
+<thead><tr><th class="num">angle</th><th class="num">glass exact</th><th class="num">glass Schlick</th><th class="num">|err|</th><th class="num">metal exact</th><th class="num">metal Schlick</th><th class="num">|err|</th></tr></thead>
+<tbody>
+<tr><td class="num">0°</td><td class="num">0.04000</td><td class="num">0.04000</td><td class="num">0.00000</td><td class="num">0.92337</td><td class="num">0.92337</td><td class="num">0.00000</td></tr>
+<tr><td class="num">15°</td><td class="num">0.04008</td><td class="num">0.04000</td><td class="num">0.00008</td><td class="num">0.92334</td><td class="num">0.92337</td><td class="num">0.00003</td></tr>
+<tr><td class="num">30°</td><td class="num">0.04152</td><td class="num">0.04004</td><td class="num">0.00148</td><td class="num">0.92294</td><td class="num">0.92337</td><td class="num">0.00044</td></tr>
+<tr><td class="num">45°</td><td class="num">0.05024</td><td class="num">0.04207</td><td class="num">0.00817</td><td class="num">0.92132</td><td class="num">0.92354</td><td class="num">0.00222</td></tr>
+<tr><td class="num">60°</td><td class="num">0.08919</td><td class="num">0.07000</td><td class="num">0.01919</td><td class="num">0.91841</td><td class="num">0.92577</td><td class="num">0.00736</td></tr>
+<tr><td class="num">75°</td><td class="num">0.25306</td><td class="num">0.25473</td><td class="num">0.00167</td><td class="num">0.92522</td><td class="num">0.94051</td><td class="num">0.01529</td></tr>
+<tr><td class="num">85°</td><td class="num">0.61280</td><td class="num">0.64849</td><td class="num">0.03569</td><td class="num">0.96360</td><td class="num">0.97194</td><td class="num">0.00834</td></tr>
+<tr><td class="num">89°</td><td class="num">0.90418</td><td class="num">0.91910</td><td class="num">0.01492</td><td class="num">0.99213</td><td class="num">0.99354</td><td class="num">0.00142</td></tr>
+</tbody>
+</table>
+
+<p>Read off the two stories. <strong>Glass:</strong> error is essentially zero up to $45°$, peaks at $0.036$ in the steep grazing ramp near $85°$, then closes again to $0$ at the horizon — a worst case of under four reflectance points, invisible in practice. <strong>Metal:</strong> the error peaks earlier (at $75°$, $0.015$) because the exact conductor curve <em>dips</em> below $F_0$ before it rises — reflectance falls from $0.923$ at $0°$ to $0.918$ at $60°$ — and Schlick, which only ever increases, cannot reproduce that dip. That structural mismatch, not the size of $F_0$, is why conductors are Schlick's looser case.</p>
+
+
+<h2 id="5">5. See it: the Fresnel rim<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>On a sphere viewed head-on, the angle to the normal grows from $0°$ at the center to $90°$ at the silhouette — so a sphere shaded purely by $F$ is the Fresnel curve wrapped onto a ball. The center sits at $F_0$ (near-black for glass), and the edge flares to $1$: the bright <em>rim light</em> you see on glass and ceramics. The two balls below shade the same material with the exact equations and with Schlick — flip materials and try to spot the difference.</p>
+
+<figure>
+<div class="twocanvas">
+  <div>
+    <div class="pcap" style="color:var(--exact)">exact</div>
+    <canvas id="sp-exact" width="220" height="220"></canvas>
+  </div>
+  <div>
+    <div class="pcap" style="color:var(--schlick)">Schlick</div>
+    <canvas id="sp-schlick" width="220" height="220"></canvas>
+  </div>
+</div>
+<div class="ctl">
+  material:
+  <button class="sb sel" data-m="glass">glass</button>
+  <button class="sb" data-m="diamond">diamond</button>
+  <button class="sb" data-m="metal">metal</button>
+</div>
+<figcaption>Figure 2. A sphere shaded only by reflectance $F$ (brightness $=F$, gamma-corrected), viewed head-on so the incidence angle runs $0°$ at center to $90°$ at the rim. The dark dielectric body with a bright Fresnel rim is the everyday "glassy" look; the metal is bright throughout. The <span style="color:var(--exact)">exact</span> and <span style="color:var(--schlick)">Schlick</span> balls are visually indistinguishable — the few-percent table error never crosses the threshold of visibility.</figcaption>
+</figure>
+
+
+<h2 id="6">6. In the renderer<a class="hlink" href="#6" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The <a href="https://github.com/INedelcu/PathTracingDemo/blob/main/Assets/Shaders/Utils.hlsl">PathTracingDemo</a> renderer uses Schlick everywhere it needs reflectance: <code>Utils.hlsl</code> carries the Schlick helpers for the opaque and transparent (refraction) cases, and the material setup in <code>PathTracingStandard.shader</code> feeds them an $F_0$ built <em>from the IOR</em> and <code>_SpecularColor</code> for dielectrics, and <em>from the base color</em> for metals — exactly the two $F_0$ formulas of §2. That single $F_0$ is then all Schlick needs to reproduce the whole angular ramp.</p>
+
+<p>This $F$ is the same factor that rode along, unevaluated, in the GGX BRDF of <a href="19_ggx_vndf_sampling.html#3">example 19</a>: there we set $F=1$ to isolate the geometry, and the VNDF weight came out $F\,G_2/G_1$. Putting the real Schlick $F$ back into that weight is how the renderer tints and angle-modulates every glossy reflection.</p>
+
+
+<h2 id="7">7. The code<a class="hlink" href="#7" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/20_fresnel.cpp" target="_blank" rel="noopener"><code>20_fresnel.cpp</code></a>.</p>
+
+<p>Schlick is one line; the only input is $F_0$, computed once per material from the indices. The exact dielectric (shown for reference) is the polarization average.</p>
+
+<pre class="language-cpp"><code class="language-cpp">// Schlick: one pow() in place of the electromagnetics.
+double Schlick(double cosi, double F0) {
+    double m = 1.0 - cosi;
+    return F0 + (1.0 - F0) * (m*m) * (m*m) * m;        // F0 + (1-F0)(1-cos)^5
+}
+
+// F0 at normal incidence — the only number Schlick needs:
+double F0_dielectric = pow((nt - ni) / (nt + ni), 2.0);              // glass 1.5 -> 0.04
+double F0_conductor  = ((n-1)*(n-1) + k*k) / ((n+1)*(n+1) + k*k);    // from complex index n+ik
+
+// exact unpolarized dielectric, for the comparison:
+double sint = ni/nt * sqrt(fmax(0.0, 1.0 - cosi*cosi));   // Snell
+if (sint &gt;= 1.0) return 1.0;                              // total internal reflection
+double cost = sqrt(fmax(0.0, 1.0 - sint*sint));
+double rpar = (nt*cosi - ni*cost) / (nt*cosi + ni*cost);
+double rper = (ni*cosi - nt*cost) / (ni*cosi + nt*cost);
+return 0.5 * (rpar*rpar + rper*rper);                     // average the two polarizations</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> Fresnel is the angular ramp that brightens every surface from $F_0$ at normal incidence to $1$ at grazing. The exact value averages two polarizations of the electromagnetic boundary conditions; Schlick replaces that with $F_0+(1-F_0)(1-\cos\theta)^5$ — exact at both endpoints, within $0.036$ for glass and $0.015$ for the metal in between, for the price of one power. It is the reflectance multiplier the renderer applies on top of <a href="19_ggx_vndf_sampling.html#3">every specular sample</a>, with $F_0$ read from the IOR or the base color.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="19_ggx_vndf_sampling.html">19 — GGX VNDF sampling</a>. Related: <a href="19_ggx_vndf_sampling.html">19 — the microfacet BRDF this multiplies</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  const DEG=Math.PI/180;
+
+  // --- materials ---
+  const MAT={
+    glass:  {type:'d', n:1.50, label:'glass (n=1.5)'},
+    water:  {type:'d', n:1.33, label:'water (n=1.33)'},
+    diamond:{type:'d', n:2.42, label:'diamond (n=2.42)'},
+    metal:  {type:'c', n:0.20, k:3.0, label:'metal (n=0.2, k=3)'}
+  };
+  function F0of(m){
+    if(m.type==='d'){const r=(m.n-1)/(m.n+1); return r*r;}
+    return ((m.n-1)*(m.n-1)+m.k*m.k)/((m.n+1)*(m.n+1)+m.k*m.k);
+  }
+  function fresnelDielectric(cosi, ni, nt){
+    if(cosi<0){const t=ni; ni=nt; nt=t; cosi=-cosi;}
+    const sint=ni/nt*Math.sqrt(Math.max(0,1-cosi*cosi));
+    if(sint>=1) return 1;
+    const cost=Math.sqrt(Math.max(0,1-sint*sint));
+    const rpar=(nt*cosi-ni*cost)/(nt*cosi+ni*cost);
+    const rper=(ni*cosi-nt*cost)/(ni*cosi+nt*cost);
+    return 0.5*(rpar*rpar+rper*rper);
+  }
+  function fresnelConductor(cosi, n, k){
+    if(cosi<0)cosi=0;
+    const c2=cosi*cosi, s2=1-c2, n2=n*n, k2=k*k;
+    const t0=n2-k2-s2;
+    const a2b2=Math.sqrt(Math.max(0,t0*t0+4*n2*k2));
+    const t1=a2b2+c2;
+    const a=Math.sqrt(Math.max(0,0.5*(a2b2+t0)));
+    const t2=2*a*cosi;
+    const Rs=(t1-t2)/(t1+t2);
+    const t3=c2*a2b2+s2*s2, t4=t2*s2;
+    const Rp=Rs*(t3-t4)/(t3+t4);
+    return 0.5*(Rp+Rs);
+  }
+  function Fexact(cosi, m){ return m.type==='d' ? fresnelDielectric(cosi,1,m.n) : fresnelConductor(cosi,m.n,m.k); }
+  function schlick(cosi, F0){ const mm=1-cosi; return F0+(1-F0)*mm*mm*mm*mm*mm; }
+
+  // ---------- Figure 1: the F(theta) curve ----------
+  (function(){
+    const svg=document.getElementById('fig-curve'); if(!svg) return;
+    const x0=64,x1=560,top=30,bot=270;
+    const px=a=>x0+(a/90)*(x1-x0);
+    const py=F=>bot-Math.max(0,Math.min(1,F))*(bot-top);
+    const gS=el('g'); svg.appendChild(gS);
+    const gD=el('g'); svg.appendChild(gD);
+    // grid + axes
+    [0,0.25,0.5,0.75,1].forEach(F=>{gS.appendChild(el('line',{x1:x0,y1:py(F),x2:x1,y2:py(F),stroke:'#eef0f4'}));
+      gS.appendChild(txt(x0-8,py(F)+4,F.toFixed(2),{'font-size':11,fill:'var(--muted)','text-anchor':'end'}));});
+    [0,30,60,90].forEach(a=>gS.appendChild(txt(px(a),bot+18,a+'°',{'font-size':11,fill:'var(--muted)','text-anchor':'middle'})));
+    gS.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    gS.appendChild(el('line',{x1:x0,y1:top,x2:x0,y2:bot,stroke:'#9aa0ad'}));
+    gS.appendChild(txt((x0+x1)/2,bot+34,'angle of incidence θ',{'font-size':12.5,fill:'var(--muted)','text-anchor':'middle'}));
+    gS.appendChild(txt(x0-34,top-14,'F(θ)',{'font-size':12.5,fill:'var(--muted)'}));
+    // legend
+    gS.appendChild(el('line',{x1:x1-186,y1:top+8,x2:x1-160,y2:top+8,stroke:'var(--exact)','stroke-width':2.6}));
+    gS.appendChild(txt(x1-154,top+12,'exact',{'font-size':12,fill:'var(--ink)'}));
+    gS.appendChild(el('line',{x1:x1-100,y1:top+8,x2:x1-74,y2:top+8,stroke:'var(--schlick)','stroke-width':2.6,'stroke-dasharray':'5 4'}));
+    gS.appendChild(txt(x1-68,top+12,'Schlick',{'font-size':12,fill:'var(--ink)'}));
+    let mkey='glass';
+    function curve(fn,color,dash){
+      let d=''; for(let a=0;a<=90;a+=0.5){const c=Math.cos(a*DEG); d+=(d?'L':'M')+px(a).toFixed(1)+','+py(fn(c)).toFixed(1)+' ';}
+      const o={d:d.trim(),fill:'none',stroke:color,'stroke-width':2.6}; if(dash)o['stroke-dasharray']='5 4';
+      return el('path',o);
+    }
+    function redraw(){
+      while(gD.firstChild)gD.removeChild(gD.firstChild);
+      const m=MAT[mkey], F0=F0of(m);
+      gD.appendChild(curve(c=>Fexact(c,m),'var(--exact)',false));
+      gD.appendChild(curve(c=>schlick(c,F0),'var(--schlick)',true));
+      gD.appendChild(el('circle',{cx:px(0),cy:py(F0),r:4.5,fill:'var(--f0)'}));
+      gD.appendChild(txt(px(0)+8,py(F0)-6,'F₀ = '+F0.toFixed(3),{'font-size':11.5,fill:'var(--f0)'}));
+      // readouts
+      const c85=Math.cos(85*DEG);
+      let maxe=0; for(let a=0;a<=89;a+=0.5){const c=Math.cos(a*DEG); maxe=Math.max(maxe,Math.abs(Fexact(c,m)-schlick(c,F0)));}
+      document.getElementById('cv-f0').textContent=F0.toFixed(4);
+      document.getElementById('cv-85').textContent=Fexact(c85,m).toFixed(4)+' / '+schlick(c85,F0).toFixed(4);
+      document.getElementById('cv-err').textContent=maxe.toFixed(4);
+    }
+    document.querySelectorAll('.mb').forEach(b=>b.addEventListener('click',()=>{
+      document.querySelectorAll('.mb').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');
+      mkey=b.dataset.m; redraw();
+    }));
+    redraw();
+  })();
+
+  // ---------- Figure 2: Fresnel-shaded spheres ----------
+  (function(){
+    const ce=document.getElementById('sp-exact'), cs=document.getElementById('sp-schlick'); if(!ce) return;
+    const ge=ce.getContext('2d'), gs=cs.getContext('2d');
+    let mkey='glass';
+    function shade(ctx, useSchlick){
+      const S=ctx.canvas.width, R=S/2-6, cx=S/2, cy=S/2;
+      const m=MAT[mkey], F0=F0of(m);
+      const img=ctx.createImageData(S,S);
+      for(let y=0;y<S;y++)for(let x=0;x<S;x++){
+        const o=(y*S+x)*4;
+        const dx=(x-cx)/R, dy=(y-cy)/R, r2=dx*dx+dy*dy;
+        if(r2>1){ img.data[o]=img.data[o+1]=img.data[o+2]=255; img.data[o+3]=255; continue; }
+        const cosT=Math.sqrt(1-r2);                       // N·V for a head-on view
+        const F = useSchlick ? schlick(cosT,F0) : Fexact(cosT,m);
+        const g = Math.round(255*Math.pow(Math.max(0,Math.min(1,F)),1/2.2));   // gamma for display
+        img.data[o]=img.data[o+1]=img.data[o+2]=g; img.data[o+3]=255;
+      }
+      ctx.putImageData(img,0,0);
+    }
+    function redraw(){ shade(ge,false); shade(gs,true); }
+    document.querySelectorAll('.sb').forEach(b=>b.addEventListener('click',()=>{
+      document.querySelectorAll('.sb').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');
+      mkey=b.dataset.m; redraw();
+    }));
+    redraw();
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

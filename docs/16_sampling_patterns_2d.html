@@ -129,6 +129,12 @@
 
 <p>Drop $N$ points randomly into $N$ cells and the count in each cell is roughly Poisson with mean 1: about <strong>37% of cells end up empty</strong>, and a comparable number get two, three, or more. The empty cells are regions the estimator never looks at; the doubled-up cells are samples that mostly repeat information a neighbour already gave. Both inflate the variance. Stratification removes the failure outright — one sample per cell, so no cell is ever empty or crowded — and a low-discrepancy sequence achieves nearly the same evenness deterministically, and it stays even <em>at every prefix length</em>, not only at the full count. The occupancy numbers under Figure 1 are this paragraph made measurable.</p>
 
+<div class="callout">
+<strong>Where the 37% comes from.</strong> Each of the $N$ points lands in a given cell independently with probability $1/N$, so the chance a particular cell stays <em>empty</em> is</p>
+$$\Big(1-\tfrac1N\Big)^{N}\ \xrightarrow[\,N\to\infty\,]{}\ \frac1e\approx0.368,$$
+<p style="margin-bottom:0">and by linearity of expectation that is also the expected <em>fraction</em> of empty cells — already $0.367$ at $N=256$. More generally the per-cell count converges to a Poisson$(1)$ law, $P(k)=e^{-1}/k!$: roughly $37\%$ empty, $37\%$ with exactly one, $26\%$ with two or more. The crowded and starved cells are the clumps and gaps — the variance — that stratification (one per cell, always) and low-discrepancy sequences engineer away.</p>
+</div>
+
 
 <h2 id="3">3. The same story as numbers<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
 

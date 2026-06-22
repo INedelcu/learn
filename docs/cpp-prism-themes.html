@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prism.js C++ Theme Comparison</title>
+
+<!-- Prism theme (swapped at runtime by the selector) -->
+<link id="prism-theme" rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/prism-themes@1.9.0/themes/prism-one-dark.min.css">
+
+<!-- Line numbers + toolbar plugin CSS -->
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+
+<style>
+  :root {
+    --ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono-font: "Cascadia Code", "JetBrains Mono", "Fira Code", Consolas, "SF Mono", Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: var(--ui-font);
+    margin: 0;
+    line-height: 1.5;
+    background: #f4f5f7;
+    color: #1a1a1a;
+    transition: background .25s ease, color .25s ease;
+  }
+  body.mode-dark {
+    background: #1b1d23;
+    color: #e6e6e6;
+  }
+
+  .wrap {
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+
+  header h1 {
+    font-size: 1.6rem;
+    margin: 0 0 4px;
+  }
+  header p {
+    margin: 0;
+    opacity: .7;
+    font-size: .95rem;
+  }
+
+  /* Sticky control bar */
+  .controls {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin: 24px 0 32px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: rgba(127, 127, 127, .12);
+    backdrop-filter: blur(8px);
+  }
+  .controls label { font-weight: 600; font-size: .9rem; }
+  .controls select {
+    font: inherit;
+    padding: 7px 10px;
+    border-radius: 7px;
+    border: 1px solid rgba(127,127,127,.4);
+    background: rgba(255,255,255,.85);
+    color: #111;
+    cursor: pointer;
+    min-width: 220px;
+  }
+  body.mode-dark .controls select {
+    background: rgba(40,42,48,.95);
+    color: #eee;
+    border-color: rgba(255,255,255,.18);
+  }
+  .controls .mode-badge {
+    font-size: .75rem;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(127,127,127,.25);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  .controls .nav { margin-left: auto; display: flex; gap: 6px; }
+  .controls button {
+    font: inherit;
+    font-size: .85rem;
+    padding: 7px 12px;
+    border-radius: 7px;
+    border: 1px solid rgba(127,127,127,.4);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+  .controls button:hover { background: rgba(127,127,127,.18); }
+
+  .snippet-title {
+    font-size: 1.05rem;
+    margin: 36px 0 10px;
+    opacity: .85;
+  }
+
+  /* Keep code blocks readable regardless of the theme's own sizing */
+  pre[class*="language-"] {
+    font-family: var(--mono-font);
+    font-size: 14px;
+    border-radius: 10px;
+    margin: 0 0 8px;
+  }
+  code[class*="language-"] { font-family: var(--mono-font); }
+
+  /* Prose paragraph + a plain (non-Prism) inline-code chip for the comparison */
+  .prose { font-size: .98rem; max-width: 70ch; }
+  .prose code:not([class*="language-"]) {
+    font-family: var(--mono-font);
+    font-size: .9em;
+    padding: 1px 6px;
+    border-radius: 5px;
+    background: rgba(127,127,127,.16);
+    border: 1px solid rgba(127,127,127,.22);
+  }
+
+  footer {
+    margin-top: 48px;
+    font-size: .82rem;
+    opacity: .6;
+  }
+  footer code {
+    font-family: var(--mono-font);
+    background: rgba(127,127,127,.18);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Prism.js &middot; C++ Theme Comparison</h1>
+    <p>Pick a theme from the dropdown to preview it across the snippets below. Your choice is remembered.</p>
+  </header>
+
+  <div class="controls">
+    <label for="theme-select">Theme:</label>
+    <select id="theme-select"></select>
+    <span class="mode-badge" id="mode-badge">dark</span>
+    <div class="nav">
+      <button id="prev-theme" title="Previous theme">&larr; Prev</button>
+      <button id="next-theme" title="Next theme">Next &rarr;</button>
+    </div>
+  </div>
+
+  <h2 class="snippet-title">vec3.hpp &mdash; a small math type</h2>
+  <pre class="line-numbers"><code class="language-cpp">#include &lt;cmath&gt;
+#include &lt;vector&gt;
+#include &lt;random&gt;
+
+// Minimal 3D vector for a Monte Carlo path tracer
+template &lt;typename T&gt;
+struct Vec3 {
+    T x, y, z;
+
+    constexpr Vec3(T x = 0, T y = 0, T z = 0) : x(x), y(y), z(z) {}
+
+    Vec3 operator+(const Vec3&amp; o) const { return {x + o.x, y + o.y, z + o.z}; }
+    Vec3 operator*(T s)          const { return {x * s,   y * s,   z * s};   }
+
+    T dot(const Vec3&amp; o) const { return x * o.x + y * o.y + z * o.z; }
+    T length()           const { return std::sqrt(dot(*this)); }
+};
+
+using Vec3f = Vec3&lt;float&gt;;
+using Vec3d = Vec3&lt;double&gt;;
+</code></pre>
+
+  <h2 class="snippet-title">radiance.cpp &mdash; recursive path tracing</h2>
+  <pre class="line-numbers"><code class="language-cpp">// Estimate incoming radiance along a ray by recursive path tracing.
+Vec3f radiance(const Ray&amp; ray, const Scene&amp; scene, int depth, RngState&amp; rng) {
+    constexpr int kMaxDepth = 8;
+    if (depth &gt;= kMaxDepth)
+        return Vec3f{0.0f, 0.0f, 0.0f};
+
+    HitRecord hit;
+    if (!scene.intersect(ray, hit))
+        return scene.sky(ray.direction);          // miss: sample the environment
+
+    // Russian roulette after a few bounces to keep paths unbiased.
+    const float p = std::max({hit.albedo.x, hit.albedo.y, hit.albedo.z});
+    if (depth &gt; 3 &amp;&amp; next_float(rng) &gt; p)
+        return hit.emission;
+
+    const Ray  scattered  = sample_bsdf(hit, ray, rng);
+    const Vec3f throughput = hit.albedo * (1.0f / std::max(p, 1e-4f));
+
+    return hit.emission + throughput * radiance(scattered, scene, depth + 1, rng);
+}
+
+int main(int argc, char** argv) {
+    const auto pixels = render(/*width=*/1280, /*height=*/720, /*spp=*/256);
+    std::printf("Rendered %zu pixels\n", pixels.size());
+    return EXIT_SUCCESS;
+}
+</code></pre>
+
+  <h2 class="snippet-title">Inline code &mdash; themed vs. page-styled</h2>
+  <p class="prose">
+    Inline snippets such as <code class="language-cpp">std::vector&lt;Vec3f&gt;</code> or
+    <code class="language-cpp">throughput *= albedo</code> carry the
+    <code class="language-cpp">language-cpp</code> class, so Prism tokenizes them and the
+    <em>selected theme</em> paints their background &mdash; switch themes above and watch
+    them change along with the blocks. By contrast, a plain chip like
+    <code>OnRenderImage()</code> or <code>g_Radiance</code> has no language class: Prism
+    leaves it alone, so it keeps the page&rsquo;s own styling no matter which theme is active.
+  </p>
+
+  <footer>
+    Powered by <code>Prism.js 1.29.0</code> + <code>prism-themes</code>, loaded from CDN.
+    Save this file anywhere and open it in a browser.
+  </footer>
+
+</div>
+
+<!-- Prism core + C++ language (dependency chain: core &rarr; clike &rarr; c &rarr; cpp) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+
+<!-- Plugins -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+
+<script>
+  // value = stylesheet URL, mode drives the page light/dark backdrop.
+  const OFFICIAL = "https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/";
+  const THEMED   = "https://cdn.jsdelivr.net/npm/prism-themes@1.9.0/themes/";
+
+  const THEMES = [
+    // --- Light ---
+    { name: "Prism Default",     mode: "light", url: OFFICIAL + "prism.min.css" },
+    { name: "Coy",               mode: "light", url: OFFICIAL + "prism-coy.min.css" },
+    { name: "Solarized Light",   mode: "light", url: OFFICIAL + "prism-solarizedlight.min.css" },
+    { name: "One Light",         mode: "light", url: THEMED   + "prism-one-light.min.css" },
+    { name: "Visual Studio",     mode: "light", url: THEMED   + "prism-vs.min.css" },
+    { name: "Coldark Cold",      mode: "light", url: THEMED   + "prism-coldark-cold.min.css" },
+    // --- Dark ---
+    { name: "Okaidia",           mode: "dark",  url: OFFICIAL + "prism-okaidia.min.css" },
+    { name: "Tomorrow Night",    mode: "dark",  url: OFFICIAL + "prism-tomorrow.min.css" },
+    { name: "Twilight",          mode: "dark",  url: OFFICIAL + "prism-twilight.min.css" },
+    { name: "Dark",              mode: "dark",  url: OFFICIAL + "prism-dark.min.css" },
+    { name: "Funky",             mode: "dark",  url: OFFICIAL + "prism-funky.min.css" },
+    { name: "One Dark",          mode: "dark",  url: THEMED   + "prism-one-dark.min.css" },
+    { name: "Dracula",           mode: "dark",  url: THEMED   + "prism-dracula.min.css" },
+    { name: "Nord",              mode: "dark",  url: THEMED   + "prism-nord.min.css" },
+    { name: "Atom Dark",         mode: "dark",  url: THEMED   + "prism-atom-dark.min.css" },
+    { name: "VS Code Dark+",     mode: "dark",  url: THEMED   + "prism-vsc-dark-plus.min.css" },
+    { name: "Material Dark",     mode: "dark",  url: THEMED   + "prism-material-dark.min.css" },
+    { name: "Material Oceanic",  mode: "dark",  url: THEMED   + "prism-material-oceanic.min.css" },
+    { name: "Gruvbox Dark",      mode: "dark",  url: THEMED   + "prism-gruvbox-dark.min.css" },
+    { name: "Coldark Dark",      mode: "dark",  url: THEMED   + "prism-coldark-dark.min.css" },
+  ];
+
+  const STORAGE_KEY = "prism-theme-choice";
+  const select   = document.getElementById("theme-select");
+  const link     = document.getElementById("prism-theme");
+  const badge    = document.getElementById("mode-badge");
+
+  // Build grouped dropdown
+  function addGroup(label, mode) {
+    const og = document.createElement("optgroup");
+    og.label = label;
+    THEMES.forEach((t, i) => {
+      if (t.mode !== mode) return;
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.textContent = t.name;
+      og.appendChild(opt);
+    });
+    select.appendChild(og);
+  }
+  addGroup("Light themes", "light");
+  addGroup("Dark themes", "dark");
+
+  function applyTheme(index) {
+    const t = THEMES[index];
+    if (!t) return;
+    link.href = t.url;
+    select.value = index;
+    badge.textContent = t.mode;
+    document.body.classList.toggle("mode-dark", t.mode === "dark");
+    localStorage.setItem(STORAGE_KEY, index);
+  }
+
+  select.addEventListener("change", () => applyTheme(Number(select.value)));
+
+  document.getElementById("next-theme").addEventListener("click", () => {
+    applyTheme((Number(select.value) + 1) % THEMES.length);
+  });
+  document.getElementById("prev-theme").addEventListener("click", () => {
+    applyTheme((Number(select.value) - 1 + THEMES.length) % THEMES.length);
+  });
+
+  // Restore saved choice (default: One Dark)
+  const raw = localStorage.getItem(STORAGE_KEY);
+  const saved = raw === null ? NaN : Number(raw);
+  const initial = Number.isInteger(saved) && THEMES[saved]
+    ? saved
+    : THEMES.findIndex(t => t.name === "One Dark");
+  applyTheme(initial);
+</script>
+</body>
+</html>

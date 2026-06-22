@@ -166,6 +166,12 @@ $$\boxed{\,n_i \;\propto\; \sigma_i\,}\qquad\Longleftrightarrow\qquad \frac{n_i}
 </table>
 <p>Same budget, <strong>3.72× lower RMS error</strong> — purely from placing the samples better. Render it live below at a matched budget (a smaller $120\times120$ scene so it runs in the browser); the <em>error maps</em> (estimate − reference, amplified) make it visible: the uniform map glows with edge noise the adaptive map has scrubbed away, at no extra cost.</p>
 
+<div class="callout">
+<strong>Why it must help — and by how much.</strong> Plug the Neyman optimum $n_i=B\,\sigma_i/\sum_j\sigma_j$ back into the error $\sum_i\sigma_i^2/n_i$ and it collapses to a clean optimum, set against the uniform allocation $n_i=B/M$:</p>
+$$E_{\text{Neyman}}=\frac{\big(\sum_i\sigma_i\big)^2}{B},\qquad\qquad E_{\text{unif}}=\frac{M}{B}\sum_i\sigma_i^2 .$$
+<p style="margin-bottom:0">Their ratio $E_{\text{unif}}/E_{\text{Neyman}}=M\sum_i\sigma_i^2\big/\big(\sum_i\sigma_i\big)^2$ is $\ge 1$ by Cauchy–Schwarz — adaptive is <em>never worse</em> than uniform — with equality only when every $\sigma_i$ is identical. The win grows with how <em>unequal</em> the $\sigma_i$ are, and here they are extreme: ${\approx}97.7\%$ of pixels have $\sigma_i\approx0$ and a $2.3\%$ edge sliver carries all the noise. That dispersion puts the idealized ceiling at $\sqrt{M\sum\sigma^2/(\sum\sigma)^2}\approx7.7\times$ in RMS; the measured $3.72\times$ is lower because the $\varepsilon$-floor and the 32-sample pilot still spend real budget on the already-converged flats.</p>
+</div>
+
 <figure>
 <div class="imgrow">
   <div>

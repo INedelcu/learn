@@ -137,6 +137,12 @@ $$C_{\text{pixel}}=\frac{1}{\text{area}}\int_{\text{pixel}} \text{shade}(u,v)\,d
 <figcaption>Figure 1. Two pixels over an edge. The <span style="color:var(--strat)">interior</span> pixel's samples all land on the shape and agree — zero variance. The <span style="color:var(--rand)">edge</span> pixel's samples split between shape and background — they disagree, so its estimate is noisy. Noise lives only in the thin edge bands.</figcaption>
 </figure>
 
+<div class="callout">
+<strong>The edge pixel is a Bernoulli trial.</strong> Take a pixel covering fraction $p$ of shade $A$ and $1-p$ of shade $B$. A uniform subpixel sample returns $A$ with probability $p$ and $B$ with probability $1-p$ — a scaled coin flip — so one sample has variance</p>
+$$\sigma^2_{\text{pix}}=(A-B)^2\,p(1-p),$$
+<p>and the $N$-sample average has variance $\sigma^2_{\text{pix}}/N$, i.e. per-pixel RMS error $|A-B|\sqrt{p(1-p)/N}$. Two things drop out at once: an <strong>interior</strong> pixel has $p\in\{0,1\}$, so its variance is exactly $0$ (no noise), and the noise peaks at a half-covered edge ($p=\tfrac12$). Averaging over the image, the mean-squared error is $\tfrac1N\,\overline{\sigma^2_{\text{pix}}}$, so the whole-image RMS is $\sqrt{\overline{\sigma^2_{\text{pix}}}}\big/\sqrt N$ — the $1/\sqrt N$ law, its constant fixed entirely by the edges. For this scene only ${\approx}1.6\%$ of pixels have $\sigma^2_{\text{pix}}>0$, and $\sqrt{\overline{\sigma^2_{\text{pix}}}}={0.031}$, matching the flat random <code>RMSE·√N</code> column ($\approx0.030$) in §5.</p>
+</div>
+
 
 <h2 id="3">3. Watch the noise melt<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
 

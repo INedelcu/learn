@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>21 — The white furnace test: energy conservation — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --albedo:#2f9e64; --deficit:#dd6b20; --ggx:#7c3aed; --ref:#2b6cb0; --gold:#d9a500; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--albedo)}
+  .callout.warn{border-left-color:var(--deficit)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:170px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button.sel{background:var(--ink); color:#fff; border-color:var(--ink)}
+  button:active{transform:translateY(1px)}
+  canvas{display:block; image-rendering:auto; border:1px solid var(--line); border-radius:8px; background:#fff}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>The white furnace test: is the BRDF conserving energy?</h1>
+<p class="sub">21_white_furnace.cpp — sit a surface inside a uniformly glowing white sphere. A physical material can only reflect back what arrives; if it reflects less it looks dark, if more it has invented energy. The test that catches both — and exposes where single-scatter GGX leaks light.</p>
+
+<p class="lead">A BRDF must never reflect more light than reaches it. The standard check is the <strong>white furnace test</strong>: imagine the surface inside a sphere glowing with radiance $1$ in every direction. The light it sends back is then its <strong>directional albedo</strong> $E(\omega_o)$, and physics demands $E(\omega_o)\le1$. This page derives why the furnace reads off energy conservation directly, validates the machinery on a Lambertian surface whose answer we know, and then turns it on the <a href="19_ggx_vndf_sampling.html#5">single-scatter GGX BRDF of example 19</a> — which, the test reveals, quietly loses energy as roughness grows.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> Under uniform incoming radiance $L_i=1$, the rendering equation collapses to outgoing radiance $=E(\omega_o)=\int_{\mathcal H} f_r\cos\theta_i\,d\omega_i$, so an object is <em>invisible</em> against the furnace when $E=1$, <em>dark</em> when $E&lt;1$ (lost energy), and impossible when $E&gt;1$; estimating $E$ for single-scatter GGX (with $F=1$, just the average of $G_2/G_1$ from example 19) shows it conserves energy ($E\le1$ always) but the deficit $1-E$ climbs from under $1\%$ at $\alpha=0.05$ to nearly half the energy at $\alpha=0.8$.</p>
+</div>
+
+<div class="legend">
+  <span><i class="swatch" style="border-color:var(--albedo)"></i> directional albedo $E(\omega_o)$</span>
+  <span><i class="swatch" style="border-color:var(--deficit)"></i> lost energy $1-E$</span>
+  <span><i class="dot" style="background:var(--ref)"></i> Lambertian validation</span>
+</div>
+
+
+<h2 id="1">1. A surface in a glowing sphere<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The reflected radiance leaving a surface in direction $\omega_o$ is the rendering equation — the BRDF against all incoming light:</p>
+$$L_o(\omega_o)=\int_{\mathcal H} f_r(\omega_o,\omega_i)\,L_i(\omega_i)\,\cos\theta_i\,d\omega_i.$$
+<p>The furnace sets $L_i(\omega_i)=1$ everywhere, so the integral loses its light term and becomes a pure property of the material — the <strong>directional albedo</strong>:</p>
+$$L_o(\omega_o)=\int_{\mathcal H} f_r(\omega_o,\omega_i)\,\cos\theta_i\,d\omega_i \;\equiv\; E(\omega_o).$$
+<p>That is the whole idea: in a furnace, what you see <em>is</em> the albedo. Now compare the object to its background, which glows at radiance $1$:</p>
+<ul>
+<li>$E(\omega_o)=1$ → the object matches the background exactly: <strong>invisible</strong>. This is perfect energy conservation — every photon that arrives leaves.</li>
+<li>$E(\omega_o)&lt;1$ → the object is <strong>darker</strong> than the furnace; the missing $1-E$ is energy the model swallowed.</li>
+<li>$E(\omega_o)&gt;1$ → the object is <strong>brighter</strong> than its surroundings, reflecting more than arrives — physically impossible, a bug. The test's pass/fail line is exactly $E\le1$.</li>
+</ul>
+
+<figure>
+<canvas id="fig-furnace" width="600" height="240"></canvas>
+<div class="ctl">
+  roughness $\alpha$ = <b id="fn-aval" style="display:inline-block; min-width:2.6em; text-align:right; font-variant-numeric:tabular-nums">0.40</b>
+  <input id="fn-a" type="range" min="3" max="90" value="40" step="1">
+  <span class="small">single-scatter GGX sphere against the white furnace</span>
+</div>
+<div class="panel">
+  <div class="row"><span>albedo $E$ (this roughness)</span><b id="fn-E" style="color:var(--albedo)">—</b></div>
+  <div class="row"><span>energy lost $1-E$</span><b id="fn-def" style="color:var(--deficit)">—</b></div>
+</div>
+<figcaption>Figure 1. A GGX sphere inside the white furnace, shaded by its own directional albedo $E(\omega_o)$ (each point uses its view angle; gamma-corrected). The background is the furnace at radiance $1$ (white). At low roughness the sphere nearly vanishes — energy conserved; raise $\alpha$ and it darkens visibly against the white field, and that darkening is precisely the energy $1-E$ the single-scatter model loses.</figcaption>
+</figure>
+
+
+<h2 id="2">2. Validating the machinery: Lambertian gives $E=\rho$<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Before trusting the furnace on GGX, run it on a surface whose albedo we know in closed form. A Lambertian (matte) surface has a constant BRDF $f_r=\rho/\pi$, so its directional albedo is</p>
+$$E_{\text{Lambert}}=\int_{\mathcal H}\frac{\rho}{\pi}\cos\theta_i\,d\omega_i=\frac{\rho}{\pi}\int_{\mathcal H}\cos\theta_i\,d\omega_i=\frac{\rho}{\pi}\cdot\pi=\rho,$$
+<p>using the hemisphere identity from <a href="08_hemisphere_sampling.html#2">example 08</a>:</p>
+$$\int_{\mathcal H}\cos\theta\,d\omega=\int_0^{2\pi}\!\!\int_0^{\pi/2}\cos\theta\,\sin\theta\,d\theta\,d\phi=2\pi\cdot\tfrac12=\pi.$$
+<p>So a Lambertian surface of albedo $\rho$ is exactly $\rho$ as bright as the furnace — independent of view, no energy lost (and none invented). The C++ file confirms the estimator on this case: with $\rho=0.8$ it measures $E=0.8000$. The machinery is sound; now point it at GGX.</p>
+
+
+<h2 id="3">3. The GGX single-scatter deficit<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Estimating $E(\omega_o)$ for GGX is already solved: it is the integral <a href="19_ggx_vndf_sampling.html#3">example 19</a> sampled with VNDF, where the weight $f_r\cos\theta_i/\text{pdf}$ collapsed to $F\,G_2/G_1$. Setting Fresnel $F=1$ (perfect mirrors, to isolate the geometry) the estimator is simply</p>
+$$E(\omega_o)\;\approx\;\frac1N\sum_{k=1}^{N}\frac{G_2(\omega_o,\omega_{i,k})}{G_1(\omega_o)},\qquad \omega_{i,k}=\text{reflect}(\omega_o,\,h_k),\ \ h_k\sim\text{VNDF}.$$
+<p>The table below is the C++ run: $E$ at normal incidence, the cosine-weighted average $\bar E$ over all view directions, and the deficit $1-\bar E$.</p>
+
+<table>
+<thead><tr><th class="num">α</th><th class="num">E (normal)</th><th class="num">E avg</th><th class="num">energy lost 1−E</th><th class="num">E ≤ 1?</th></tr></thead>
+<tbody>
+<tr><td class="num">0.05</td><td class="num">0.9973</td><td class="num">0.9913</td><td class="num">0.0087</td><td class="num">yes</td></tr>
+<tr><td class="num">0.10</td><td class="num">0.9883</td><td class="num">0.9720</td><td class="num">0.0280</td><td class="num">yes</td></tr>
+<tr><td class="num">0.20</td><td class="num">0.9478</td><td class="num">0.9159</td><td class="num">0.0841</td><td class="num">yes</td></tr>
+<tr><td class="num">0.40</td><td class="num">0.7864</td><td class="num">0.7735</td><td class="num">0.2265</td><td class="num">yes</td></tr>
+<tr><td class="num">0.80</td><td class="num">0.4270</td><td class="num">0.5076</td><td class="num">0.4924</td><td class="num">yes</td></tr>
+</tbody>
+</table>
+
+<p>Two readings. <strong>It conserves energy</strong> — no row exceeds $1$, so single-scatter GGX never invents light (the test passes). But <strong>it leaks badly at high roughness</strong>: a near-mirror ($\alpha=0.05$) returns $99\%$ of the light, while a rough surface ($\alpha=0.8$) loses nearly <em>half</em>. Slide the roughness below and watch the escaping energy $\bar E$ fall away from the conserving line at $1$, the orange deficit opening beneath it.</p>
+
+<figure>
+<svg id="fig-deficit" viewBox="0 0 600 320" role="img" aria-label="GGX single-scatter directional albedo and its energy deficit as a function of roughness."></svg>
+<div class="ctl">
+  <button id="df-run">Re-run Monte Carlo</button>
+  <span class="small">live VNDF estimate of $\bar E(\alpha)$ — the curve the table samples</span>
+</div>
+<figcaption>Figure 2. Single-scatter GGX albedo $\bar E$ vs roughness $\alpha$ (live Monte Carlo, average of $G_2/G_1$). The <span style="color:var(--albedo)">green curve</span> is the energy that escapes; the <span style="color:var(--deficit)">orange band</span> up to the conserving line $E=1$ is the energy lost to ignored multiple bounces. It is negligible for polished surfaces and severe for rough ones — exactly where masking-shadowing throws light away that, in reality, would scatter again and escape.</figcaption>
+</figure>
+
+
+<h2 id="4">4. Where the energy went<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The Smith $G_2$ term counts only light that reflects off the microsurface <strong>once</strong> and escapes without being blocked. On a rough surface a microfacet often reflects light straight into a neighbouring bump — masked, so $G_2$ discards it. But physically that ray doesn't vanish: it bounces a second or third time and usually still finds its way out. Single-scatter GGX drops every one of those multi-bounce paths, and the rougher the surface the more there are — hence the growing deficit. It is why rough metals rendered with a basic microfacet model look too dark.</p>
+
+<div class="callout warn">
+<strong>Putting the energy back.</strong> The principled fix is a <strong>multiple-scattering</strong> term (Kulla–Conty 2017) that adds a compensation lobe carrying exactly the missing $1-E$, restoring $E\to1$. The <a href="https://github.com/INedelcu/PathTracingDemo/blob/main/Assets/Shaders/Shading.hlsl">PathTracingDemo</a> renderer takes the cheaper route the table motivates: in the Standard shader it tints the diffuse lobe by $(1-F_0)$ as a rough energy-compensation step, returning some of the light the specular lobe failed to. Either way, the white furnace is the instrument that tells you how much is missing — and would flag the opposite failure ($E&gt;1$) the moment a BRDF reflected more than it received.</p>
+</div>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/21_white_furnace.cpp" target="_blank" rel="noopener"><code>21_white_furnace.cpp</code></a>.</p>
+
+<p>With $F=1$ the furnace estimate of $E(\omega_o)$ is one line — the average of $G_2/G_1$ over VNDF samples (example 19's machinery, reused).</p>
+
+<pre class="language-cpp"><code class="language-cpp">// E(wo) for GGX with F = 1, via VNDF: the average of G2/G1 over reflected samples.
+double DirectionalAlbedo(const Vec3&amp; wo, float a, Rng&amp; rng, long long N) {
+    double sum = 0.0, g1 = GgxG1(wo, a);
+    for (long long i = 0; i &lt; N; ++i) {
+        Vec3 h  = SampleGgxVNDF(wo, a, rng.NextFloat(), rng.NextFloat());
+        Vec3 wi = GgxReflect(wo, h);
+        if (wi.z &gt; 0.0f) sum += GgxG2(wo, wi, a) / g1;     // weight = G2/G1  (F = 1)
+    }
+    return sum / N;                                          // E(wo) = mean(G2/G1)
+}
+
+// Lambertian sanity check: f_r = rho/pi, so E = rho exactly.
+//   E = integral_H (rho/pi) cos(theta) dwi = (rho/pi) * pi = rho.
+// Energy conservation is the assertion  E(wo) &lt;= 1  for every wo.</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> The white furnace test puts a material under uniform radiance $1$, where outgoing radiance equals the directional albedo $E(\omega_o)=\int_{\mathcal H} f_r\cos\theta_i\,d\omega_i$ — so $E\le1$ is energy conservation, readable by eye (invisible vs dark vs impossibly bright). Validated on Lambertian ($E=\rho$), it shows single-scatter GGX conserves energy but loses up to half of it at high roughness by ignoring multiple bounces — the deficit a Kulla–Conty term, or the renderer's $(1-F_0)$ diffuse tint, adds back.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="20_fresnel.html">20 — Fresnel reflectance</a>. Builds on: <a href="19_ggx_vndf_sampling.html">19 — GGX VNDF sampling</a>, <a href="08_hemisphere_sampling.html">08 — Hemisphere sampling</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  const PI=Math.PI;
+
+  // --- Vec3 + GGX (same machinery as example 19) ---
+  const V=(x,y,z)=>({x,y,z});
+  const add=(a,b)=>V(a.x+b.x,a.y+b.y,a.z+b.z);
+  const scl=(a,s)=>V(a.x*s,a.y*s,a.z*s);
+  const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+  const cross=(a,b)=>V(a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x);
+  const norm=a=>{const l=Math.hypot(a.x,a.y,a.z)||1;return V(a.x/l,a.y/l,a.z/l);};
+  function lambda(v,a){const c=Math.abs(v.z);if(c>=0.99999)return 0;const t2=(1-c*c)/(c*c);return 0.5*(-1+Math.sqrt(1+a*a*t2));}
+  const G1=(v,a)=>1/(1+lambda(v,a));
+  const G2=(wo,wi,a)=>1/(1+lambda(wo,a)+lambda(wi,a));
+  function sampleVNDF(wo,a,u1,u2){
+    let Vh=norm(V(a*wo.x,a*wo.y,wo.z));
+    let T1=(Vh.z<0.9999)?norm(cross(V(0,0,1),Vh)):V(1,0,0);
+    let T2=cross(Vh,T1);
+    let r=Math.sqrt(u1),phi=2*PI*u2,t1=r*Math.cos(phi),t2=r*Math.sin(phi);
+    let s=0.5*(1+Vh.z);
+    t2=(1-s)*Math.sqrt(Math.max(0,1-t1*t1))+s*t2;
+    let t3=Math.sqrt(Math.max(0,1-t1*t1-t2*t2));
+    let Nh=add(add(scl(T1,t1),scl(T2,t2)),scl(Vh,t3));
+    return norm(V(a*Nh.x,a*Nh.y,Math.max(1e-6,Nh.z)));
+  }
+  const reflect=(wo,h)=>add(scl(h,2*dot(wo,h)),scl(wo,-1));
+
+  // E(wo) at a fixed view direction (N VNDF samples)
+  function Edir(wo,a,N){const g1=G1(wo,a);let s=0;for(let i=0;i<N;i++){const h=sampleVNDF(wo,a,Math.random(),Math.random());const wi=reflect(wo,h);if(wi.z>0)s+=G2(wo,wi,a)/g1;}return s/N;}
+  // cosine-weighted average over wo (one VNDF sample each), matching the .cpp
+  function Eavg(a,N){let s=0;for(let i=0;i<N;i++){const u1=Math.random(),u2=Math.random();const r=Math.sqrt(u1),ph=2*PI*u2;const wo=V(r*Math.cos(ph),r*Math.sin(ph),Math.sqrt(Math.max(0,1-u1)));const h=sampleVNDF(wo,a,Math.random(),Math.random());const wi=reflect(wo,h);if(wi.z>0)s+=G2(wo,wi,a)/G1(wo,a);}return s/N;}
+
+  // ---------- Figure 1: furnace sphere ----------
+  (function(){
+    const cv=document.getElementById('fig-furnace'); if(!cv) return;
+    const ctx=cv.getContext('2d'); const W=cv.width, H=cv.height;
+    const sl=document.getElementById('fn-a');
+    const R=96, cx=W/2, cy=H/2;
+    // precompute E(theta_o) for a set of angles at the current alpha, then shade by lookup
+    function draw(){
+      const a=+sl.value/100;
+      const NB=24, Etab=new Float64Array(NB+1);
+      for(let b=0;b<=NB;b++){const th=b/NB*(PI/2);const wo=V(Math.sin(th),0,Math.cos(th));Etab[b]=Edir(wo,a,4000);}
+      const img=ctx.createImageData(W,H);
+      for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+        const o=(y*W+x)*4;
+        const dx=(x-cx)/R, dy=(y-cy)/R, r2=dx*dx+dy*dy;
+        let g;
+        if(r2>1){ g=255; }                                  // the furnace background (radiance 1)
+        else{
+          const cosT=Math.sqrt(1-r2);                       // view angle at this point
+          const th=Math.acos(Math.min(1,cosT)); const fb=th/(PI/2)*NB; const b=Math.min(NB-1,Math.floor(fb)); const fr=fb-b;
+          const E=Etab[b]*(1-fr)+Etab[b+1]*fr;
+          g=Math.round(255*Math.pow(Math.max(0,Math.min(1,E)),1/2.2));
+        }
+        img.data[o]=img.data[o+1]=img.data[o+2]=g; img.data[o+3]=255;
+      }
+      ctx.putImageData(img,0,0);
+      // a faint ring so the silhouette reads even when E~1
+      ctx.strokeStyle='rgba(150,160,173,0.45)'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(cx,cy,R,0,2*PI); ctx.stroke();
+      const Em=Eavg(a,30000);
+      document.getElementById('fn-aval').textContent=a.toFixed(2);
+      document.getElementById('fn-E').textContent=Em.toFixed(4);
+      document.getElementById('fn-def').textContent=(1-Em).toFixed(4);
+    }
+    sl.addEventListener('input',draw); draw();
+  })();
+
+  // ---------- Figure 2: deficit curve ----------
+  (function(){
+    const svg=document.getElementById('fig-deficit'); if(!svg) return;
+    const x0=64,x1=560,top=30,bot=270, AMAX=0.85;
+    const px=a=>x0+(a/AMAX)*(x1-x0);
+    const py=E=>bot-Math.max(0,Math.min(1,E))*(bot-top);
+    const gS=el('g'); svg.appendChild(gS);
+    const gD=el('g'); svg.appendChild(gD);
+    [0,0.25,0.5,0.75,1].forEach(E=>{gS.appendChild(el('line',{x1:x0,y1:py(E),x2:x1,y2:py(E),stroke:'#eef0f4'}));
+      gS.appendChild(txt(x0-8,py(E)+4,E.toFixed(2),{'font-size':11,fill:'var(--muted)','text-anchor':'end'}));});
+    [0.05,0.2,0.4,0.6,0.8].forEach(a=>gS.appendChild(txt(px(a),bot+18,a.toFixed(2),{'font-size':11,fill:'var(--muted)','text-anchor':'middle'})));
+    gS.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    gS.appendChild(el('line',{x1:x0,y1:top,x2:x0,y2:bot,stroke:'#9aa0ad'}));
+    gS.appendChild(txt((x0+x1)/2,bot+34,'roughness α',{'font-size':12.5,fill:'var(--muted)','text-anchor':'middle'}));
+    gS.appendChild(txt(x0-30,top-14,'E',{'font-size':12.5,fill:'var(--muted)'}));
+    // conserving line E=1
+    gS.appendChild(el('line',{x1:x0,y1:py(1),x2:x1,y2:py(1),stroke:'var(--ref)','stroke-width':1.6,'stroke-dasharray':'6 4'}));
+    gS.appendChild(txt(x1-2,py(1)-6,'E = 1  (energy conserved)',{'font-size':11.5,fill:'var(--ref)','text-anchor':'end'}));
+    const tableA=[0.05,0.1,0.2,0.4,0.8], tableE=[0.9913,0.9720,0.9159,0.7735,0.5076];
+    function run(){
+      while(gD.firstChild)gD.removeChild(gD.firstChild);
+      // sample the curve
+      const pts=[]; for(let a=0.03;a<=AMAX+1e-6;a+=0.035){pts.push([a,Eavg(a,7000)]);}
+      // deficit band (between curve and E=1)
+      let dband='M'+px(pts[0][0]).toFixed(1)+','+py(1).toFixed(1)+' ';
+      pts.forEach(p=>dband+='L'+px(p[0]).toFixed(1)+','+py(1).toFixed(1)+' ');
+      for(let i=pts.length-1;i>=0;i--)dband+='L'+px(pts[i][0]).toFixed(1)+','+py(pts[i][1]).toFixed(1)+' ';
+      dband+='Z';
+      gD.appendChild(el('path',{d:dband,fill:'var(--deficit)','fill-opacity':0.14,stroke:'none'}));
+      gD.appendChild(txt(px(0.6),py(0.9),'energy lost (1 − E)',{'font-size':12,fill:'var(--deficit)','text-anchor':'middle'}));
+      // E curve
+      let d=''; pts.forEach((p,i)=>{d+=(i?'L':'M')+px(p[0]).toFixed(1)+','+py(p[1]).toFixed(1)+' ';});
+      gD.appendChild(el('path',{d:d.trim(),fill:'none',stroke:'var(--albedo)','stroke-width':2.6}));
+      gD.appendChild(txt(px(0.5),py(Eavg(0.5,7000))-10,'escaping energy  Ē(α)',{'font-size':12,fill:'var(--albedo)','text-anchor':'middle'}));
+      // table dots
+      tableA.forEach((a,i)=>gD.appendChild(el('circle',{cx:px(a),cy:py(tableE[i]),r:3.6,fill:'var(--ggx)'})));
+    }
+    document.getElementById('df-run').addEventListener('click',run); run();
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

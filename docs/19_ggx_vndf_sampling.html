@@ -128,6 +128,17 @@ $$f_r(\omega_o,\omega_i)=\frac{D(h)\,G_2(\omega_o,\omega_i)\,F}{4\,(n\!\cdot\!\o
 
 <p>The reward is what happens to the estimator weight. Writing out $f_r\cos\theta_i$ divided by the VNDF pdf of $\omega_i$, the $D$, the Jacobian of the reflection, and the cosines all cancel, leaving</p>
 $$\text{weight}=\frac{f_r\cos\theta_i}{\text{pdf}(\omega_i)}=\frac{F\,G_2(\omega_o,\omega_i)}{G_1(\omega_o)}.$$
+
+<div class="callout">
+<strong>Why it collapses.</strong> Two ingredients do it. Heitz's distribution of <em>visible</em> normals is</p>
+$$D_{\text{vis}}(h)=\frac{G_1(\omega_o)\,(\omega_o\!\cdot\!h)\,D(h)}{n\!\cdot\!\omega_o},$$
+<p>and reflecting $\omega_o$ about $h$ carries the half-vector Jacobian $\big|\partial\omega_h/\partial\omega_i\big|=1/\big(4\,(\omega_o\!\cdot\!h)\big)$, so the pdf in the outgoing direction is</p>
+$$\text{pdf}(\omega_i)=\frac{D_{\text{vis}}(h)}{4\,(\omega_o\!\cdot\!h)}=\frac{G_1(\omega_o)\,D(h)}{4\,(n\!\cdot\!\omega_o)} .$$
+<p>Meanwhile the numerator, using $\cos\theta_i=n\!\cdot\!\omega_i$, is $f_r\cos\theta_i=\dfrac{D(h)\,G_2\,F}{4\,(n\!\cdot\!\omega_o)}$. Divide:</p>
+$$\frac{f_r\cos\theta_i}{\text{pdf}(\omega_i)}=\frac{D(h)\,G_2\,F\big/\big(4(n\!\cdot\!\omega_o)\big)}{G_1(\omega_o)\,D(h)\big/\big(4(n\!\cdot\!\omega_o)\big)}=\frac{F\,G_2(\omega_o,\omega_i)}{G_1(\omega_o)} .$$
+<p style="margin-bottom:0">The spiky $D(h)$, both cosines, the factor $4$, and the $(\omega_o\!\cdot\!h)$ from the Jacobian all cancel — that is the whole point of sampling the visible normals. (The §4 table confirms it numerically: the average of $G_2/G_1$ matches the BRDF quadrature to three digits.)</p>
+</div>
+
 <p>No $D$, no division by tiny cosines, no chance of a spike — just a bounded ratio of Smith terms, near 1. Below, watch where the two samplers send their rays: VNDF clusters under the lobe, uniform scatters everywhere.</p>
 
 <figure>

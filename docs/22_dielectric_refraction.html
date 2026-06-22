@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>22 — Refraction, Snell's law &amp; total internal reflection — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --incident:#2b6cb0; --reflect:#dd6b20; --refract:#2f9e64; --tir:#e53e3e; --gold:#d9a500; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--refract)}
+  .callout.warn{border-left-color:var(--tir)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:170px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button.sel{background:var(--ink); color:#fff; border-color:var(--ink)}
+  button:active{transform:translateY(1px)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Refraction, Snell's law &amp; total internal reflection</h1>
+<p class="sub">22_dielectric_refraction.cpp — when a ray meets smooth glass it splits: some reflects, the rest bends across the boundary. The three facts a glass shader needs — Snell's bend, the Fresnel split, and the critical-angle mirror — built and checked.</p>
+
+<p class="lead">A smooth dielectric — glass, water — does two things to a ray at once: a fraction reflects off the surface, and the rest <strong>refracts</strong>, bending as it crosses into the new medium. Which way it bends is <a href="#2">Snell's law</a>; how the energy divides is the <a href="20_fresnel.html#1">Fresnel</a> term from example 20; and going from dense to thin there is a <a href="#3">critical angle</a> past which <em>nothing</em> gets through — total internal reflection, the mirror you see on the underside of water. These are exactly the facts the renderer's <code>SampleGlassGGX</code> is built on.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> Snell's law $n_i\sin\theta_i=n_t\sin\theta_t$ bends the transmitted ray; the Fresnel reflectance $F$ sets the split (a fraction $F$ reflects, $1-F$ refracts); a path tracer picks <em>one</em> branch stochastically — reflect with probability $F$ — and the branch probability cancels the $F$, so the glass weight collapses to the same bounded $G_2/G_1$ as the opaque case; and when $\sin\theta_i&gt;n_t/n_i$ Snell has no solution, giving total internal reflection past the critical angle $\theta_c=\arcsin(n_t/n_i)$.</p>
+</div>
+
+<div class="legend">
+  <span><i class="swatch" style="border-color:var(--incident)"></i> incident ray</span>
+  <span><i class="swatch" style="border-color:var(--reflect)"></i> reflected (fraction $F$)</span>
+  <span><i class="swatch" style="border-color:var(--refract)"></i> refracted (fraction $1-F$)</span>
+  <span><i class="dot" style="background:var(--gold)"></i> critical angle</span>
+</div>
+
+
+<h2 id="1">1. A ray splits at the surface<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>At the boundary, energy conservation splits the incoming light in two: the Fresnel fraction $F$ reflects (angle of incidence = angle of reflection), and the remaining $1-F$ transmits at the Snell-bent angle $\theta_t$. Drag the angle and flip the direction below. Going <em>into</em> glass the ray always gets through (bending toward the normal); coming <em>out</em>, watch the refracted ray swing flatter and flatter until, past the critical angle, it vanishes entirely and all the light reflects.</p>
+
+<figure>
+<svg id="fig-ray" viewBox="0 0 600 300" role="img" aria-label="Interactive diagram of an incident ray splitting into a reflected and a refracted ray at a glass interface."></svg>
+<div class="ctl">
+  angle of incidence $\theta_i$ = <b id="ry-aval" style="display:inline-block; min-width:2.6em; text-align:right; font-variant-numeric:tabular-nums">40°</b>
+  <input id="ry-a" type="range" min="0" max="89" value="40" step="1">
+  &nbsp; direction:
+  <button id="ry-in" class="sel">air → glass</button>
+  <button id="ry-out">glass → air</button>
+</div>
+<div class="panel">
+  <div class="row"><span>refracted angle $\theta_t$</span><b id="ry-tt" style="color:var(--refract)">—</b></div>
+  <div class="row"><span>reflected fraction $F$</span><b id="ry-F" style="color:var(--reflect)">—</b></div>
+  <div class="row"><span>transmitted fraction $1-F$</span><b id="ry-T" style="color:var(--refract)">—</b></div>
+  <div class="row"><span>critical angle (glass → air)</span><b id="ry-crit" style="color:var(--gold)">41.8°</b></div>
+</div>
+<figcaption>Figure 1. The incident <span style="color:var(--incident)">ray</span> hits the interface and splits into a <span style="color:var(--reflect)">reflected</span> ray (brightness $\propto F$) and a <span style="color:var(--refract)">refracted</span> ray (brightness $\propto 1-F$). The denser medium is tinted. Air→glass bends toward the normal; glass→air bends away, and beyond $\theta_c=41.8°$ the refracted ray disappears — total internal reflection.</figcaption>
+</figure>
+
+
+<h2 id="2">2. Snell's law and the refraction vector<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p><strong>Snell's law</strong> relates the angles to the indices of refraction:</p>
+$$n_i\sin\theta_i=n_t\sin\theta_t.$$
+<p>Into a denser medium ($n_t&gt;n_i$) the ray bends <em>toward</em> the normal ($\theta_t&lt;\theta_i$); into a thinner one it bends away. A renderer wants the transmitted direction as a vector, not an angle. With $\eta=n_i/n_t$ and $\cos\theta_i=-\mathbf n\!\cdot\!\mathbf d$ (for $\mathbf d$ pointing into the surface), the unit transmitted direction is</p>
+$$\mathbf t=\eta\,\mathbf d+\big(\eta\cos\theta_i-\sqrt{k}\big)\,\mathbf n,\qquad k=1-\eta^2\big(1-\cos^2\theta_i\big)=1-\eta^2\sin^2\theta_i.$$
+<p>The tangential part of $\mathbf t$ is $\eta$ times the tangential part of $\mathbf d$ — which is precisely Snell's law in vector form (tangential momentum scaled by $\eta=n_i/n_t$), and $\sqrt k=\cos\theta_t$ is the normal part. The C++ run confirms the bent direction against $n_i\sin\theta_i=n_t\sin\theta_t$ at every angle (air → glass, $n=1.5$):</p>
+
+<table>
+<thead><tr><th class="num">θᵢ</th><th class="num">F (reflected)</th><th class="num">θₜ (refracted)</th><th class="num">Snell check</th></tr></thead>
+<tbody>
+<tr><td class="num">10°</td><td class="num">0.0400</td><td class="num">6.65°</td><td class="num">OK</td></tr>
+<tr><td class="num">30°</td><td class="num">0.0415</td><td class="num">19.47°</td><td class="num">OK</td></tr>
+<tr><td class="num">50°</td><td class="num">0.0577</td><td class="num">30.71°</td><td class="num">OK</td></tr>
+<tr><td class="num">70°</td><td class="num">0.1710</td><td class="num">38.79°</td><td class="num">OK</td></tr>
+</tbody>
+</table>
+<p>Even at $70°$ the ray inside the glass is only $38.8°$ off the normal: a dense medium "pulls in" all incoming directions toward a cone (the basis of a diamond's sparkle).</p>
+
+
+<h2 id="3">3. Total internal reflection: the critical angle<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The square root in the refraction vector is where total internal reflection hides. A real transmitted direction needs $k\ge0$:</p>
+$$k=1-\eta^2\sin^2\theta_i\ge0 \quad\Longleftrightarrow\quad \sin\theta_i\le\frac{1}{\eta}=\frac{n_t}{n_i}.$$
+<p>Going into a denser medium ($n_t&gt;n_i$, so $n_t/n_i&gt;1$) this always holds — no TIR. But going from dense to thin ($n_i&gt;n_t$) the bound $n_t/n_i$ is less than $1$, so there is a cutoff: the <strong>critical angle</strong></p>
+$$\boxed{\,\theta_c=\arcsin\!\frac{n_t}{n_i}\,}$$
+<p>Beyond it, $k&lt;0$, Snell has no solution, and <em>all</em> the light reflects. For glass→air, $\theta_c=\arcsin(1/1.5)=41.8°$ — and the C++ run flips exactly there: it still transmits at $41°$ but is total internal reflection at $42°$. The plot shows the Fresnel curves for both directions; the glass→air curve climbs and then jumps to $F=1$ at the critical angle and stays pinned.</p>
+
+<figure>
+<svg id="fig-fresnel" viewBox="0 0 600 300" role="img" aria-label="Fresnel reflectance versus incidence angle for air-to-glass and glass-to-air, with the critical angle where it reaches one."></svg>
+<figcaption>Figure 2. Reflected fraction $F$ vs angle. <span style="color:var(--incident)">Air→glass</span> rises smoothly from $0.04$ to $1$ at grazing. <span style="color:var(--reflect)">Glass→air</span> rises faster and hits $F=1$ at the <span style="color:var(--gold)">critical angle $41.8°$</span> — past there it is pinned at total reflection, the flat segment on the right.</figcaption>
+</figure>
+
+
+<h2 id="4">4. Splitting the energy: one branch, and the $G_2/G_1$ weight<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>A path tracer follows one ray, but a glass hit produces two. The fix is the stochastic pick from <a href="05_sampling_distributions.html#1">example 05</a>: choose the <strong>reflect</strong> branch with probability $F$ and the <strong>refract</strong> branch with probability $1-F$. Drawing $40°$ air→glass two million times, the empirical reflect fraction is $0.0460$ against $F=0.0457$ — the split reproduces Fresnel.</p>
+
+<div class="callout">
+<strong>Why the glass weight is just $G_2/G_1$.</strong> Importance-sampling that discrete choice means dividing each branch's contribution by the probability you took it. The microfacet specular weight (example&nbsp;<a href="19_ggx_vndf_sampling.html#3">19</a>, <a href="20_fresnel.html#1">20</a>) carries the Fresnel factor of its branch — $F$ for reflection, $1-F$ for transmission — times $G_2/G_1$. Divide by the branch probability and it cancels:</p>
+$$\underbrace{\frac{F\cdot G_2/G_1}{F}}_{\text{reflect, prob }F}=\frac{G_2}{G_1},\qquad
+  \underbrace{\frac{(1-F)\cdot G_2/G_1}{1-F}}_{\text{refract, prob }1-F}=\frac{G_2}{G_1}.$$
+<p style="margin-bottom:0">Either way the per-bounce weight is the same bounded Smith ratio $G_2/G_1$ as the opaque case — no $F$, no spikes. That cancellation is exactly what lets the renderer's <code>SampleGlassGGX</code> reflect <em>or</em> refract with one cheap, low-variance weight.</p>
+</div>
+
+
+<h2 id="5">5. Two subtleties a correct integrator carries<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<ul>
+<li><strong>Reciprocity.</strong> Refraction is invertible (Helmholtz): refract a ray in, then refract the result back across the interface, and you return along the entry direction. The run shows it — in $(0.6428,0,-0.7660)$ refracts in and back out to $(0.6428,0,0.7660)$, the tangential component $0.6428$ recovered exactly — which is what lets light be traced from either the eye or the light.</li>
+<li><strong>The $n^2$ radiance law.</strong> Radiance is <em>not</em> conserved across a refraction: the quantity $L/n^2$ is, so entering a medium of index $n_t$ from $n_i$ scales radiance by $(n_t/n_i)^2$ (Snell compresses the solid angle by the same factor). A glass integrator must multiply by $(n_t/n_i)^2$ on transmission, or it darkens the inside of every refractive object.</li>
+</ul>
+
+
+<h2 id="6">6. In the renderer<a class="hlink" href="#6" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>This is the full skeleton of the <a href="https://github.com/INedelcu/PathTracingDemo/blob/main/Assets/Shaders/PathTracingStandardGlass.shader">PathTracingDemo</a> glass shader. <code>SampleGlassGGX</code> samples a GGX visible normal (example 19), computes the Fresnel $F$ at that microfacet, and stochastically reflects or refracts — total internal reflection falling back to the reflection branch automatically when Snell fails. Because of the cancellation in §4, both branches return the weight $G_2/G_1$. Two details this example sets up are handled there too: the surface push-off (example 19's self-intersection offset) <em>flips sign</em> on the refracted side, since the continuation ray leaves through the back face; and Beer–Lambert absorption $e^{-\sigma t}$ is applied along the transmitted segment for colored glass — the same exponential as the free-flight distance of <a href="05_sampling_distributions.html#2">example 05</a>.</p>
+
+
+<h2 id="7">7. The code<a class="hlink" href="#7" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/22_dielectric_refraction.cpp" target="_blank" rel="noopener"><code>22_dielectric_refraction.cpp</code></a>.</p>
+
+<p>The whole of refraction is the vector formula; the $k&lt;0$ test is total internal reflection, and the same $k$ gives the critical angle.</p>
+
+<pre class="language-cpp"><code class="language-cpp">// Refract d (pointing INTO the surface) about normal n, with eta = n_i / n_t.
+// Returns false on total internal reflection.
+bool Refract(const Vec3&amp; d, const Vec3&amp; n, float eta, Vec3&amp; out) {
+    float cosi = -dot(n, d);                          // d points into the surface
+    float k = 1.0f - eta*eta * (1.0f - cosi*cosi);    // k = 1 - (eta sin_i)^2
+    if (k &lt; 0.0f) return false;                       // TIR: no transmitted ray
+    out = eta*d + (eta*cosi - sqrt(k)) * n;           // unit transmitted direction
+    return true;
+}
+
+// critical angle (dense -> thin):  theta_c = asin(n_t / n_i)
+// stochastic split:  reflect with probability F, else refract — the branch
+// probability cancels F, leaving the glass weight = G2 / G1 (Fresnel = pick).</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> At a smooth dielectric a ray reflects <em>and</em> refracts: Snell's law $n_i\sin\theta_i=n_t\sin\theta_t$ bends the transmitted ray (the vector form scales the tangential direction by $\eta=n_i/n_t$), the Fresnel $F$ sets the split, and a path tracer picks one branch with probability $F$ — the probability cancelling $F$ so the weight is the same bounded $G_2/G_1$ as opaque GGX. Past the critical angle $\theta_c=\arcsin(n_t/n_i)$ the square root goes imaginary and all light reflects. With the $(n_t/n_i)^2$ radiance factor and Beer–Lambert absorption, that is the whole of the renderer's glass.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="21_white_furnace.html">21 — The white furnace test</a>. Builds on: <a href="20_fresnel.html">20 — Fresnel reflectance</a>, <a href="19_ggx_vndf_sampling.html">19 — GGX VNDF sampling</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  const DEG=Math.PI/180;
+
+  function fresnelDielectric(cosi, ni, nt){
+    if(cosi<0){const t=ni; ni=nt; nt=t; cosi=-cosi;}
+    const sint=ni/nt*Math.sqrt(Math.max(0,1-cosi*cosi));
+    if(sint>=1) return 1;                                   // total internal reflection
+    const cost=Math.sqrt(Math.max(0,1-sint*sint));
+    const rpar=(nt*cosi-ni*cost)/(nt*cosi+ni*cost);
+    const rper=(ni*cosi-nt*cost)/(ni*cosi+nt*cost);
+    return 0.5*(rpar*rpar+rper*rper);
+  }
+  // refracted angle (radians) or null on TIR
+  function thetaT(thi, ni, nt){const s=ni/nt*Math.sin(thi); if(s>=1) return null; return Math.asin(s);}
+
+  // ---------- Figure 1: ray-split diagram ----------
+  (function(){
+    const svg=document.getElementById('fig-ray'); if(!svg) return;
+    const W=600,H=300, cx=300, cy=150, L=120;
+    const sl=document.getElementById('ry-a');
+    let into=true;   // air -> glass
+    function arrow(x1,y1,x2,y2,color,op){
+      svg.appendChild(el('line',{x1,y1,x2,y2,stroke:color,'stroke-width':3,'stroke-opacity':op,'marker-end':'url(#ah-'+color.replace(/[^a-z]/g,'')+')'}));
+    }
+    function defsFor(){
+      const defs=el('defs');
+      [['var(--incident)','inc'],['var(--reflect)','ref'],['var(--refract)','rfr'],['var(--tir)','tir']].forEach(([c,id])=>{
+        const m=el('marker',{id:'ah-'+c.replace(/[^a-z]/g,''),markerWidth:8,markerHeight:8,refX:6,refY:3,orient:'auto'});
+        m.appendChild(el('path',{d:'M0,0 L6,3 L0,6 Z',fill:c})); defs.appendChild(m);
+      });
+      return defs;
+    }
+    function draw(){
+      while(svg.firstChild)svg.removeChild(svg.firstChild);
+      svg.appendChild(defsFor());
+      const thi=(+sl.value)*DEG;
+      const ni=into?1.0:1.5, nt=into?1.5:1.0;
+      const F=fresnelDielectric(Math.cos(thi),ni,nt);
+      const tt=thetaT(thi,ni,nt);
+      const tir=(tt===null);
+      // media: bottom half is the transmit medium; tint whichever side is glass
+      const glassBottom = into;     // air(top)->glass(bottom) : glass is bottom
+      svg.appendChild(el('rect',{x:0,y:glassBottom?cy:0,width:W,height:cy,fill:'#7c3aed','fill-opacity':0.07}));
+      svg.appendChild(el('line',{x1:0,y1:cy,x2:W,y2:cy,stroke:'#9aa0ad','stroke-width':1.4}));
+      // normal (dashed, both sides)
+      svg.appendChild(el('line',{x1:cx,y1:cy-L-16,x2:cx,y2:cy+L+16,stroke:'#cbd0d9','stroke-dasharray':'4 4'}));
+      svg.appendChild(txt(cx+6,cy-L-6,'normal',{'font-size':11,fill:'var(--muted)'}));
+      // medium labels
+      svg.appendChild(txt(10,18,(into?'air  n = 1.0':'glass  n = 1.5'),{'font-size':12,fill:'var(--muted)'}));
+      svg.appendChild(txt(10,H-10,(into?'glass  n = 1.5':'air  n = 1.0'),{'font-size':12,fill:'var(--muted)'}));
+      // incident (from upper-left to origin)
+      arrow(cx-L*Math.sin(thi), cy-L*Math.cos(thi), cx, cy, 'var(--incident)', 1);
+      svg.appendChild(txt(cx-L*Math.sin(thi)-6, cy-L*Math.cos(thi)-2,'incident',{'font-size':11.5,fill:'var(--incident)','text-anchor':'end'}));
+      // reflected (upper-right), brightness ~ F
+      const opR=0.25+0.75*F;
+      arrow(cx, cy, cx+L*Math.sin(thi), cy-L*Math.cos(thi), tir?'var(--tir)':'var(--reflect)', tir?1:opR);
+      svg.appendChild(txt(cx+L*Math.sin(thi)+6, cy-L*Math.cos(thi)-2, tir?'reflected (all)':('reflected  '+(F*100).toFixed(0)+'%'),{'font-size':11.5,fill:tir?'var(--tir)':'var(--reflect)'}));
+      // refracted (lower), brightness ~ 1-F
+      if(!tir){
+        const opT=0.25+0.75*(1-F);
+        arrow(cx, cy, cx+L*Math.sin(tt), cy+L*Math.cos(tt), 'var(--refract)', opT);
+        svg.appendChild(txt(cx+L*Math.sin(tt)+6, cy+L*Math.cos(tt)+4,'refracted  '+((1-F)*100).toFixed(0)+'%',{'font-size':11.5,fill:'var(--refract)'}));
+      } else {
+        svg.appendChild(txt(cx, cy+L*0.6,'total internal reflection',{'font-size':12.5,fill:'var(--tir)','text-anchor':'middle','font-weight':600}));
+      }
+      // readouts
+      document.getElementById('ry-aval').textContent=(+sl.value)+'°';
+      document.getElementById('ry-tt').textContent=tir?'— (TIR)':((tt/DEG).toFixed(1)+'°');
+      document.getElementById('ry-F').textContent=F.toFixed(4);
+      document.getElementById('ry-T').textContent=(1-F).toFixed(4);
+      document.getElementById('ry-crit').textContent=into?'— (none into glass)':'41.8°';
+    }
+    sl.addEventListener('input',draw);
+    document.getElementById('ry-in').addEventListener('click',()=>{into=true;document.getElementById('ry-in').classList.add('sel');document.getElementById('ry-out').classList.remove('sel');draw();});
+    document.getElementById('ry-out').addEventListener('click',()=>{into=false;document.getElementById('ry-out').classList.add('sel');document.getElementById('ry-in').classList.remove('sel');draw();});
+    draw();
+  })();
+
+  // ---------- Figure 2: F vs angle, both directions ----------
+  (function(){
+    const svg=document.getElementById('fig-fresnel'); if(!svg) return;
+    const x0=64,x1=560,top=30,bot=255;
+    const px=a=>x0+(a/90)*(x1-x0);
+    const py=F=>bot-Math.max(0,Math.min(1,F))*(bot-top);
+    [0,0.25,0.5,0.75,1].forEach(F=>{svg.appendChild(el('line',{x1:x0,y1:py(F),x2:x1,y2:py(F),stroke:'#eef0f4'}));
+      svg.appendChild(txt(x0-8,py(F)+4,F.toFixed(2),{'font-size':11,fill:'var(--muted)','text-anchor':'end'}));});
+    [0,30,60,90].forEach(a=>svg.appendChild(txt(px(a),bot+18,a+'°',{'font-size':11,fill:'var(--muted)','text-anchor':'middle'})));
+    svg.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(el('line',{x1:x0,y1:top,x2:x0,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(txt((x0+x1)/2,bot+34,'angle of incidence θᵢ',{'font-size':12.5,fill:'var(--muted)','text-anchor':'middle'}));
+    svg.appendChild(txt(x0-34,top-14,'F',{'font-size':12.5,fill:'var(--muted)'}));
+    // critical angle marker (glass->air)
+    const crit=Math.asin(1/1.5)/DEG;
+    svg.appendChild(el('line',{x1:px(crit),y1:top,x2:px(crit),y2:bot,stroke:'var(--gold)','stroke-width':1.4,'stroke-dasharray':'4 3'}));
+    svg.appendChild(txt(px(crit)+4,top+12,'θ_c = 41.8°',{'font-size':11.5,fill:'var(--gold)'}));
+    function curve(ni,nt,color){
+      let d=''; for(let a=0;a<=90;a+=0.5){const c=Math.cos(a*DEG); d+=(d?'L':'M')+px(a).toFixed(1)+','+py(fresnelDielectric(c,ni,nt)).toFixed(1)+' ';}
+      svg.appendChild(el('path',{d:d.trim(),fill:'none',stroke:color,'stroke-width':2.6}));
+    }
+    curve(1.0,1.5,'var(--incident)');     // air -> glass
+    curve(1.5,1.0,'var(--reflect)');      // glass -> air (jumps to 1 at crit)
+    svg.appendChild(el('line',{x1:x1-200,y1:top+8,x2:x1-174,y2:top+8,stroke:'var(--incident)','stroke-width':2.6}));
+    svg.appendChild(txt(x1-168,top+12,'air → glass',{'font-size':12,fill:'var(--ink)'}));
+    svg.appendChild(el('line',{x1:x1-90,y1:top+8,x2:x1-64,y2:top+8,stroke:'var(--reflect)','stroke-width':2.6}));
+    svg.appendChild(txt(x1-58,top+12,'glass → air',{'font-size':12,fill:'var(--ink)'}));
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>
