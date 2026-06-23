@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>30 — Blue noise: it's the spectrum, not just the variance — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --bn:#2b6cb0; --wn:#dd6b20; --spec:#2f9e64; --accent:#2b6cb0; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--bn)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button:active{transform:translateY(1px)}
+  canvas{display:block; width:100%; max-width:240px; margin:0 auto; image-rendering:auto; border:1px solid var(--line); border-radius:8px; background:#fff}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Blue noise: it's the spectrum, not just the variance</h1>
+<p class="sub">30_blue_noise.cpp — well-spread points lower variance like stratification, but blue noise's real superpower is its frequency spectrum: it pushes error into high frequencies the eye discounts, so the same sample count looks dramatically cleaner.</p>
+
+<p class="lead">Independent random samples are <strong>white noise</strong>: a flat power spectrum, error at every frequency — including the low ones the eye is most sensitive to, which is why naive random sampling looks blotchy and clumpy. <strong>Blue noise</strong> is a point set whose energy sits in <em>high</em> frequencies and is suppressed at low ones: the points stay evenly separated, no clumps, no holes. That lowers integration variance like stratification — but the deeper win is perceptual: high-frequency error is the kind your visual system averages away.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> Blue-noise point sets keep samples well-separated (large minimum spacing, no clumps), which both lowers variance on smooth integrands and — crucially — shapes the error <em>spectrum</em>: its structure factor is near zero at low frequencies and rises toward high ones, so the residual noise is the fine-grained kind the eye discounts, the reason renderers use blue-noise sample sets and dither masks for cleaner images at low sample counts.</p>
+</div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--wn)"></i> white noise (random)</span>
+  <span><i class="dot" style="background:var(--bn)"></i> blue noise</span>
+  <span><i class="swatch" style="border-color:var(--spec)"></i> power spectrum</span>
+</div>
+
+
+<h2 id="1">1. White noise clumps; blue noise spreads<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Independent uniform points (white noise, the clumps-and-gaps of <a href="16_sampling_patterns_2d.html#1">example 16</a>) leave some regions crowded and others empty. Blue noise enforces a minimum spacing so the points tile the plane evenly. The C++ file builds it with <strong>Mitchell's best-candidate</strong> algorithm: to place each new point, propose several random candidates and keep the one <em>farthest</em> from all points placed so far (distances measured toroidally, so the set wraps seamlessly). More existing points ⇒ more candidates, keeping the spacing uniform as the set grows.</p>
+
+<figure>
+<div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center">
+  <div style="flex:1 1 220px;text-align:center;min-width:200px">
+    <div style="font-size:14px;font-weight:600;color:var(--wn);margin:0 0 4px">white noise</div>
+    <canvas id="bn-white" width="240" height="240"></canvas>
+  </div>
+  <div style="flex:1 1 220px;text-align:center;min-width:200px">
+    <div style="font-size:14px;font-weight:600;color:var(--bn);margin:0 0 4px">blue noise</div>
+    <canvas id="bn-blue" width="240" height="240"></canvas>
+  </div>
+</div>
+<div class="ctl"><button id="bn-roll">Re-roll</button><span class="small">N = 400 points each</span></div>
+<div class="panel">
+  <div class="row"><span>mean nearest-neighbor — white</span><b id="bn-mw" style="color:var(--wn)">—</b></div>
+  <div class="row"><span>mean nearest-neighbor — blue</span><b id="bn-mb" style="color:var(--bn)">—</b></div>
+</div>
+<figcaption>Figure 1. The same 400 points, placed two ways. <span style="color:var(--wn)">White noise</span> clumps and leaves holes; <span style="color:var(--bn)">blue noise</span> keeps a near-constant spacing. The C++ run measures a mean nearest-neighbor distance of $0.0206$ for white vs $0.0335$ for blue — over 60% larger, the numeric signature of "no clumps."</figcaption>
+</figure>
+
+
+<h2 id="2">2. The spectrum, measured<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>"Blue" is a statement about frequency. The <strong>structure factor</strong> $S(\mathbf k)=\frac1N\big|\sum_j e^{-2\pi i\,\mathbf k\cdot\mathbf x_j}\big|^2$ measures how much sampling energy sits at spatial frequency $\mathbf k$. White noise has $S(\mathbf k)\approx1$ at every frequency — a flat spectrum, energy everywhere. Blue noise drives $S$ toward $0$ at low frequencies and lets it rise to $\approx1$ at high ones. Computed (radially averaged) on the sets above:</p>
+
+<figure>
+<svg id="bn-spec" viewBox="0 0 600 300" role="img" aria-label="Radially-averaged structure factor of white noise (flat near 1) and blue noise (suppressed at low frequencies)."></svg>
+<figcaption>Figure 2. Radially-averaged structure factor $S$ vs frequency. <span style="color:var(--wn)">White noise</span> hovers flat at $S\approx1$ — equal error at all frequencies. <span style="color:var(--bn)">Blue noise</span> is pushed near $0$ at low frequencies (the big, eye-catching error scales), rising to $\approx1$ only at high frequencies. The low-frequency dip is the whole point: the error that remains is fine-grained.</figcaption>
+</figure>
+
+<p>The visual system's contrast sensitivity peaks at low-to-mid frequencies, so error parked at high frequencies is far less visible — and tends to average out spatially. That is why blue noise looks cleaner than white noise <em>at the same sample count</em>, even when their total error energy is similar.</p>
+
+
+<h2 id="3">3. The variance bonus<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Because suppressing low frequencies is the same as removing clumps, blue noise also lowers integration variance on smooth integrands, much like stratification. Integrating $\iint_{[0,1]^2}e^{x+y}=(e-1)^2$ with $N=64$ points:</p>
+
+<table>
+<thead><tr><th>point set (N = 64)</th><th class="num">variance</th><th class="num">vs white</th></tr></thead>
+<tbody>
+<tr><td>white noise</td><td class="num">2.32e−2</td><td class="num">1×</td></tr>
+<tr><td>blue noise</td><td class="num">4.78e−3</td><td class="num">4.8×</td></tr>
+</tbody>
+</table>
+
+<p>A $4.8\times$ reduction — useful, but more modest than stratification's or LHS's, and <em>not</em> the headline. Blue noise's distinctive value is the spectrum: two sample sets can have the same variance yet look completely different, and the blue one wins because its error is the kind the eye throws away.</p>
+
+
+<h2 id="4">4. In the renderer<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Blue noise is everywhere modern renderers fight visible noise. Per-pixel sample seeds are drawn from a <strong>blue-noise mask</strong> so that neighbouring pixels' errors are decorrelated at low frequencies — the leftover noise looks like fine film grain instead of blotches, and a denoiser handles it far better. The same idea distributes error across a frame (ordered dithering, blue-noise dither masks) and across time in real-time renderers. Best-candidate is the simple offline generator shown here; production uses precomputed blue-noise textures and void-and-cluster masks. The lesson the file drives home is that <em>how the error is distributed in frequency</em> matters as much as how much there is — variance is not the only scoreboard, which is exactly the theme of <a href="31_efficiency.html#1">example 31</a>.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/30_blue_noise.cpp" target="_blank" rel="noopener"><code>30_blue_noise.cpp</code></a>.</p>
+
+<p>Best-candidate: each new point is the farthest-from-existing of a handful of random proposals.</p>
+
+<pre class="language-cpp"><code class="language-cpp">// place point k as the best of min(k+1, cap) random candidates
+for (int i = 0; i &lt; n; ++i) {
+    int m = std::min(i + 1, capCandidates);
+    P2 best{}; float bestMin = -1.0f;
+    for (int c = 0; c &lt; m; ++c) {
+        P2 cand{rng.NextFloat(), rng.NextFloat()};
+        float md = 1e9f;                                  // nearest existing point
+        for (const P2&amp; p : pts) md = std::fmin(md, Dist2(cand, p));   // toroidal
+        if (md &gt; bestMin) { bestMin = md; best = cand; }  // keep the most isolated
+    }
+    pts.push_back(best);
+}</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> Blue noise is a point set with energy concentrated in high frequencies — built here by best-candidate selection, keeping every new point far from the rest. It spreads samples evenly (mean spacing $0.0335$ vs white's $0.0206$), which lowers smooth-integrand variance a modest $4.8\times$, but its real value is the spectrum: low-frequency error is suppressed, so the residual noise is the fine-grained kind the eye discounts. It's why blue-noise masks and dither patterns give cleaner images at the same sample count.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="29_latin_hypercube.html">29 — Latin hypercube sampling</a>. Builds on: <a href="16_sampling_patterns_2d.html">16 — Seeing sample patterns</a>. Next: <a href="31_efficiency.html">31 — Efficiency: variance × time</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  const N=400;
+  function d2(a,b){let dx=Math.abs(a[0]-b[0]),dy=Math.abs(a[1]-b[1]);dx=Math.min(dx,1-dx);dy=Math.min(dy,1-dy);return dx*dx+dy*dy;}
+  function white(n){const p=[];for(let i=0;i<n;i++)p.push([Math.random(),Math.random()]);return p;}
+  function blue(n,cap){cap=cap||20;const p=[];for(let i=0;i<n;i++){const m=Math.min(i+1,cap);let best=null,bm=-1;for(let c=0;c<m;c++){const cand=[Math.random(),Math.random()];let md=1e9;for(const q of p)md=Math.min(md,d2(cand,q));if(md>bm){bm=md;best=cand;}}p.push(best);}return p;}
+  function meanNearest(p){let s=0;for(let i=0;i<p.length;i++){let md=1e9;for(let j=0;j<p.length;j++)if(i!==j)md=Math.min(md,d2(p[i],p[j]));s+=Math.sqrt(md);}return s/p.length;}
+  // radially-averaged structure factor
+  function spectrum(p,R){const N=p.length;const sum=new Float64Array(R+1),cnt=new Int32Array(R+1);
+    for(let kx=-R;kx<=R;kx++)for(let ky=-R;ky<=R;ky++){if(kx===0&&ky===0)continue;const r=Math.round(Math.sqrt(kx*kx+ky*ky));if(r>R)continue;
+      let re=0,im=0;for(const q of p){const ph=2*Math.PI*(kx*q[0]+ky*q[1]);re+=Math.cos(ph);im+=Math.sin(ph);}
+      sum[r]+=(re*re+im*im)/N;cnt[r]++;}
+    const out=[];for(let r=1;r<=R;r++)if(cnt[r])out.push([r,sum[r]/cnt[r]]);return out;}
+
+  let W,B;
+  function drawScatter(id,p,col){const cv=document.getElementById(id);const ctx=cv.getContext('2d'),S=cv.width;
+    ctx.clearRect(0,0,S,S);ctx.fillStyle='#fff';ctx.fillRect(0,0,S,S);ctx.strokeStyle='#cbd0d9';ctx.strokeRect(0.5,0.5,S-1,S-1);
+    ctx.fillStyle=col;p.forEach(q=>ctx.fillRect(q[0]*S-1.4,q[1]*S-1.4,2.8,2.8));}
+  function drawSpectrum(){
+    const svg=document.getElementById('bn-spec'); while(svg.firstChild)svg.removeChild(svg.firstChild);
+    const x0=58,x1=566,top=28,bot=250, R=22, YMAX=1.8;
+    const px=r=>x0+(r/R)*(x1-x0), py=v=>bot-Math.min(v,YMAX)/YMAX*(bot-top);
+    [0,0.5,1,1.5].forEach(v=>{svg.appendChild(el('line',{x1:x0,y1:py(v),x2:x1,y2:py(v),stroke:'#eef0f4'}));svg.appendChild(txt(x0-8,py(v)+4,v.toFixed(1),{'font-size':11,fill:'var(--muted)','text-anchor':'end'}));});
+    svg.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(el('line',{x1:x0,y1:top,x2:x0,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(txt((x0+x1)/2,bot+30,'spatial frequency  |k|',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    svg.appendChild(txt(x0-30,top-12,'S(k)',{'font-size':12,fill:'var(--muted)'}));
+    // S=1 reference
+    svg.appendChild(el('line',{x1:x0,y1:py(1),x2:x1,y2:py(1),stroke:'#cbd0d9','stroke-dasharray':'4 3'}));
+    function plot(p,col){const sp=spectrum(p,R);let d='';sp.forEach((q,i)=>{d+=(i?'L':'M')+px(q[0]).toFixed(1)+','+py(q[1]).toFixed(1)+' ';});svg.appendChild(el('path',{d:d.trim(),fill:'none',stroke:col,'stroke-width':2.4}));}
+    plot(W,'var(--wn)'); plot(B,'var(--bn)');
+    svg.appendChild(txt(px(18),py(1.05),'white ≈ flat',{'font-size':11.5,fill:'var(--wn)','text-anchor':'middle'}));
+    svg.appendChild(txt(px(5),py(0.18),'blue: suppressed at low |k|',{'font-size':11.5,fill:'var(--bn)'}));
+  }
+  function gen(){
+    W=white(N); B=blue(N);
+    drawScatter('bn-white',W,'#dd6b20'); drawScatter('bn-blue',B,'#2b6cb0');
+    document.getElementById('bn-mw').textContent=meanNearest(W).toFixed(4);
+    document.getElementById('bn-mb').textContent=meanNearest(B).toFixed(4);
+    drawSpectrum();
+  }
+  document.getElementById('bn-roll').addEventListener('click',gen);
+  gen();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

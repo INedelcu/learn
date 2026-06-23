@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>29 — Latin hypercube sampling: stratifying high dimensions — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --lhs:#2f9e64; --random:#dd6b20; --grid:#c2c8d2; --curse:#e53e3e; --accent:#2b6cb0; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--lhs)}
+  .callout.warn{border-left-color:var(--curse)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:150px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button.sel{background:var(--ink); color:#fff; border-color:var(--ink)}
+  button:active{transform:translateY(1px)}
+  canvas{display:block; width:100%; max-width:260px; margin:0 auto; image-rendering:auto; border:1px solid var(--line); border-radius:8px; background:#fff}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Latin hypercube sampling: stratifying high dimensions</h1>
+<p class="sub">29_latin_hypercube.cpp — full stratification needs Nᵈ cells, hopeless past a few dimensions. Latin hypercube stratifies every axis with just N samples — one per slice per dimension — capturing the 1-D variance that dominates.</p>
+
+<p class="lead">Stratification (<a href="07_stratified_sampling.html#1">example 07</a>) crushed 1-D variance by putting one sample per cell. The naive extension to $d$ dimensions — a full grid — needs $N^d$ cells, so even 2 strata per axis is $2^{10}=1024$ samples just to fill a 10-D path-tracing integral once. That is the <strong>curse of dimensionality</strong>. <strong>Latin hypercube sampling</strong> sidesteps it: with only $N$ samples it stratifies <em>each</em> dimension independently — every axis gets exactly one sample in each of its $N$ slices — so all the 1-D projections are perfectly stratified for the price of $N$, not $N^d$.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> Latin hypercube (a.k.a. N-rooks) places sample $i$ at $x_{ij}=(\pi_j[i]+u_{ij})/N$ with an independent random permutation $\pi_j$ per dimension, so each axis is perfectly 1-D-stratified with $N$ samples; for an integrand dominated by its 1-D "main effects" this removes almost all the variance — here a 6-D additive integral drops $3700\times$ — capturing exactly what a full $N^d$ grid would, without the impossible cell count.</p>
+</div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--lhs)"></i> Latin hypercube</span>
+  <span><i class="dot" style="background:var(--random)"></i> plain random</span>
+  <span><i class="swatch" style="border-color:var(--curse)"></i> full grid Nᵈ</span>
+</div>
+
+
+<h2 id="1">1. The curse: a full grid needs Nᵈ cells<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>A path sample is high-dimensional: pixel $(x,y)$, lens $(u,v)$, a light pick, then two random numbers per bounce — easily 10+ dimensions. Stratifying it as a grid means $k$ strata on each of $d$ axes: $k^d$ cells. Even the coarsest split, $k=2$, explodes as $2^d$. The full-grid cell count races away from any feasible sample budget while LHS holds flat at $N$:</p>
+
+<figure>
+<svg id="fig-curse" viewBox="0 0 600 300" role="img" aria-label="Cells needed for a full stratified grid versus dimension, growing exponentially, against Latin hypercube's flat N samples."></svg>
+<figcaption>Figure 1. Samples needed to stratify $d$ dimensions, log scale. A <span style="color:var(--curse)">full grid</span> at just 2 strata/axis needs $2^d$ cells — past $\sim$20 dimensions that exceeds any render's total ray budget. <span style="color:var(--lhs)">Latin hypercube</span> stratifies all $d$ axes with a fixed $N$ (here 64), independent of $d$. The gap at a typical 10-D path sample is already $\sim$16×, and only widens.</figcaption>
+</figure>
+
+
+<h2 id="2">2. Latin hypercube: one sample per slice, per axis<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The construction is one line. For sample $i$ and dimension $j$,</p>
+$$x_{ij}=\frac{\pi_j[i]+u_{ij}}{N},$$
+<p>where $\pi_j$ is an independent random permutation of $\{0,\dots,N-1\}$ and $u_{ij}\sim[0,1)$ jitters within the slice. Per dimension, the $N$ samples land one in each slice $[k/N,(k+1)/N)$ — a perfect 1-D stratification — and the random permutation scrambles which slice pairs with which across axes, so the dimensions stay decorrelated. In 2-D this is the <strong>N-rooks</strong> pattern: exactly one point in every row <em>and</em> every column. Compare it to plain random, which leaves whole rows and columns empty while doubling up others:</p>
+
+<figure>
+<div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center">
+  <div style="flex:1 1 220px;text-align:center;min-width:200px">
+    <div style="font-size:14px;font-weight:600;color:var(--lhs);margin:0 0 4px">Latin hypercube (N-rooks)</div>
+    <canvas id="lh-lhs" width="260" height="260"></canvas>
+    <div class="small" id="lh-mlhs">—</div>
+  </div>
+  <div style="flex:1 1 220px;text-align:center;min-width:200px">
+    <div style="font-size:14px;font-weight:600;color:var(--random);margin:0 0 4px">plain random</div>
+    <canvas id="lh-rnd" width="260" height="260"></canvas>
+    <div class="small" id="lh-mrnd">—</div>
+  </div>
+</div>
+<div class="ctl">
+  N = <b id="lh-nval" style="display:inline-block;min-width:1.8em;text-align:right;font-variant-numeric:tabular-nums">12</b>
+  <input id="lh-n" type="range" min="6" max="24" value="12" step="1">
+  <button id="lh-roll">Re-roll</button>
+</div>
+<figcaption>Figure 2. $N$ points in 2-D over an $N\times N$ grid. <span style="color:var(--lhs)">Latin hypercube</span> guarantees one sample per row and per column — every 1-D slice is occupied exactly once. <span style="color:var(--random)">Plain random</span> leaves many rows/columns empty (and others doubled): those gaps are the unsampled 1-D strata that inflate variance. LHS gets the 1-D coverage of a full grid with only $N$ points.</figcaption>
+</figure>
+
+
+<h2 id="3">3. Why it works — main effects vs interactions<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Write the integrand as a sum of a 1-D part per axis plus the rest: $f(\mathbf x)=\sum_j g_j(x_j)+(\text{interactions})$. The 1-D pieces are the <strong>main effects</strong>. For sample $i$ the estimator sums over dimensions, and grouping by dimension,</p>
+$$\frac1N\sum_i f(\mathbf x_i)=\sum_j\underbrace{\frac1N\sum_i g_j(x_{ij})}_{\text{1-D stratified mean of }g_j}+(\dots),$$
+<p>each inner sum is a 1-D <em>stratified</em> estimate of $\int g_j$ — because dimension $j$ has exactly one sample per slice. So LHS reduces every main effect to the stratified variance of <a href="07_stratified_sampling.html#3">example 07</a> (which falls like $1/N^3$, not $1/N$), and the independent permutations make the per-dimension errors uncorrelated. What LHS <em>cannot</em> remove is the interaction part — variance that depends on two or more axes jointly. The good news: most real integrands are dominated by main effects, so the residual is small.</p>
+
+<p>The C++ test uses a purely additive integrand, $f(\mathbf x)=\sum_{j=1}^{6}e^{x_j}$ over $[0,1]^6$ (exact $6(e-1)=10.30969$) — <em>no</em> interactions at all, so LHS achieves the full 1-D stratification gain on every axis:</p>
+
+<table>
+<thead><tr><th>method (N = 64, d = 6)</th><th class="num">estimate</th><th class="num">variance</th></tr></thead>
+<tbody>
+<tr><td>plain random</td><td class="num">10.30890</td><td class="num">2.28e−2</td></tr>
+<tr><td>Latin hypercube</td><td class="num">10.30971</td><td class="num">6.09e−6</td></tr>
+</tbody>
+</table>
+
+<p>A <strong>3739×</strong> variance reduction with the same 64 samples — because the additive integrand's variance lives entirely in the 1-D projections LHS stratifies, exactly the per-axis stratification win of example 07, now reaped in six dimensions at once. (Add cross-dimension terms and the gain shrinks toward what those interactions cost; here there are none.)</p>
+
+
+<h2 id="4">4. In the renderer<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>This is why renderers stratify <em>per dimension</em> rather than building an impossible $N^d$ grid. Each random number a path consumes — pixel jitter, lens, light pick, per-bounce direction — is drawn from its own stratified 1-D sequence, so every projection is well covered while the sample count stays at $N$. In practice LHS is usually combined with the low-discrepancy sequences of <a href="11_low_discrepancy.html#4">example 11</a> (which improve the cross-dimension coverage LHS ignores) and with "padding" — independently stratified or scrambled sequences assigned to different path dimensions. The principle is the same: pay $N$, stratify the dimensions that carry the variance, and accept that the rare high-order interactions go uncaptured.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/29_latin_hypercube.cpp" target="_blank" rel="noopener"><code>29_latin_hypercube.cpp</code></a>.</p>
+
+<p>A fresh permutation per dimension; sample $i$ reads slice $\pi_j[i]$ on each axis.</p>
+
+<pre class="language-cpp"><code class="language-cpp">// one independent permutation of {0..N-1} per dimension (Fisher-Yates)
+for (int j = 0; j &lt; d; ++j) {
+    std::iota(perms[j].begin(), perms[j].end(), 0);
+    for (int k = N-1; k &gt; 0; --k) std::swap(perms[j][k], perms[j][rng.NextInt(k+1)]);
+}
+// sample i: each axis lands in its own slice perms[j][i], jittered within it
+for (int i = 0; i &lt; N; ++i)
+    for (int j = 0; j &lt; d; ++j)
+        x[j] = (perms[j][i] + rng.NextFloat()) / N;     // perfect 1-D stratification per axis</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> A full stratified grid costs $N^d$ cells — the curse of dimensionality. Latin hypercube sampling stratifies every axis with just $N$ samples by drawing $x_{ij}=(\pi_j[i]+u_{ij})/N$ with an independent permutation per dimension: one sample per slice per axis (the N-rooks pattern). It reduces each 1-D main effect to the stratified variance of example 07 — a $3700\times$ cut on a 6-D additive integral — while leaving cross-dimension interactions uncaptured. It is the practical reason renderers stratify per dimension instead of gridding.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="28_antithetic_variates.html">28 — Antithetic variates</a>. Builds on: <a href="07_stratified_sampling.html">07 — Stratified sampling</a>, <a href="11_low_discrepancy.html">11 — Low-discrepancy sequences</a>. Next: <a href="30_blue_noise.html">30 — Blue-noise sampling</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+
+  // ---------- Figure 1: curse of dimensionality ----------
+  (function(){
+    const svg=document.getElementById('fig-curse'); if(!svg) return;
+    const x0=64,x1=560,top=28,bot=250, DMAX=24, N=64;
+    const px=d=>x0+(d/DMAX)*(x1-x0);
+    const LMAX=8;  // log10 axis 1e0..1e8
+    const py=v=>bot-(Math.log10(Math.max(1,v)))/LMAX*(bot-top);
+    for(let k=0;k<=LMAX;k+=2){const y=py(Math.pow(10,k));svg.appendChild(el('line',{x1:x0,y1:y,x2:x1,y2:y,stroke:'#eef0f4'}));svg.appendChild(txt(x0-8,y+4,'1e'+k,{'font-size':10.5,fill:'var(--muted)','text-anchor':'end'}));}
+    [1,5,10,15,20].forEach(d=>svg.appendChild(txt(px(d),bot+18,d,{'font-size':11,fill:'var(--muted)','text-anchor':'middle'})));
+    svg.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(el('line',{x1:x0,y1:top,x2:x0,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(txt((x0+x1)/2,bot+34,'dimension d',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    svg.appendChild(txt(x0-30,top-12,'samples',{'font-size':12,fill:'var(--muted)'}));
+    // full grid 2^d
+    let d1='';for(let d=1;d<=DMAX;d++){d1+=(d>1?'L':'M')+px(d)+','+py(Math.pow(2,d))+' ';}
+    svg.appendChild(el('path',{d:d1.trim(),fill:'none',stroke:'var(--curse)','stroke-width':2.6}));
+    svg.appendChild(txt(px(17),py(Math.pow(2,17))-8,'full grid 2ᵈ',{'font-size':12,fill:'var(--curse)','text-anchor':'middle'}));
+    // LHS flat N
+    svg.appendChild(el('line',{x1:px(1),y1:py(N),x2:px(DMAX),y2:py(N),stroke:'var(--lhs)','stroke-width':2.6}));
+    svg.appendChild(txt(px(DMAX)-4,py(N)-7,'LHS: N = 64 (flat)',{'font-size':12,fill:'var(--lhs)','text-anchor':'end'}));
+    // 10-D marker
+    svg.appendChild(el('line',{x1:px(10),y1:top,x2:px(10),y2:bot,stroke:'#cbd0d9','stroke-dasharray':'3 3'}));
+    svg.appendChild(txt(px(10),top+12,'~10-D path',{'font-size':10.5,fill:'var(--muted)','text-anchor':'middle'}));
+  })();
+
+  // ---------- Figure 2: N-rooks vs random ----------
+  (function(){
+    let N=12;
+    function shuffle(n){const a=[];for(let i=0;i<n;i++)a.push(i);for(let k=n-1;k>0;k--){const m=Math.floor(Math.random()*(k+1));[a[k],a[m]]=[a[m],a[k]];}return a;}
+    function drawGrid(ctx,S,n){
+      ctx.clearRect(0,0,S,S);ctx.fillStyle='#fff';ctx.fillRect(0,0,S,S);
+      ctx.strokeStyle='#eef0f4';ctx.lineWidth=1;
+      for(let k=1;k<n;k++){const p=k*S/n;ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,S);ctx.moveTo(0,p);ctx.lineTo(S,p);ctx.stroke();}
+      ctx.strokeStyle='#cbd0d9';ctx.strokeRect(0.5,0.5,S-1,S-1);
+    }
+    function rowsColsCovered(pts,n){
+      const r=new Set(),c=new Set();
+      pts.forEach(p=>{r.add(Math.min(n-1,Math.floor(p[1]*n)));c.add(Math.min(n-1,Math.floor(p[0]*n)));});
+      return Math.round((r.size+c.size)/(2*n)*100);
+    }
+    function draw(){
+      const cl=document.getElementById('lh-lhs'), cr=document.getElementById('lh-rnd');
+      const gl=cl.getContext('2d'), gr=cr.getContext('2d'), S=cl.width;
+      drawGrid(gl,S,N); drawGrid(gr,S,N);
+      // LHS: one per row & column
+      const sx=shuffle(N);
+      const lpts=[]; for(let i=0;i<N;i++){lpts.push([(sx[i]+Math.random())/N,(i+Math.random())/N]);}
+      gl.fillStyle='#2f9e64'; lpts.forEach(p=>gl.fillRect(p[0]*S-2,S-p[1]*S-2,4,4));
+      // random
+      const rpts=[]; for(let i=0;i<N;i++)rpts.push([Math.random(),Math.random()]);
+      gr.fillStyle='#dd6b20'; rpts.forEach(p=>gr.fillRect(p[0]*S-2,S-p[1]*S-2,4,4));
+      document.getElementById('lh-mlhs').innerHTML='rows+cols covered <b>'+rowsColsCovered(lpts,N)+'%</b>';
+      document.getElementById('lh-mrnd').innerHTML='rows+cols covered <b>'+rowsColsCovered(rpts,N)+'%</b>';
+      document.getElementById('lh-nval').textContent=N;
+    }
+    const sl=document.getElementById('lh-n');
+    sl.addEventListener('input',()=>{N=+sl.value;draw();});
+    document.getElementById('lh-roll').addEventListener('click',draw);
+    draw();
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

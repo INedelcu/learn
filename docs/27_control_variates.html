@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>27 — Control variates: subtract a known integral — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --integrand:#2b6cb0; --control:#dd6b20; --residual:#2f9e64; --opt:#d9a500; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--residual)}
+  .callout.warn{border-left-color:var(--control)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:200px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button:active{transform:translateY(1px)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Control variates: subtract a known integral</h1>
+<p class="sub">27_control_variates.cpp — importance sampling reshapes <em>where</em> you sample; control variates leave the sampling alone and instead subtract a cheap function whose integral you already know, cancelling the part of the integrand it can predict.</p>
+
+<p class="lead">Importance sampling (<a href="06_importance_sampling.html#1">example 06</a>) was one big variance-reduction lever. <strong>Control variates</strong> are the other, and they are orthogonal to it: keep sampling however you like, but find a cheap "control" function $g$ whose integral $G$ you know in closed form and which is <em>correlated</em> with the integrand $f$. Subtracting $g-G$ (which averages to zero, so the estimate is unchanged) cancels exactly the fluctuation of $f$ that $g$ predicts — and the better $g$ tracks $f$, the more variance disappears.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> To estimate $I=\int f$, pick a control $g$ with known integral $G=\int g$ and form $\hat I=\overline{f(X)-c\,(g(X)-G)}$; since $\mathbb E[g-G]=0$ it is unbiased for <em>any</em> $c$, and the optimal $c^\star=\operatorname{Cov}(f,g)/\operatorname{Var}(g)$ shrinks the variance by the factor $1/(1-\rho^2)$ where $\rho=\operatorname{corr}(f,g)$ — here $g(x)=1+x$ tracks $e^x$ with $\rho=0.992$, cutting variance $61\times$.</p>
+</div>
+
+<div class="legend">
+  <span><i class="swatch" style="border-color:var(--integrand)"></i> integrand $f(x)=e^x$</span>
+  <span><i class="swatch" style="border-color:var(--control)"></i> control $g(x)=1+x$</span>
+  <span><i class="swatch" style="border-color:var(--residual)"></i> residual $f-c(g-G)$</span>
+  <span><i class="dot" style="background:var(--opt)"></i> optimal $c^\star$</span>
+</div>
+
+
+<h2 id="1">1. Subtract something you can integrate exactly<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Suppose you want $I=\int f$ and you happen to know the exact integral $G=\int g$ of some other function. Because $\mathbb E[g(X)-G]=0$ when $X$ is uniform, you can subtract any multiple of it without changing the answer:</p>
+$$\hat I=\frac1N\sum_i\Big(f(X_i)-c\,\big(g(X_i)-G\big)\Big),\qquad \mathbb E[\hat I]=\mathbb E[f]-c\,\underbrace{(\mathbb E[g]-G)}_{=\,0}=I.$$
+<p>Unbiased for <em>every</em> constant $c$. The point is what it does to the spread: $g-G$ is a known-mean stand-in for $f$'s wiggle, and subtracting it removes whatever part of that wiggle $g$ shares with $f$. If $g$ closely tracks $f$, the leftover $f-c(g-G)$ is nearly flat — and a nearly-flat integrand has nearly-zero variance. Here $f(x)=e^x$ on $[0,1]$ and the control is the line $g(x)=1+x$ (integral $G=1.5$); slide $c$ and watch the residual flatten:</p>
+
+<figure>
+<svg id="fig-resid" viewBox="0 0 600 320" role="img" aria-label="The integrand e^x and the residual f minus c times (g minus G), which flattens toward a constant at the optimal c."></svg>
+<div class="ctl">
+  $c$ = <b id="cv-cval" style="display:inline-block; min-width:2.6em; text-align:right; font-variant-numeric:tabular-nums">0.00</b>
+  <input id="cv-c" type="range" min="0" max="300" value="0" step="1">
+  <button id="cv-opt">Set c = c*</button>
+</div>
+<div class="panel">
+  <div class="row"><span>residual variance</span><b id="cv-var" style="color:var(--residual)">—</b></div>
+  <div class="row"><span>variance reduction vs c=0</span><b id="cv-red" style="color:var(--opt)">—</b></div>
+</div>
+<figcaption>Figure 1. <span style="color:var(--integrand)">$f(x)=e^x$</span> swings from $1$ to $e$ — that range is its variance. The <span style="color:var(--residual)">residual $f-c(g-G)$</span> has the same integral ($I=e-1$, the dashed line) for any $c$, but at $c=0$ it equals $f$; as $c$ rises toward $c^\star\approx1.69$ the line $1+x$ is subtracted off and the residual flattens to nearly a constant — collapsing the variance. Push $c$ past $c^\star$ and it tilts the other way and grows again.</figcaption>
+</figure>
+
+
+<h2 id="2">2. The optimal amount, and the $1/(1-\rho^2)$ collapse<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Which $c$ is best? The per-sample variance is a quadratic in $c$:</p>
+$$\operatorname{Var}\!\big[f-c(g-G)\big]=\operatorname{Var}(f)-2c\,\operatorname{Cov}(f,g)+c^2\operatorname{Var}(g).$$
+<p>Minimize over $c$ — set the derivative $-2\operatorname{Cov}(f,g)+2c\operatorname{Var}(g)$ to zero:</p>
+$$\boxed{\,c^\star=\frac{\operatorname{Cov}(f,g)}{\operatorname{Var}(g)}\,}$$
+<p>Substituting $c^\star$ back collapses the quadratic to its minimum, and writing $\rho=\operatorname{corr}(f,g)=\operatorname{Cov}(f,g)/\sqrt{\operatorname{Var}(f)\operatorname{Var}(g)}$ it becomes</p>
+$$\operatorname{Var}\!\big[f-c^\star(g-G)\big]=\operatorname{Var}(f)-\frac{\operatorname{Cov}(f,g)^2}{\operatorname{Var}(g)}=\operatorname{Var}(f)\,(1-\rho^2).$$
+<p>So the variance drops by the factor $1/(1-\rho^2)$ — the entire payoff rides on the correlation. A control with $\rho=0.9$ cuts variance $5.3\times$; $\rho=0.99$ cuts it $50\times$; $\rho=0.999$, $500\times$. The parabola makes the optimum visible:</p>
+
+<figure>
+<svg id="fig-parab" viewBox="0 0 600 300" role="img" aria-label="Variance as a function of c: a parabola with its minimum at c-star."></svg>
+<figcaption>Figure 2. Variance $\operatorname{Var}(f)-2c\operatorname{Cov}+c^2\operatorname{Var}(g)$ vs $c$. It starts at $\operatorname{Var}(f)$ at $c=0$ (plain Monte Carlo) and bottoms out at <span style="color:var(--opt)">$c^\star=\operatorname{Cov}/\operatorname{Var}(g)\approx1.69$</span>, where it equals $\operatorname{Var}(f)(1-\rho^2)$ — here $61\times$ lower. The closer $\rho$ is to $1$, the deeper and narrower the well.</figcaption>
+</figure>
+
+
+<h2 id="3">3. The result: $e^x$ with the line $1+x$<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>A pilot pass estimates $c^\star$ and $\rho$ from a small batch (the same Welford accumulators of <a href="01_random_and_estimators.html#5">example 01</a>, now tracking covariances), then both estimators run on 20M samples. The C++ output:</p>
+
+<table>
+<thead><tr><th>estimator</th><th class="num">estimate → e−1</th><th class="num">variance</th></tr></thead>
+<tbody>
+<tr><td>plain ($c=0$)</td><td class="num">1.7183987</td><td class="num">2.42e−1</td></tr>
+<tr><td>control variate ($c^\star=1.690$)</td><td class="num">1.7182885</td><td class="num">3.94e−3</td></tr>
+</tbody>
+</table>
+
+<p>The pilot finds $\rho=0.99182$, predicting $1/(1-\rho^2)=61.4\times$ — and the measured reduction is $61.4\times$, dead on. Both estimators agree on $e-1=1.71828$ (unbiased); the control variate simply removed almost all of $e^x$'s spread, because the line $1+x$ already explains $99.2\%$ of it. The remaining $0.8\%$ — the curvature the line can't follow — is all that's left to integrate.</p>
+
+
+<h2 id="4">4. In the renderer<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Control variates are the principle behind "subtract an analytic approximation, integrate only the residual." When part of the light transport has a closed form — a constant or low-order-spherical-harmonic ambient term, an analytic area-light approximation, the previous frame's denoised estimate — a renderer can compute that part exactly and Monte-Carlo only the difference, which carries far less variance. It composes with importance sampling: one reshapes the sampling density, the other subtracts a known baseline, and they multiply their gains. The catch is finding a control that is both cheap and well-correlated — when $\rho$ is small the factor $1/(1-\rho^2)\approx1$ and there is nothing to gain.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/27_control_variates.cpp" target="_blank" rel="noopener"><code>27_control_variates.cpp</code></a>.</p>
+
+<p>Estimate $c^\star$ from a pilot, then subtract $c^\star(g-G)$ from each sample.</p>
+
+<pre class="language-cpp"><code class="language-cpp">// pilot: accumulate Var(g) and Cov(f,g) (Welford), then c* = Cov / Var(g)
+double cStar = cfg / cgg;                         // Cov(f,g) / Var(g)
+
+// the two estimators, same draws:
+double plain = f(x);                              // c = 0
+double ctrl  = f(x) - cStar * (g(x) - G);         // subtract the known-mean control
+// E[ctrl] = E[f] - c*(E[g]-G) = I, since E[g] = G  ->  unbiased for any c.
+// Var[ctrl] = Var(f) * (1 - rho^2), minimized at c = c*.</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> If you know the exact integral $G$ of a function $g$ correlated with your integrand $f$, subtract $c(g-G)$: it changes nothing in expectation (mean-zero) but cancels the shared fluctuation. The best amount is $c^\star=\operatorname{Cov}(f,g)/\operatorname{Var}(g)$, and it cuts variance by $1/(1-\rho^2)$ — $61\times$ here, where the line $1+x$ explains $99\%$ of $e^x$. It is a variance-reduction lever orthogonal to importance sampling, and the basis of "integrate only the residual" in renderers.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="26_orthonormal_basis.html">26 — Orthonormal basis</a>. Builds on: <a href="06_importance_sampling.html">06 — Importance sampling</a>, <a href="04_variance_and_clt.html">04 — Variance &amp; the CLT</a>. Next: <a href="28_antithetic_variates.html">28 — Antithetic variates</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  const E=Math.E, I=E-1, G=1.5;
+  const f=x=>Math.exp(x), g=x=>1+x;
+  // closed-form moments on [0,1]
+  const Vf=(E*E-1)/2-(E-1)*(E-1);          // Var(e^x) = 0.24204
+  const Vg=1/12;                            // Var(1+x)
+  const Cov=1-0.5*(E-1);                    // Cov(e^x,1+x) = 0.14086
+  const cStar=Cov/Vg;                       // 1.6903
+  const rho=Cov/Math.sqrt(Vf*Vg);           // 0.99182
+  const Vofc=c=>Vf-2*c*Cov+c*c*Vg;
+
+  // ---------- Figure 1: integrand and flattening residual ----------
+  (function(){
+    const svg=document.getElementById('fig-resid'); if(!svg) return;
+    const x0=56,x1=566,top=28,bot=270, YMAX=3.0;
+    const px=x=>x0+x*(x1-x0);
+    const py=y=>bot-(y/YMAX)*(bot-top);
+    const gS=el('g'); svg.appendChild(gS); const gD=el('g'); svg.appendChild(gD);
+    [0,1,2,3].forEach(y=>{gS.appendChild(el('line',{x1:x0,y1:py(y),x2:x1,y2:py(y),stroke:'#eef0f4'}));gS.appendChild(txt(x0-8,py(y)+4,y.toFixed(0),{'font-size':11,fill:'var(--muted)','text-anchor':'end'}));});
+    [0,0.5,1].forEach(x=>gS.appendChild(txt(px(x),bot+18,x.toFixed(1),{'font-size':11,fill:'var(--muted)','text-anchor':'middle'})));
+    gS.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    gS.appendChild(el('line',{x1:x0,y1:top,x2:x0,y2:bot,stroke:'#9aa0ad'}));
+    gS.appendChild(txt((x0+x1)/2,bot+34,'x',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    // I line
+    gS.appendChild(el('line',{x1:x0,y1:py(I),x2:x1,y2:py(I),stroke:'var(--opt)','stroke-width':1.4,'stroke-dasharray':'6 4'}));
+    gS.appendChild(txt(x1-2,py(I)-6,'I = e−1',{'font-size':11,fill:'var(--opt)','text-anchor':'end'}));
+    // f(x) fixed
+    function curve(fn,color,w,dash){let d='';for(let i=0;i<=120;i++){const x=i/120;d+=(i?'L':'M')+px(x).toFixed(1)+','+py(fn(x)).toFixed(1)+' ';}const o={d:d.trim(),fill:'none',stroke:color,'stroke-width':w||2.4};if(dash)o['stroke-dasharray']=dash;return el(o?'path':'path',o);}
+    gS.appendChild(curve(f,'var(--integrand)',2.4));
+    gS.appendChild(txt(px(0.86),py(f(0.86))-6,'f = eˣ',{'font-size':12,fill:'var(--integrand)'}));
+    const sl=document.getElementById('cv-c');
+    function draw(){
+      while(gD.firstChild)gD.removeChild(gD.firstChild);
+      const c=+sl.value/100;
+      let d='';for(let i=0;i<=120;i++){const x=i/120;const h=f(x)-c*(g(x)-G);d+=(i?'L':'M')+px(x).toFixed(1)+','+py(h).toFixed(1)+' ';}
+      gD.appendChild(el('path',{d:d.trim(),fill:'none',stroke:'var(--residual)','stroke-width':2.6}));
+      gD.appendChild(txt(px(0.5),py(f(0.5)-c*(g(0.5)-G))-8,'residual',{'font-size':11.5,fill:'var(--residual)','text-anchor':'middle'}));
+      const v=Vofc(c);
+      document.getElementById('cv-cval').textContent=c.toFixed(2);
+      document.getElementById('cv-var').textContent=v.toExponential(3);
+      document.getElementById('cv-red').textContent=(Vf/v).toFixed(1)+'×';
+    }
+    sl.addEventListener('input',draw);
+    document.getElementById('cv-opt').addEventListener('click',()=>{sl.value=Math.round(cStar*100);draw();});
+    draw();
+  })();
+
+  // ---------- Figure 2: variance parabola ----------
+  (function(){
+    const svg=document.getElementById('fig-parab'); if(!svg) return;
+    const x0=64,x1=560,top=28,bot=250, CMAX=3.4, VMAX=Vofc(CMAX)*1.05;
+    const px=c=>x0+(c/CMAX)*(x1-x0);
+    const py=v=>bot-(v/VMAX)*(bot-top);
+    [0,0.1,0.2,0.3].forEach(v=>{svg.appendChild(el('line',{x1:x0,y1:py(v),x2:x1,y2:py(v),stroke:'#eef0f4'}));svg.appendChild(txt(x0-8,py(v)+4,v.toFixed(1),{'font-size':11,fill:'var(--muted)','text-anchor':'end'}));});
+    [0,1,2,3].forEach(c=>svg.appendChild(txt(px(c),bot+18,c.toFixed(0),{'font-size':11,fill:'var(--muted)','text-anchor':'middle'})));
+    svg.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(el('line',{x1:x0,y1:top,x2:x0,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(txt((x0+x1)/2,bot+34,'control coefficient c',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    svg.appendChild(txt(x0-36,top-12,'variance',{'font-size':12,fill:'var(--muted)'}));
+    let d='';for(let i=0;i<=200;i++){const c=CMAX*i/200;d+=(i?'L':'M')+px(c).toFixed(1)+','+py(Vofc(c)).toFixed(1)+' ';}
+    svg.appendChild(el('path',{d:d.trim(),fill:'none',stroke:'var(--integrand)','stroke-width':2.6}));
+    // c=0 marker
+    svg.appendChild(el('circle',{cx:px(0),cy:py(Vf),r:4,fill:'var(--integrand)'}));
+    svg.appendChild(txt(px(0)+8,py(Vf)-4,'c=0: Var(f)='+Vf.toFixed(3),{'font-size':11,fill:'var(--integrand)'}));
+    // optimum
+    svg.appendChild(el('line',{x1:px(cStar),y1:top,x2:px(cStar),y2:bot,stroke:'var(--opt)','stroke-width':1.2,'stroke-dasharray':'4 3'}));
+    svg.appendChild(el('circle',{cx:px(cStar),cy:py(Vofc(cStar)),r:5,fill:'var(--opt)'}));
+    svg.appendChild(txt(px(cStar),py(Vofc(cStar))+20,'c* = '+cStar.toFixed(2)+',  '+(1/(1-rho*rho)).toFixed(0)+'× lower',{'font-size':11.5,fill:'var(--opt)','text-anchor':'middle','font-weight':600}));
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

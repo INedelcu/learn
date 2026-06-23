@@ -305,6 +305,56 @@ The whole series is, ultimately, about one formula — estimating an integral as
 
 </div>
 
+<h2>Variance reduction</h2>
+<div class="toc">
+
+  <a class="entry" href="27_control_variates.html">
+    <span class="num">27</span>
+    <span class="body">
+      <h3>Control variates: subtract a known integral</h3>
+      <p class="d">Orthogonal to importance sampling: keep sampling as is, but subtract a cheap control $g$ with known integral $G$ that correlates with $f$. Since $\mathbb E[g-G]=0$ the estimator $\overline{f-c(g-G)}$ is unbiased for any $c$, and the optimal $c^\star=\operatorname{Cov}(f,g)/\operatorname{Var}(g)$ cuts variance by $1/(1-\rho^2)$. Here the line $1+x$ tracks $e^x$ with $\rho=0.992$, collapsing variance $61\times$ — the basis of "integrate only the residual" in renderers. With a flattening-residual slider and the variance parabola.</p>
+      <span class="tags"><span class="tag">control variates</span><span class="tag">correlation 1/(1−ρ²)</span><span class="tag">residual integration</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="28_antithetic_variates.html">
+    <span class="num">28</span>
+    <span class="body">
+      <h3>Antithetic variates: pair each sample with its mirror</h3>
+      <p class="d">For every uniform $u$, also evaluate at $1-u$ and average. The pair-average has variance $\tfrac12\operatorname{Var}(f)(1+\rho)$ with $\rho=\operatorname{corr}(f(u),f(1-u))$, so at equal cost it beats plain MC by $1/(1+\rho)$ — a big win for monotonic integrands (mirror anti-correlated; linear $f$ hits zero variance), and a $0.5\times$ penalty for symmetric ones. Here $e^x$ cuts variance $31\times$. A sharp, targeted tool for the monotonic 1-D maps inside samplers.</p>
+      <span class="tags"><span class="tag">antithetic variates</span><span class="tag">mirror correlation</span><span class="tag">1/(1+ρ)</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="29_latin_hypercube.html">
+    <span class="num">29</span>
+    <span class="body">
+      <h3>Latin hypercube sampling: stratifying high dimensions</h3>
+      <p class="d">A full stratified grid needs $N^d$ cells — hopeless past a few dimensions. Latin hypercube (N-rooks) stratifies every axis with just $N$ samples: $x_{ij}=(\pi_j[i]+u_{ij})/N$ with an independent permutation per dimension, one sample per slice per axis. It reduces each 1-D main effect to the stratified variance of example 07 — a $3700\times$ cut on a 6-D additive integral — while leaving cross-dimension interactions uncaptured. The reason renderers stratify per dimension, not by gridding.</p>
+      <span class="tags"><span class="tag">Latin hypercube / N-rooks</span><span class="tag">curse of dimensionality</span><span class="tag">main effects</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="30_blue_noise.html">
+    <span class="num">30</span>
+    <span class="body">
+      <h3>Blue noise: it's the spectrum, not just the variance</h3>
+      <p class="d">White noise (random) has a flat spectrum — error at every frequency, including the low ones the eye sees as blotches. Blue noise concentrates its energy at high frequencies: the points stay well-separated (no clumps), its structure factor is suppressed at low $|k|$, and the residual error is the fine-grained kind the visual system discounts. Built here with Mitchell's best-candidate; it lowers smooth-integrand variance ~$4.8\times$ but the real win is perceptual — why renderers use blue-noise masks and dither patterns.</p>
+      <span class="tags"><span class="tag">blue vs white noise</span><span class="tag">structure factor</span><span class="tag">best-candidate</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="31_efficiency.html">
+    <span class="num">31</span>
+    <span class="body">
+      <h3>Efficiency: variance × time, not variance alone</h3>
+      <p class="d">Every earlier example scored techniques by variance — only half the ledger. For a fixed time budget the error is $V\,t/T$, so the figure of merit is efficiency $\varepsilon=1/(V\,t)$: minimize variance <em>times</em> cost. Importance sampling's small extra cost buys a $5.5\times$ efficiency gain; an equally-low-variance estimator that runs 88× slower falls to $0.1\times$ — below brute-force uniform sampling. The scoreboard that ranks every technique in the series, with an efficiency-bars and a variance–cost-plane figure.</p>
+      <span class="tags"><span class="tag">efficiency 1/(V·t)</span><span class="tag">variance × time</span><span class="tag">equal-time comparison</span></span>
+    </span>
+  </a>
+
+</div>
+
 <p class="foot">Math rendered with KaTeX; figures are self-contained SVG + JavaScript, no build step. More explainers added as the series progresses.</p>
 
 </div>

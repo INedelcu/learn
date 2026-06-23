@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>28 — Antithetic variates: pair each sample with its mirror — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --fu:#2b6cb0; --mirror:#dd6b20; --pair:#2f9e64; --opt:#d9a500; --warn:#e53e3e; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--pair)}
+  .callout.warn{border-left-color:var(--warn)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:160px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button.sel{background:var(--ink); color:#fff; border-color:var(--ink)}
+  button:active{transform:translateY(1px)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Antithetic variates: pair each sample with its mirror</h1>
+<p class="sub">28_antithetic_variates.cpp — for every uniform sample u, also evaluate at 1−u and average the pair. When the integrand trends one way, the mirror cancels its swing — variance reduction for one extra subtract.</p>
+
+<p class="lead">Here is the cheapest variance-reduction trick in the book. For every uniform draw $u$, also use its mirror $1-u$, and average the two evaluations. If the integrand is <strong>monotonic</strong>, the mirror is its mood-opposite — when $f(u)$ is high, $f(1-u)$ is low — so the pair-average barely moves while the plain estimate swings. One negate per sample, and the variance can drop by tens of times. The one caveat: for a function <em>symmetric</em> about $\tfrac12$ the mirror is a clone, not an opposite, and the trick does nothing (or worse).</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> The pair-average $\tfrac12(f(u)+f(1-u))$ has variance $\tfrac12\operatorname{Var}(f)\,(1+\rho)$ with $\rho=\operatorname{corr}(f(u),f(1-u))$, so at equal evaluation budget antithetic sampling beats plain Monte Carlo by $1/(1+\rho)$ — a big win when the integrand is monotonic (mirror anti-correlated, $\rho<0$; for a <em>linear</em> $f$, $\rho=-1$ and the variance vanishes), and no help when it is symmetric ($\rho=+1$).</p>
+</div>
+
+<div class="legend">
+  <span><i class="swatch" style="border-color:var(--fu)"></i> $f(u)$</span>
+  <span><i class="swatch" style="border-color:var(--mirror)"></i> mirror $f(1-u)$</span>
+  <span><i class="swatch" style="border-color:var(--pair)"></i> pair-average</span>
+  <span><i class="dot" style="background:var(--opt)"></i> exact value</span>
+</div>
+
+
+<h2 id="1">1. The mirror trick<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Plain Monte Carlo draws independent uniforms and averages $f$. Antithetic sampling pairs each $u$ with $1-u$ — also uniform, so still unbiased — and averages the pair:</p>
+$$\hat I_{\text{anti}}=\frac{1}{M}\sum_{k=1}^{M}\frac{f(u_k)+f(1-u_k)}{2}.$$
+<p>Its leverage is the variance of one pair-average. With $A=f(u)$ and $B=f(1-u)$, both with the same variance $\operatorname{Var}(f)$ (since $1-u$ is uniform too),</p>
+$$\operatorname{Var}\!\Big[\tfrac{A+B}{2}\Big]=\tfrac14\big(\operatorname{Var}A+\operatorname{Var}B+2\operatorname{Cov}(A,B)\big)
+  =\tfrac12\operatorname{Var}(f)\,(1+\rho),\qquad \rho=\operatorname{corr}\big(f(u),f(1-u)\big).$$
+<p>A pair costs two evaluations, so to compare fairly against plain MC at the same budget, the variance <em>per evaluation</em> is twice that, $\operatorname{Var}(f)(1+\rho)$, versus $\operatorname{Var}(f)$ for plain. The ratio is the whole story:</p>
+$$\boxed{\ \text{variance reduction}=\frac{1}{1+\rho}\ }$$
+<p>If the mirror is anti-correlated ($\rho<0$) you win; the more negative $\rho$, the bigger the win. Below, $f(u)$ and its mirror $f(1-u)$, and their <span style="color:var(--pair)">average</span> — flat for a monotonic integrand, unchanged for a symmetric one:</p>
+
+<figure>
+<svg id="fig-pair" viewBox="0 0 600 320" role="img" aria-label="An integrand, its mirror, and their pair-average, which flattens for a monotonic integrand."></svg>
+<div class="ctl">
+  integrand:
+  <button class="ib" data-k="lin">linear x</button>
+  <button class="ib sel" data-k="exp">monotonic eˣ</button>
+  <button class="ib" data-k="sym">symmetric (x−½)²</button>
+</div>
+<div class="panel">
+  <div class="row"><span>corr$\big(f(u),f(1-u)\big)$</span><b id="ap-rho" style="color:var(--mirror)">—</b></div>
+  <div class="row"><span>variance reduction $1/(1+\rho)$</span><b id="ap-red" style="color:var(--pair)">—</b></div>
+</div>
+<figcaption>Figure 1. <span style="color:var(--fu)">$f(u)$</span> and its <span style="color:var(--mirror)">mirror $f(1-u)$</span> (the same curve flipped left–right), and the <span style="color:var(--pair)">pair-average</span>. For <strong>linear</strong> $x$ the average is exactly constant ($\rho=-1$, variance $\to0$); for <strong>monotonic $e^x$</strong> it is nearly flat ($\rho\approx-0.97$); for the <strong>symmetric</strong> $(x-\tfrac12)^2$ the mirror lands on top of $f$ so the average is just $f$ again ($\rho=+1$, no gain).</figcaption>
+</figure>
+
+
+<h2 id="2">2. When it helps — and when it doesn't<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The sign of $\rho$ is set by the integrand's shape. A <strong>monotonic</strong> $f$ makes $f(u)$ and $f(1-u)$ move in opposite directions — large $u$ gives large $f(u)$ but small $f(1-u)$ — so $\rho<0$. In the limit of a <strong>linear</strong> $f(x)=a+bx$, the pair-average $\tfrac12\big[(a+bu)+(a+b(1-u))\big]=a+\tfrac b2$ is a <em>constant</em>: $\rho=-1$ and the variance is exactly zero. A <strong>symmetric</strong> $f$ with $f(u)=f(1-u)$ gives $\rho=+1$, so the reduction $1/(1+\rho)=\tfrac12$ — antithetic <em>doubles</em> the variance per evaluation, strictly worse. The C++ run at equal budgets:</p>
+
+<table>
+<thead><tr><th>integrand</th><th class="num">corr ρ</th><th class="num">plain var/eval</th><th class="num">antithetic var/eval</th><th class="num">reduction</th></tr></thead>
+<tbody>
+<tr><td>monotonic $e^x$</td><td class="num">−0.968</td><td class="num">2.42e−1</td><td class="num">7.83e−3</td><td class="num">30.9× ✓</td></tr>
+<tr><td>symmetric $(x-\tfrac12)^2$</td><td class="num">+1.000</td><td class="num">5.56e−3</td><td class="num">1.11e−2</td><td class="num">0.50× ✗</td></tr>
+</tbody>
+</table>
+
+<p>The predicted $1/(1+\rho)$ matches: $e^x$ at $\rho=-0.968$ gives $1/0.032\approx31\times$ (measured $30.9$), and the symmetric case at $\rho=+1$ gives exactly $0.5\times$. The reduction-vs-correlation curve below makes the rule visual — it blows up as $\rho\to-1$ and sinks to $\tfrac12$ at $\rho=+1$:</p>
+
+<figure>
+<svg id="fig-curve" viewBox="0 0 600 300" role="img" aria-label="Variance reduction 1/(1+rho) as a function of the mirror correlation rho."></svg>
+<figcaption>Figure 2. The reduction $1/(1+\rho)$ over $\rho\in(-1,1)$. <span style="color:var(--pair)">$e^x$</span> sits near $\rho=-0.97$ (a $\sim$31× win); a <span style="color:var(--fu)">linear</span> integrand reaches $\rho=-1$ (variance $\to0$); the <span style="color:var(--warn)">symmetric</span> case at $\rho=+1$ gives $0.5\times$ — worse than plain. Antithetic pairing pays off only left of $\rho=0$.</figcaption>
+</figure>
+
+
+<h2 id="3">3. In the renderer<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Antithetic pairing is most useful on the <em>monotonic 1-D maps inside a sampler</em>: the radial inverse-CDF of a light falloff, a time sample for motion blur, a 1-D scattering-distance draw. Mirror the uniform that feeds such a map and the paired estimate cancels the linear trend almost for free. It is not a blanket win — a renderer's full path integrand is high-dimensional and rarely monotonic in the raw uniforms — which is why it is a targeted tool, not a default like stratification. The cost is one extra evaluation and a subtract; the discipline is to apply it only where the integrand actually trends, and never where it is symmetric.</p>
+
+
+<h2 id="4">4. The code<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/28_antithetic_variates.cpp" target="_blank" rel="noopener"><code>28_antithetic_variates.cpp</code></a>.</p>
+
+<p>One uniform feeds two evaluations; the pair-average is the per-pair estimate.</p>
+
+<pre class="language-cpp"><code class="language-cpp">double u = rng.NextFloat();
+double a = f(u), b = f(1.0 - u);                 // the sample and its mirror
+double pairAvg = 0.5 * (a + b);                  // one estimate, two evaluations
+// Var[pairAvg] = 0.5 * Var(f) * (1 + corr(f(u), f(1-u)))
+// vs plain MC at equal budget: reduction = 1 / (1 + rho).
+//   monotonic f -> rho < 0 (win);  linear f -> rho = -1 (zero variance);
+//   symmetric f -> rho = +1 (0.5x, worse).</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> Pair every uniform $u$ with its mirror $1-u$ and average: unbiased, and the pair-average has variance $\tfrac12\operatorname{Var}(f)(1+\rho)$, so at equal cost antithetic sampling beats plain MC by $1/(1+\rho)$. It is a large, near-free win for monotonic 1-D maps (linear integrands hit zero variance), and a $0.5\times$ <em>penalty</em> for symmetric ones — a sharp, targeted tool, not a default.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="27_control_variates.html">27 — Control variates</a>. Builds on: <a href="04_variance_and_clt.html">04 — Variance &amp; the CLT</a>. Next: <a href="29_latin_hypercube.html">29 — Latin hypercube sampling</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  const funcs={
+    lin:{f:x=>x, lo:0, hi:1, label:'x'},
+    exp:{f:x=>Math.exp(x), lo:0, hi:Math.E, label:'eˣ'},
+    sym:{f:x=>(x-0.5)*(x-0.5), lo:0, hi:0.25, label:'(x−½)²'}
+  };
+  function corrMirror(f){
+    // numeric corr(f(u), f(1-u)) over u uniform
+    const N=2000; let m1=0,m2=0,c=0,v1=0;
+    const A=[],B=[];
+    for(let i=0;i<N;i++){const u=(i+0.5)/N; A.push(f(u)); B.push(f(1-u));}
+    for(let i=0;i<N;i++){m1+=A[i]/N; m2+=B[i]/N;}
+    for(let i=0;i<N;i++){c+=(A[i]-m1)*(B[i]-m2); v1+=(A[i]-m1)*(A[i]-m1);}
+    return c/v1;   // Cov/Var since Var(A)=Var(B)
+  }
+
+  // ---------- Figure 1: f, mirror, pair-average ----------
+  (function(){
+    const svg=document.getElementById('fig-pair'); if(!svg) return;
+    const x0=56,x1=566,top=28,bot=270;
+    const px=x=>x0+x*(x1-x0);
+    let key='exp';
+    const gS=el('g'); svg.appendChild(gS); const gD=el('g'); svg.appendChild(gD);
+    function draw(){
+      while(gD.firstChild)gD.removeChild(gD.firstChild);
+      while(gS.firstChild)gS.removeChild(gS.firstChild);
+      const F=funcs[key], f=F.f, ymax=F.hi, py=y=>bot-(y/ymax)*(bot-top);
+      // axes + grid
+      [0,0.25,0.5,0.75,1].forEach(t=>gS.appendChild(txt(px(t),bot+18,t.toFixed(2),{'font-size':11,fill:'var(--muted)','text-anchor':'middle'})));
+      gS.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+      gS.appendChild(el('line',{x1:x0,y1:top,x2:x0,y2:bot,stroke:'#9aa0ad'}));
+      gS.appendChild(txt((x0+x1)/2,bot+34,'u',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+      // exact value line (mean of f)
+      let mean=0; for(let i=0;i<400;i++)mean+=f((i+0.5)/400)/400;
+      gS.appendChild(el('line',{x1:x0,y1:py(mean),x2:x1,y2:py(mean),stroke:'var(--opt)','stroke-width':1.3,'stroke-dasharray':'6 4'}));
+      function curve(fn,color,w){let d='';for(let i=0;i<=160;i++){const x=i/160;d+=(i?'L':'M')+px(x).toFixed(1)+','+py(fn(x)).toFixed(1)+' ';}gD.appendChild(el('path',{d:d.trim(),fill:'none',stroke:color,'stroke-width':w}));}
+      curve(x=>f(x),'var(--fu)',2.2);
+      curve(x=>f(1-x),'var(--mirror)',2.2);
+      curve(x=>0.5*(f(x)+f(1-x)),'var(--pair)',2.8);
+      gD.appendChild(txt(px(0.5),py(0.5*(f(0.5)+f(0.5)))-8,'pair-average',{'font-size':11.5,fill:'var(--pair)','text-anchor':'middle','font-weight':600}));
+      const rho=corrMirror(f);
+      document.getElementById('ap-rho').textContent=rho.toFixed(3);
+      const red=1/(1+rho);
+      document.getElementById('ap-red').textContent=(rho<=-0.9999)?'∞ (zero variance)':red.toFixed(2)+'×';
+      document.getElementById('ap-red').style.color=(red>=1)?'var(--pair)':'var(--warn)';
+    }
+    document.querySelectorAll('.ib').forEach(b=>b.addEventListener('click',()=>{
+      document.querySelectorAll('.ib').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');
+      key=b.dataset.k; draw();
+    }));
+    draw();
+  })();
+
+  // ---------- Figure 2: reduction vs rho ----------
+  (function(){
+    const svg=document.getElementById('fig-curve'); if(!svg) return;
+    const x0=64,x1=560,top=28,bot=250, YMAX=6;
+    const px=r=>x0+(r+1)/2*(x1-x0);          // rho in [-1,1]
+    const py=v=>bot-Math.min(v,YMAX)/YMAX*(bot-top);
+    [0,1,2,3,4,5,6].forEach(v=>{svg.appendChild(el('line',{x1:x0,y1:py(v),x2:x1,y2:py(v),stroke:'#eef0f4'}));svg.appendChild(txt(x0-8,py(v)+4,v+'×',{'font-size':10.5,fill:'var(--muted)','text-anchor':'end'}));});
+    [-1,-0.5,0,0.5,1].forEach(r=>svg.appendChild(txt(px(r),bot+18,r.toFixed(1),{'font-size':11,fill:'var(--muted)','text-anchor':'middle'})));
+    svg.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(el('line',{x1:x0,y1:top,x2:x0,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(txt((x0+x1)/2,bot+34,'mirror correlation ρ',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    svg.appendChild(txt(x0-30,top-12,'reduction',{'font-size':12,fill:'var(--muted)'}));
+    // break-even line at 1x
+    svg.appendChild(el('line',{x1:x0,y1:py(1),x2:x1,y2:py(1),stroke:'#cbd0d9','stroke-width':1,'stroke-dasharray':'3 3'}));
+    svg.appendChild(txt(x1-2,py(1)-5,'break-even (1×)',{'font-size':10.5,fill:'var(--muted)','text-anchor':'end'}));
+    let d='';for(let i=0;i<=300;i++){const r=-0.985+i/300*(1.985);const v=1/(1+r);d+=(i?'L':'M')+px(r).toFixed(1)+','+py(v).toFixed(1)+' ';}
+    svg.appendChild(el('path',{d:d.trim(),fill:'none',stroke:'var(--ink)','stroke-width':2.4}));
+    // markers
+    function mark(r,color,label){const v=1/(1+r);svg.appendChild(el('circle',{cx:px(r),cy:py(v),r:4.5,fill:color}));svg.appendChild(txt(px(r)+(r>0?-6:8),py(v)-6,label,{'font-size':11,fill:color,'text-anchor':r>0?'end':'start'}));}
+    mark(-0.968,'var(--pair)','eˣ  (~31×)');
+    mark(1,'var(--warn)','symmetric (0.5×)');
+    svg.appendChild(txt(px(-0.97),top+12,'linear → ρ=−1, var→0',{'font-size':11,fill:'var(--fu)'}));
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>
