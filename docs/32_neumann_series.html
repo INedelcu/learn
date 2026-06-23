@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>32 — The rendering equation as a Neumann series — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --term:#2b6cb0; --sum:#2f9e64; --drop:#dd6b20; --eq:#d9a500; --mc:#7c3aed; --accent:#2b6cb0; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--sum)}
+  .callout.warn{border-left-color:var(--drop)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:150px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button:active{transform:translateY(1px)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>The rendering equation as a Neumann series</h1>
+<p class="sub">32_neumann_series.cpp — "outgoing = emitted + reflected" is a fixed-point equation; expanding it gives a sum over bounce orders. A path tracer walks that series, and the bounce-count cap is just where you stop summing.</p>
+
+<p class="lead">The rendering equation is deceptively short: outgoing radiance equals what a surface emits plus what it reflects, $L=L_e+TL$, where the transport operator $T$ gathers incoming light over the hemisphere and weights it by the BRDF and cosine — one bounce. Because $L$ appears on both sides, it is a fixed-point equation; solving it by repeated substitution unrolls it into the <strong>Neumann series</strong> — a sum over the number of bounces light made before reaching the eye. Direct light, one-bounce GI, two-bounce GI, and so on are just its terms, and a path tracer's bounce-count knob chooses how many you keep.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> Substituting $L=L_e+TL$ into itself gives $L=\sum_{k\ge0}T^k L_e$ — term $k$ is light that bounced exactly $k$ times — which converges whenever $T$ contracts (reflectance $&lt;1$); capping a path tracer at $K$ bounces drops every term past $k=K$, losing exactly $\rho^{K+1}/(1-\rho)\cdot E$ of the energy in a diffuse enclosure, and a Monte Carlo path tracer's per-order contributions reproduce the terms $E\rho^k$ that sum to the equilibrium $E/(1-\rho)$.</p>
+</div>
+
+<div class="legend">
+  <span><i class="swatch" style="border-color:var(--term)"></i> term $T^k L_e=E\rho^k$</span>
+  <span><i class="swatch" style="border-color:var(--sum)"></i> partial sum</span>
+  <span><i class="swatch" style="border-color:var(--drop)"></i> dropped tail</span>
+  <span><i class="dot" style="background:var(--eq)"></i> equilibrium $E/(1-\rho)$</span>
+  <span><i class="dot" style="background:var(--mc)"></i> Monte Carlo per order</span>
+</div>
+
+
+<h2 id="1">1. Unrolling the fixed point<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The rendering equation is $L=L_e+TL$. The unknown $L$ is on both sides, so substitute the whole right-hand side back in for the $L$ it contains, again and again:</p>
+$$L=L_e+TL=L_e+T(L_e+TL)=L_e+TL_e+T^2L=\;\cdots\;=\sum_{k=0}^{K}T^kL_e+\underbrace{T^{K+1}L}_{\text{remainder}}.$$
+<p>If $T$ <em>contracts</em> — each bounce loses energy, reflectance below 1 — then $T^{K+1}L\to0$ and the remainder vanishes, leaving the <strong>Neumann series</strong> (equivalently $L=(I-T)^{-1}L_e$):</p>
+$$\boxed{\,L=\sum_{k=0}^{\infty}T^kL_e\,}$$
+<p>Each term has a physical meaning: $T^kL_e$ is emitted light that has bounced exactly $k$ times before arriving. $k=0$ is light seen directly from sources; $k=1$ is one-bounce indirect; and so on. "Direct lighting" and "$n$-bounce global illumination" are simply prefixes of this one sum.</p>
+
+
+<h2 id="2">2. Each term is a bounce order; truncation drops the tail<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>To make it concrete, take a diffuse enclosure where every surface emits $E$ and reflects a fraction $\rho$ of what it receives. One bounce of a uniform radiance field is just a cosine-weighted average of a constant (<a href="08_hemisphere_sampling.html#2">example 08</a>), which multiplies it by $\rho$ — so here $T$ acts as "multiply by $\rho$", and $T^kL_e=E\rho^k$. The series is the geometric one from <a href="10_russian_roulette.html#1">example 10</a>:</p>
+$$L=\sum_{k=0}^{\infty}E\rho^k=\frac{E}{1-\rho},\qquad\text{and capping at $K$ misses }\sum_{k=K+1}^{\infty}E\rho^k=\frac{\rho^{K+1}}{1-\rho}\,E.$$
+<p>That truncation tail is exactly the "too dark" of too few bounces. With $E=1,\rho=0.6$ the equilibrium is $2.5$; stopping at $K=4$ leaves $0.6^5/0.4=0.194$ of the energy on the table. Slide the bounce cap and the reflectance and watch the partial sum climb toward the equilibrium while the dropped tail shrinks:</p>
+
+<figure>
+<svg id="fig-series" viewBox="0 0 600 320" role="img" aria-label="Per-bounce terms E rho^k as bars, the partial sum climbing to the equilibrium, and the dropped tail past the bounce cap."></svg>
+<div class="ctl">
+  bounce cap $K$ = <b id="ns-kval" style="display:inline-block;min-width:1.6em;text-align:right;font-variant-numeric:tabular-nums">4</b>
+  <input id="ns-k" type="range" min="0" max="12" value="4" step="1">
+  &nbsp; reflectance $\rho$ = <b id="ns-rval" style="display:inline-block;min-width:2.4em;text-align:right;font-variant-numeric:tabular-nums">0.60</b>
+  <input id="ns-r" type="range" min="20" max="85" value="60" step="1">
+</div>
+<div class="panel">
+  <div class="row"><span>equilibrium $E/(1-\rho)$</span><b id="ns-eq" style="color:var(--eq)">—</b></div>
+  <div class="row"><span>partial sum through $K$</span><b id="ns-sum" style="color:var(--sum)">—</b></div>
+  <div class="row"><span>dropped tail $\rho^{K+1}/(1-\rho)\,E$</span><b id="ns-tail" style="color:var(--drop)">—</b></div>
+</div>
+<figcaption>Figure 1. Bounce-order terms $E\rho^k$ (bars). Bars up to the <span style="color:var(--term)">cap $K$</span> are kept; those past it (<span style="color:var(--drop)">faded</span>) are dropped by truncation — their total is the missing energy. The <span style="color:var(--sum)">partial sum</span> (line) climbs toward the <span style="color:var(--eq)">equilibrium $E/(1-\rho)$</span> but only reaches it as $K\to\infty$. Raise $\rho$ and the tail fattens — high-albedo scenes need many more bounces.</figcaption>
+</figure>
+
+
+<h2 id="3">3. A path tracer walks the series<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>A real $T$ is an integral operator, estimated stochastically: each path is a random walk that accumulates $E$ at every vertex scaled by its running throughput, then bounces (multiply by $\rho$) and continues by Russian roulette (<a href="10_russian_roulette.html#3">example 10</a>). Binning each path's contributions <em>by bounce order</em>, the Monte Carlo estimates reproduce the Neumann terms $E\rho^k$ — and sum to the equilibrium. Run it live and watch each order settle onto its analytic value:</p>
+
+<figure>
+<svg id="fig-mc" viewBox="0 0 600 300" role="img" aria-label="Monte Carlo per-bounce-order estimates converging to the analytic Neumann terms E rho^k."></svg>
+<div class="ctl">
+  <button id="mc-add">+200,000 paths</button>
+  <button id="mc-reset">Reset</button>
+  <span class="small">paths: <b id="mc-n" style="font-variant-numeric:tabular-nums">0</b> · total over orders: <b id="mc-tot" style="color:var(--sum)">—</b></span>
+</div>
+<figcaption>Figure 2. Monte Carlo per-order estimates (<span style="color:var(--mc)">filled</span>) against the analytic Neumann terms $E\rho^k$ (<span style="color:var(--term)">outlined</span>), $\rho=0.6$. Each bounce order is reached with probability $\rho^k$ and contributes $E$, so the estimate of order $k$ converges to $E\rho^k$; their sum approaches $E/(1-\rho)=2.5$. The path tracer <em>is</em> the series, sampled.</figcaption>
+</figure>
+
+
+<h2 id="4">4. In the renderer<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The <a href="https://github.com/INedelcu/PathTracingDemo/blob/main/Assets/Shaders/RayGenerator.raytrace">PathTracingDemo</a> ray-gen loop is this series made into code: it traces a path, adding <code>emission * throughput</code> at each hit and multiplying <code>throughput</code> by the albedo per bounce — accumulating $T^kL_e$ as it goes. The bounce-count uniforms (<code>g_BounceCountOpaque</code> / <code>g_BounceCountTransparent</code>) are the cap $K$: raise them and you sum more Neumann terms (brighter, more accurate indirect light) at more cost; lower them and the tail $\rho^{K+1}/(1-\rho)$ goes missing as too-dark interreflections. Russian roulette (example 10) is the unbiased way to terminate the sum without a hard cap, and every variance-reduction technique in this series is ultimately about estimating these operator powers $T^k$ more cheaply.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/32_neumann_series.cpp" target="_blank" rel="noopener"><code>32_neumann_series.cpp</code></a>.</p>
+
+<p>The path loop accumulates $E$ at each vertex scaled by throughput, binned by bounce order — the Neumann terms, sampled.</p>
+
+<pre class="language-cpp"><code class="language-cpp">double tp = 1.0; int k = 0;                       // throughput, bounce order
+for (;;) {
+    orderSum[k] += E * tp;                       // contribution of order k  (-> T^k Le)
+    if (rng.NextFloat() &gt;= q) break;             // Russian roulette terminate (ex. 10)
+    tp *= rho / q;                               // reflect (rho) and RR-compensate (1/q)
+    ++k;
+}
+// orderSum[k] / paths  ->  E * rho^k  (the k-th Neumann term);  sum -> E/(1-rho).
+// a real T is an integral operator estimated by the random bounce directions.</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> The rendering equation $L=L_e+TL$ unrolls into the Neumann series $L=\sum_k T^kL_e$ — a sum over bounce orders, convergent because each bounce loses energy. Term $k$ is $k$-bounce light; a path tracer estimates the series by random walks, and its bounce cap $K$ simply truncates it, dropping $\rho^{K+1}/(1-\rho)\,E$ in a diffuse enclosure. Direct lighting, GI, and the bounce-count knob are all one geometric series — the structure underneath everything the renderer integrates.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="31_efficiency.html">31 — Efficiency</a>. Builds on: <a href="10_russian_roulette.html">10 — Russian roulette</a>, <a href="08_hemisphere_sampling.html">08 — Hemisphere sampling</a>. Next: <a href="33_delta_tracking.html">33 — Delta tracking</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  const E=1.0;
+
+  // ---------- Figure 1: Neumann series bars + truncation ----------
+  (function(){
+    const svg=document.getElementById('fig-series'); if(!svg) return;
+    const slK=document.getElementById('ns-k'), slR=document.getElementById('ns-r');
+    const x0=56,x1=566,top=28,bot=250, KMAX=12;
+    const bw=(x1-x0)/(KMAX+1);
+    const gS=el('g'); svg.appendChild(gS); const gD=el('g'); svg.appendChild(gD);
+    function draw(){
+      while(gD.firstChild)gD.removeChild(gD.firstChild);
+      while(gS.firstChild)gS.removeChild(gS.firstChild);
+      const K=+slK.value, rho=+slR.value/100, Leq=E/(1-rho);
+      const YMAX=Math.max(Leq*1.05, 1.05);
+      const by=v=>bot-(v/YMAX)*(bot-top);
+      // axes + equilibrium line
+      gS.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+      gS.appendChild(el('line',{x1:x0,y1:by(Leq),x2:x1,y2:by(Leq),stroke:'var(--eq)','stroke-width':1.4,'stroke-dasharray':'6 4'}));
+      gS.appendChild(txt(x1-2,by(Leq)-6,'L = '+Leq.toFixed(3),{'font-size':11,fill:'var(--eq)','text-anchor':'end'}));
+      gS.appendChild(txt(x0-30,top-12,'radiance',{'font-size':12,fill:'var(--muted)'}));
+      gS.appendChild(txt((x0+x1)/2,bot+30,'bounce order k',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+      // bars + cumulative
+      let cum=0; const cumPts=[];
+      for(let k=0;k<=KMAX;k++){
+        const term=E*Math.pow(rho,k); cum+=term;
+        const x=x0+k*bw+2, kept=k<=K;
+        gD.appendChild(el('rect',{x,y:by(term),width:bw-4,height:bot-by(term),fill:kept?'var(--term)':'#e6e9ef',stroke:kept?'var(--term)':'#cbd0d9','stroke-width':0.6,'fill-opacity':kept?0.85:1}));
+        cumPts.push([x0+k*bw+bw/2, by(cum)]);
+        if(k%2===0) gS.appendChild(txt(x0+k*bw+bw/2,bot+14,k,{'font-size':10,fill:'var(--muted)','text-anchor':'middle'}));
+      }
+      // cumulative line up to K solid, beyond faded
+      function line(pts,col,w,dash){let d='';pts.forEach((p,i)=>d+=(i?'L':'M')+p[0].toFixed(1)+','+p[1].toFixed(1)+' ');const o={d:d.trim(),fill:'none',stroke:col,'stroke-width':w};if(dash)o['stroke-dasharray']=dash;return el('path',o);}
+      gD.appendChild(line(cumPts.slice(0,K+1),'var(--sum)',2.4));
+      if(K<KMAX) gD.appendChild(line(cumPts.slice(K),'#c9ced8',1.6,'4 3'));
+      cumPts.slice(0,K+1).forEach(p=>gD.appendChild(el('circle',{cx:p[0],cy:p[1],r:2.2,fill:'var(--sum)'})));
+      // cap divider
+      const xK=x0+(K+1)*bw;
+      gD.appendChild(el('line',{x1:xK,y1:top,x2:xK,y2:bot,stroke:'#9aa0ad','stroke-width':1,'stroke-dasharray':'3 3'}));
+      gD.appendChild(txt(xK+3,top+12,'← kept | dropped →',{'font-size':10.5,fill:'#8a8f9c'}));
+      // readouts
+      const partial=E*(1-Math.pow(rho,K+1))/(1-rho), tail=Leq-partial;
+      document.getElementById('ns-kval').textContent=K;
+      document.getElementById('ns-rval').textContent=rho.toFixed(2);
+      document.getElementById('ns-eq').textContent=Leq.toFixed(4);
+      document.getElementById('ns-sum').textContent=partial.toFixed(4);
+      document.getElementById('ns-tail').textContent=tail.toFixed(4);
+    }
+    slK.addEventListener('input',draw); slR.addEventListener('input',draw); draw();
+  })();
+
+  // ---------- Figure 2: live MC per-order ----------
+  (function(){
+    const svg=document.getElementById('fig-mc'); if(!svg) return;
+    const rho=0.6, q=rho, KSHOW=7;
+    const x0=56,x1=566,top=28,bot=250;
+    const bw=(x1-x0)/KSHOW;
+    const YMAX=1.05, by=v=>bot-(v/YMAX)*(bot-top);
+    const gS=el('g'); svg.appendChild(gS); const gD=el('g'); svg.appendChild(gD);
+    gS.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    gS.appendChild(txt((x0+x1)/2,bot+30,'bounce order k',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    for(let k=0;k<KSHOW;k++){
+      gS.appendChild(txt(x0+k*bw+bw/2,bot+14,k,{'font-size':10.5,fill:'var(--muted)','text-anchor':'middle'}));
+      const an=E*Math.pow(rho,k);
+      gS.appendChild(el('rect',{x:x0+k*bw+4,y:by(an),width:bw-8,height:bot-by(an),fill:'none',stroke:'var(--term)','stroke-width':1.2}));
+    }
+    let orderSum=new Float64Array(20), paths=0;
+    function add(M){
+      for(let p=0;p<M;p++){let tp=1,k=0;for(;;){if(k<20)orderSum[k]+=E*tp;if(Math.random()>=q)break;tp*=rho/q;k++;if(k>18)break;}}
+      paths+=M; draw();
+    }
+    function draw(){
+      while(gD.firstChild)gD.removeChild(gD.firstChild);
+      let tot=0;
+      for(let k=0;k<KSHOW;k++){const est=paths?orderSum[k]/paths:0;
+        gD.appendChild(el('rect',{x:x0+k*bw+8,y:by(est),width:bw-16,height:bot-by(est),fill:'var(--mc)','fill-opacity':0.7}));}
+      for(let k=0;k<20;k++)tot+=paths?orderSum[k]/paths:0;
+      document.getElementById('mc-n').textContent=paths.toLocaleString();
+      document.getElementById('mc-tot').textContent=paths?tot.toFixed(4):'—';
+    }
+    document.getElementById('mc-add').addEventListener('click',()=>add(200000));
+    document.getElementById('mc-reset').addEventListener('click',()=>{orderSum=new Float64Array(20);paths=0;draw();});
+    add(200000);
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

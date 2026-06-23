@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>33 — Delta (Woodcock) tracking in heterogeneous media — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --sigma:#2b6cb0; --major:#dd6b20; --real:#2f9e64; --null:#e53e3e; --pdf:#7c3aed; --accent:#2b6cb0; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--real)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:150px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button:active{transform:translateY(1px)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Delta tracking in heterogeneous media</h1>
+<p class="sub">33_delta_tracking.cpp — fog and clouds have an extinction that varies along the ray, so the transmittance has no invertible form. Delta tracking pads the medium with fictitious "null" collisions to a constant rate you <em>can</em> sample, then thins them away — unbiased, no integral to invert.</p>
+
+<p class="lead">Sampling the distance to a collision in a <em>homogeneous</em> medium was easy (<a href="05_sampling_distributions.html#2">example 05</a>): transmittance $e^{-\sigma t}$ inverts to $t=-\ln(1-u)/\sigma$. But fog, smoke and clouds have a <strong>heterogeneous</strong> extinction $\sigma(x)$ that varies along the ray, so the transmittance $T(t)=\exp(-\!\int_0^t\sigma)$ has no closed-form inverse to sample. <strong>Delta tracking</strong> (Woodcock 1965) sidesteps the integral entirely with a fictitious-collision trick that turns the varying medium back into simple exponential free flights.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> Pad the medium with <em>null</em> collisions so the total event rate is a constant majorant $\sigma_{\max}\ge\sigma(x)$ everywhere; then free-flight distances are exponential at rate $\sigma_{\max}$ (easy), and at each tentative collision you accept it as <em>real</em> with probability $\sigma(x)/\sigma_{\max}$ — by Poisson thinning the accepted events have rate exactly $\sigma(x)$, so collision distances follow the true pdf $\sigma(t)\,T(t)$ and the survival probability is the transmittance, all without inverting the optical depth.</p>
+</div>
+
+<div class="legend">
+  <span><i class="swatch" style="border-color:var(--sigma)"></i> extinction $\sigma(x)$</span>
+  <span><i class="swatch" style="border-color:var(--major)"></i> majorant $\sigma_{\max}$</span>
+  <span><i class="dot" style="background:var(--real)"></i> real collision (accept)</span>
+  <span><i class="dot" style="background:var(--null)"></i> null collision (reject)</span>
+  <span><i class="swatch" style="border-color:var(--pdf)"></i> pdf $\sigma(t)T(t)$</span>
+</div>
+
+
+<h2 id="1">1. A medium you can't invert<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>A ray through a medium collides with probability set by the <strong>extinction</strong> $\sigma$: the chance of surviving to distance $t$ without a collision is the transmittance</p>
+$$T(t)=\exp\!\Big(-\!\int_0^t\sigma(s)\,ds\Big),$$
+<p>and the collision distance has pdf $\sigma(t)T(t)$. When $\sigma$ is constant this is the exponential of <a href="05_sampling_distributions.html#2">example 05</a>, trivially invertible. When $\sigma(x)$ varies — as it must for any interesting cloud — the optical depth $\int_0^t\sigma$ is some non-trivial function and its exponential has no inverse you can evaluate per-sample. Rejection-style marching with tiny steps is biased and slow. We need a way to sample the exact distribution without ever inverting that integral.</p>
+
+
+<h2 id="2">2. Pad to a constant rate, then thin<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Choose a <strong>majorant</strong> $\sigma_{\max}\ge\sigma(x)$ for the whole ray, and imagine filling the "missing" extinction $\sigma_{\max}-\sigma(x)$ with <em>fictitious</em> particles that scatter into nothing — <strong>null collisions</strong>. The padded medium has constant total rate $\sigma_{\max}$, so free flights are plain exponentials. March:</p>
+<ol>
+<li>step $t\mathrel{+}=-\ln(1-u)/\sigma_{\max}$ — an exponential free flight at the majorant rate;</li>
+<li>at the tentative collision, accept it as <strong>real</strong> with probability $\sigma(t)/\sigma_{\max}$, otherwise it was a <strong>null</strong> collision — ignore it and keep marching.</li>
+</ol>
+<p>Below: the extinction profile under its majorant. At any tentative collision the green fraction $\sigma(t)/\sigma_{\max}$ is the accept probability; the red remainder is null. Re-roll the tentative collisions:</p>
+
+<figure>
+<svg id="fig-track" viewBox="0 0 600 300" role="img" aria-label="Extinction profile under a constant majorant, with tentative collisions accepted as real with probability sigma over sigma-max."></svg>
+<div class="ctl"><button id="dt-roll">Re-roll tentative collisions</button></div>
+<figcaption>Figure 1. Extinction <span style="color:var(--sigma)">$\sigma(x)=0.5+1.5x$</span> under the <span style="color:var(--major)">majorant $\sigma_{\max}=3.5$</span>. Each tentative collision (tick) is accepted as a <span style="color:var(--real)">real</span> collision with probability $\sigma/\sigma_{\max}$ (the green height as a fraction of the full bar) and is otherwise a <span style="color:var(--null)">null</span> collision. Where $\sigma$ is small (left), most tentative collisions are nulls and the ray sails through; where $\sigma$ approaches $\sigma_{\max}$ (right), almost all are real.</figcaption>
+</figure>
+
+<div class="callout">
+<strong>Why the accepted distances are exact.</strong> The tentative collisions are a Poisson process of constant rate $\sigma_{\max}$. Marking each independently "real" with probability $\sigma(t)/\sigma_{\max}$ is exactly <em>thinning</em> a Poisson process, and the thinned process has rate $\sigma_{\max}\cdot\dfrac{\sigma(t)}{\sigma_{\max}}=\sigma(t)$ — the medium's true extinction. So the real collisions occur at rate $\sigma(t)$, their first-arrival distance has pdf $\sigma(t)\,T(t)$, and the chance of reaching $L$ with no real collision is $T(L)$ — the transmittance. The null collisions are precisely the padding that makes the rate constant, and thinning removes them in expectation. No optical-depth inverse anywhere.</p>
+</div>
+
+
+<h2 id="3">3. It hits the true distribution<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Histogramming the accepted collision distances from a live delta-tracker against the true pdf $\sigma(t)T(t)$ — they match:</p>
+
+<figure>
+<svg id="fig-hist" viewBox="0 0 600 300" role="img" aria-label="Histogram of delta-tracked collision distances matching the true pdf sigma(t) T(t)."></svg>
+<div class="ctl">
+  <button id="dh-add">+200,000 rays</button>
+  <button id="dh-reset">Reset</button>
+  <span class="small">rays: <b id="dh-n" style="font-variant-numeric:tabular-nums">0</b> · transmit fraction: <b id="dh-T" style="color:var(--major)">—</b> (analytic 0.0183)</span>
+</div>
+<figcaption>Figure 2. Delta-tracked collision distances (<span style="color:var(--real)">bars</span>) against the true pdf <span style="color:var(--pdf)">$\sigma(t)T(t)$</span> (curve). They agree bin for bin. The fraction of rays that reach $L$ with no real collision is the transmittance: delta tracking gives $0.0183$ against the analytic $e^{-\tau}=0.018316$ ($\tau=\int_0^L\sigma=4$).</figcaption>
+</figure>
+
+<p>The same majorant march also gives transmittance cheaply by <strong>ratio tracking</strong>: instead of accepting or rejecting, carry a weight and multiply it by $\big(1-\sigma(t)/\sigma_{\max}\big)$ at every tentative collision. Its expectation over the Poisson($\sigma_{\max}$) process is $\exp\!\big(-\!\int_0^L\sigma_{\max}\cdot\tfrac{\sigma}{\sigma_{\max}}\big)=\exp(-\!\int\sigma)=T(L)$ — the transmittance, with much lower variance than the accept/reject fraction. The C++ run: delta tracking $0.018299$, ratio tracking $0.018284$, both on the analytic $0.018316$.</p>
+
+
+<h2 id="4">4. In the renderer<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Delta tracking is how production volume renderers march rays through clouds, smoke, and any voxelized or procedural density — the density grid supplies $\sigma(x)$, a precomputed max supplies $\sigma_{\max}$, and the accept/reject loop above samples scatter events without ever integrating the field. Ratio tracking gives the shadow-ray transmittance for next-event estimation (<a href="24_nee_mis.html#1">example 24</a>) through the volume. The <a href="https://github.com/INedelcu/PathTracingDemo/blob/main/Assets/Shaders/PathTracingStandardGlass.shader">PathTracingDemo</a> glass shader only needs the <em>homogeneous</em> case — Beer–Lambert $e^{-\sigma t}$ along the transmitted segment (<a href="22_dielectric_refraction.html#6">example 22</a>) — which is exactly delta tracking's $\sigma=\text{const}$ limit, where every tentative collision is real and the free flight is the closed-form exponential. The tighter $\sigma_{\max}$ hugs $\sigma$, the fewer null collisions are wasted — the one knob that governs delta tracking's cost.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/33_delta_tracking.cpp" target="_blank" rel="noopener"><code>33_delta_tracking.cpp</code></a>.</p>
+
+<p>Exponential free flights at the majorant rate; accept as real with probability $\sigma/\sigma_{\max}$.</p>
+
+<pre class="language-cpp"><code class="language-cpp">// delta tracking: sample the collision distance in a heterogeneous medium
+double t = 0.0; bool collided = false;
+for (;;) {
+    t += -std::log(1.0 - rng.NextFloat()) / sMax;       // free flight at rate sigma_max
+    if (t &gt;= L) break;                                  // survived the slab (transmitted)
+    if (rng.NextFloat() &lt; Sigma(t) / sMax) { collided = true; break; }   // real collision
+    // else: null collision -- ignore and keep marching
+}
+
+// ratio tracking: transmittance estimate, no accept/reject -- carry a weight
+double w = 1.0;
+for (t = 0;;) {
+    t += -std::log(1.0 - rng.NextFloat()) / sMax;
+    if (t &gt;= L) break;
+    w *= (1.0 - Sigma(t) / sMax);                        // E[w] = exp(-integral sigma) = T(L)
+}</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> A heterogeneous medium's transmittance $\exp(-\!\int\sigma)$ can't be inverted to sample collisions directly. Delta tracking pads it with null collisions to a constant majorant $\sigma_{\max}$, sampling exponential free flights and accepting each tentative collision as real with probability $\sigma/\sigma_{\max}$. By Poisson thinning the accepted events have the true rate $\sigma(t)$, so distances follow $\sigma(t)T(t)$ and survival gives the transmittance — verified to match the analytic values. It is how renderers march clouds; Beer–Lambert glass is the $\sigma=\text{const}$ limit.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="32_neumann_series.html">32 — The Neumann series</a>. Builds on: <a href="05_sampling_distributions.html">05 — Sampling distributions</a>, <a href="22_dielectric_refraction.html">22 — Beer–Lambert in glass</a>. Next: <a href="34_equiangular_sampling.html">34 — Equiangular sampling</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  const s0=0.5, s1=1.5, L=2.0, sMax=s0+s1*L;             // = 3.5
+  const sigma=x=>s0+s1*x;
+  const tau=t=>s0*t+0.5*s1*t*t;
+  const T=t=>Math.exp(-tau(t));
+
+  // ---------- Figure 1: extinction profile + tentative collisions ----------
+  (function(){
+    const svg=document.getElementById('fig-track'); if(!svg) return;
+    const x0=56,x1=566,top=28,bot=250;
+    const px=t=>x0+(t/L)*(x1-x0), py=v=>bot-(v/(sMax*1.08))*(bot-top);
+    const gS=el('g'); svg.appendChild(gS); const gD=el('g'); svg.appendChild(gD);
+    function base(){
+      while(gS.firstChild)gS.removeChild(gS.firstChild);
+      [0,1,2,3].forEach(v=>{gS.appendChild(el('line',{x1:x0,y1:py(v),x2:x1,y2:py(v),stroke:'#eef0f4'}));gS.appendChild(txt(x0-8,py(v)+4,v,{'font-size':11,fill:'var(--muted)','text-anchor':'end'}));});
+      gS.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+      gS.appendChild(txt((x0+x1)/2,bot+30,'distance along ray  t',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+      gS.appendChild(txt(x0-30,top-12,'rate',{'font-size':12,fill:'var(--muted)'}));
+      // majorant
+      gS.appendChild(el('line',{x1:px(0),y1:py(sMax),x2:px(L),y2:py(sMax),stroke:'var(--major)','stroke-width':2}));
+      gS.appendChild(txt(px(L),py(sMax)-6,'σ_max = 3.5',{'font-size':11.5,fill:'var(--major)','text-anchor':'end'}));
+      // sigma line + fill (real region green)
+      gS.appendChild(el('path',{d:'M'+px(0)+','+py(0)+' L'+px(0)+','+py(sigma(0))+' L'+px(L)+','+py(sigma(L))+' L'+px(L)+','+py(0)+' Z',fill:'var(--real)','fill-opacity':0.10}));
+      gS.appendChild(el('path',{d:'M'+px(0)+','+py(sigma(0))+' L'+px(L)+','+py(sigma(L))+' L'+px(L)+','+py(sMax)+' L'+px(0)+','+py(sMax)+' Z',fill:'var(--null)','fill-opacity':0.07}));
+      gS.appendChild(el('line',{x1:px(0),y1:py(sigma(0)),x2:px(L),y2:py(sigma(L)),stroke:'var(--sigma)','stroke-width':2.4}));
+      gS.appendChild(txt(px(1.3),py(sigma(1.3))-6,'σ(x)',{'font-size':12,fill:'var(--sigma)'}));
+      gS.appendChild(txt(px(0.3),py(sMax)-(py(sMax)-py(sigma(0.3)))*0.4,'null',{'font-size':11,fill:'var(--null)'}));
+      gS.appendChild(txt(px(1.5),py(sigma(1.5))*0.5+bot*0.5,'real',{'font-size':11,fill:'var(--real)'}));
+    }
+    function roll(){
+      while(gD.firstChild)gD.removeChild(gD.firstChild);
+      // a handful of tentative collisions
+      for(let i=0;i<9;i++){const t=Math.random()*L; const accept=Math.random()<sigma(t)/sMax;
+        gD.appendChild(el('line',{x1:px(t),y1:py(0),x2:px(t),y2:py(sMax),stroke:'#cbd0d9','stroke-width':1,'stroke-dasharray':'2 2'}));
+        gD.appendChild(el('circle',{cx:px(t),cy:py(sMax),r:4,fill:accept?'var(--real)':'var(--null)'}));
+      }
+    }
+    base(); roll();
+    document.getElementById('dt-roll').addEventListener('click',roll);
+  })();
+
+  // ---------- Figure 2: collision-distance histogram ----------
+  (function(){
+    const svg=document.getElementById('fig-hist'); if(!svg) return;
+    const x0=56,x1=566,top=28,bot=250, B=24;
+    const px=t=>x0+(t/L)*(x1-x0);
+    let pmax=0; for(let i=0;i<=100;i++){const t=i/100*L; pmax=Math.max(pmax,sigma(t)*T(t));}
+    const py=v=>bot-(v/(pmax*1.1))*(bot-top);
+    const gS=el('g'); svg.appendChild(gS); const gD=el('g'); svg.appendChild(gD);
+    gS.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    gS.appendChild(txt((x0+x1)/2,bot+30,'collision distance t',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    gS.appendChild(txt(x0-30,top-12,'density',{'font-size':12,fill:'var(--muted)'}));
+    // true pdf curve
+    let d=''; for(let i=0;i<=120;i++){const t=i/120*L; d+=(i?'L':'M')+px(t).toFixed(1)+','+py(sigma(t)*T(t)).toFixed(1)+' ';}
+    gS.appendChild(el('path',{d:d.trim(),fill:'none',stroke:'var(--pdf)','stroke-width':2.4}));
+    let hist=new Int32Array(B), rays=0, transmits=0;
+    function add(M){
+      for(let i=0;i<M;i++){let t=0,collided=false;
+        for(;;){t+=-Math.log(1-Math.random())/sMax; if(t>=L)break; if(Math.random()<sigma(t)/sMax){collided=true;break;}}
+        if(collided){let b=Math.floor(t/L*B); if(b>=B)b=B-1; hist[b]++;} else transmits++;
+      }
+      rays+=M; draw();
+    }
+    function draw(){
+      while(gD.firstChild)gD.removeChild(gD.firstChild);
+      const bw=(x1-x0)/B, binW=L/B;
+      for(let b=0;b<B;b++){if(!hist[b])continue; const dens=hist[b]/rays/binW;
+        gD.appendChild(el('rect',{x:x0+b*bw+0.6,y:py(dens),width:bw-1.2,height:bot-py(dens),fill:'var(--real)','fill-opacity':0.5}));}
+      document.getElementById('dh-n').textContent=rays.toLocaleString();
+      document.getElementById('dh-T').textContent=rays?(transmits/rays).toFixed(4):'—';
+    }
+    document.getElementById('dh-add').addEventListener('click',()=>add(200000));
+    document.getElementById('dh-reset').addEventListener('click',()=>{hist=new Int32Array(B);rays=0;transmits=0;draw();});
+    add(200000);
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>
