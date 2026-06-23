@@ -355,6 +355,61 @@ The whole series is, ultimately, about one formula — estimating an integral as
 
 </div>
 
+<h2>Transport &amp; media</h2>
+<div class="toc">
+
+  <a class="entry" href="32_neumann_series.html">
+    <span class="num">32</span>
+    <span class="body">
+      <h3>The rendering equation as a Neumann series</h3>
+      <p class="d">The rendering equation $L=L_e+TL$ is a fixed point; substituting it into itself unrolls into the Neumann series $L=\sum_k T^kL_e$ — a sum over bounce orders, where term $k$ is light that bounced exactly $k$ times. It converges because each bounce loses energy, and a path tracer's bounce cap $K$ just truncates it, dropping $\rho^{K+1}/(1-\rho)\,E$ in a diffuse enclosure. A live Monte Carlo path tracer recovers each term $E\rho^k$, summing to $E/(1-\rho)$ — direct light, GI, and the bounce-count knob are one geometric series.</p>
+      <span class="tags"><span class="tag">rendering equation</span><span class="tag">Neumann series</span><span class="tag">bounce orders</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="33_delta_tracking.html">
+    <span class="num">33</span>
+    <span class="body">
+      <h3>Delta (Woodcock) tracking in heterogeneous media</h3>
+      <p class="d">A varying extinction $\sigma(x)$ makes the transmittance $\exp(-\!\int\sigma)$ un-invertible. Delta tracking pads the medium with fictitious null collisions to a constant majorant $\sigma_{\max}$, samples exponential free flights, and accepts each tentative collision as real with probability $\sigma/\sigma_{\max}$. By Poisson thinning the accepted events have rate $\sigma(t)$, so distances follow the true $\sigma(t)T(t)$ and survival gives the transmittance — verified to match the analytic values. Ratio tracking gives a low-variance transmittance; Beer–Lambert glass is the $\sigma=\text{const}$ limit.</p>
+      <span class="tags"><span class="tag">delta / Woodcock tracking</span><span class="tag">null collisions</span><span class="tag">Poisson thinning</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="34_equiangular_sampling.html">
+    <span class="num">34</span>
+    <span class="body">
+      <h3>Equiangular sampling for volumetric single scattering</h3>
+      <p class="d">A camera ray through fog near a light gathers in-scattered energy that spikes as $1/(h^2+t^2)$ at the closest point — uniform sampling sprays the flat tails and misses it. Equiangular sampling (Kulla &amp; Conty) draws the distance with density $\propto1/(h^2+t^2)$ via the arctangent inverse CDF $t=h\tan(\theta_a+u(\theta_b-\theta_a))$, making $f/p$ constant: zero variance for the bare falloff (the example-06 ideal), a $\sim$10³³× cut here. The standard way to sample distance for god rays.</p>
+      <span class="tags"><span class="tag">equiangular sampling</span><span class="tag">single scattering</span><span class="tag">1/d² importance</span></span>
+    </span>
+  </a>
+
+</div>
+
+<h2>RNG &amp; QMC</h2>
+<div class="toc">
+
+  <a class="entry" href="35_sobol_owen.html">
+    <span class="num">35</span>
+    <span class="body">
+      <h3>Sobol sequences &amp; Owen scrambling</h3>
+      <p class="d">Sobol builds low-discrepancy points from a few XORs; its first two dimensions form a $(0,2)$-sequence — every dyadic box of area $1/N$ holds exactly one point. Owen scrambling applies a nested random digit-permutation that makes each point uniform (so estimates are unbiased and averageable, with error bars) while preserving that stratification — and on smooth integrands accelerates the RMSE to $\sim N^{-3/2}$, vs raw Sobol's $N^{-1}$ and random's $N^{-1/2}$ (fitted slopes −0.50 / −1.0 / −1.45). Owen-scrambled Sobol is the modern renderer's default sampler.</p>
+      <span class="tags"><span class="tag">Sobol (0,2)-sequence</span><span class="tag">Owen scrambling</span><span class="tag">randomized QMC</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="36_rng_decorrelation.html">
+    <span class="num">36</span>
+    <span class="body">
+      <h3>Per-pixel RNG seeding: why decorrelation matters</h3>
+      <p class="d">Every pixel gets its own random stream, and adjacent pixels' raw seeds differ by one — so the seed must be hashed, or neighbours draw correlated numbers and the image shows banding that averaging can't remove. The test: the mean adjacent-pixel difference is $\tfrac13$ for independent uniforms; a smooth seed measures $0.22$ (correlated), a Wang hash $0.33$. It's not "more random" but decorrelation — and hashing the (pixel, frame, step) seed turns per-pixel streams into clean, structureless noise.</p>
+      <span class="tags"><span class="tag">per-pixel seeding</span><span class="tag">Wang hash</span><span class="tag">decorrelation</span></span>
+    </span>
+  </a>
+
+</div>
+
 <p class="foot">Math rendered with KaTeX; figures are self-contained SVG + JavaScript, no build step. More explainers added as the series progresses.</p>
 
 </div>

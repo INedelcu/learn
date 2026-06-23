@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>35 — Sobol sequences &amp; Owen scrambling (randomized QMC) — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --random:#dd6b20; --sobol:#2b6cb0; --owen:#2f9e64; --accent:#2b6cb0; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--owen)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .three{display:flex; gap:14px; flex-wrap:wrap; justify-content:center}
+  .three>div{flex:1 1 180px; text-align:center; min-width:160px}
+  canvas{display:block; width:100%; max-width:200px; margin:0 auto; image-rendering:auto; border:1px solid var(--line); border-radius:8px; background:#fff}
+  .pcap{font-size:14px; font-weight:600; margin:8px 0 2px}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  input[type=range]{width:150px; vertical-align:middle}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Sobol sequences &amp; Owen scrambling</h1>
+<p class="sub">35_sobol_owen.cpp — the Sobol sequence is low-discrepancy sampling from a few XORs, and Owen scrambling randomizes it without losing the stratification — giving the modern renderer's sampler: near-1/N convergence, unbiased, with honest error bars.</p>
+
+<p class="lead">Halton (<a href="11_low_discrepancy.html#4">example 11</a>) was one low-discrepancy sequence; <strong>Sobol</strong> is the other, and the one most production renderers use. It is built from binary "generator matrices" so each sample is a few XORs, it stratifies beautifully in 2-D, and it scales to high dimensions better than Halton. Raw Sobol is deterministic, though — no error estimate, and high dimensions eventually show correlation. <strong>Owen scrambling</strong> fixes both: it randomly permutes the sample digits in a nested way that <em>preserves</em> the stratification, so you keep the fast convergence while making the set a random object you can average and put error bars on.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> Sobol's first two dimensions form a $(0,2)$-sequence — every dyadic box of area $1/N$ holds exactly one of the first $N$ points, perfect 2-D stratification at each power of two — and Owen scrambling applies a nested random digit-permutation that keeps that stratification while making each point uniform; averaging independent scrambles is randomized QMC: unbiased, with error bars, and on smooth integrands its RMSE falls as $\sim N^{-3/2}$, faster than raw Sobol's $\sim N^{-1}$ and far past random's $N^{-1/2}$.</p>
+</div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--random)"></i> random</span>
+  <span><i class="dot" style="background:var(--sobol)"></i> Sobol (raw)</span>
+  <span><i class="dot" style="background:var(--owen)"></i> Owen-scrambled Sobol</span>
+</div>
+
+
+<h2 id="1">1. Sobol: stratification from a few XORs<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Sobol builds each coordinate by XOR-ing precomputed "direction numbers" selected by the bits of the sample index. Dimension 0 is just the base-2 radical inverse of <a href="11_low_discrepancy.html#3">example 11</a> — a bit reversal of $i$ — and dimension 1 uses direction numbers $v_k=v_{k-1}\oplus(v_{k-1}\!\gg\!1)$. The result is a <strong>$(0,2)$-sequence</strong>: every <em>elementary interval</em> — any dyadic box of area $1/N$, be it $1\times N$, $\sqrt N\times\sqrt N$, or $N\times1$ — contains exactly one of the first $N$ points. That is far stronger than a single grid: the set is stratified at every dyadic aspect ratio simultaneously. Below, the same point count placed randomly, by raw Sobol, and by Owen-scrambled Sobol:</p>
+
+<figure>
+<div class="three">
+  <div><div class="pcap" style="color:var(--random)">random</div><canvas id="sb-rand" width="200" height="200"></canvas></div>
+  <div><div class="pcap" style="color:var(--sobol)">Sobol</div><canvas id="sb-sobol" width="200" height="200"></canvas></div>
+  <div><div class="pcap" style="color:var(--owen)">Owen-Sobol</div><canvas id="sb-owen" width="200" height="200"></canvas></div>
+</div>
+<div class="ctl">
+  N = <b id="sb-nval" style="display:inline-block;min-width:2.6em;text-align:right;font-variant-numeric:tabular-nums">64</b> points
+  <input id="sb-n" type="range" min="4" max="9" value="6" step="1">
+  <button id="sb-roll">Re-roll random &amp; scramble</button>
+</div>
+<figcaption>Figure 1. The first $N=2^k$ points, three ways. <span style="color:var(--random)">Random</span> clumps. <span style="color:var(--sobol)">Sobol</span> tiles the square evenly — one point per dyadic cell. <span style="color:var(--owen)">Owen-scrambled Sobol</span> keeps that even tiling (a different random arrangement each re-scramble) but is now a randomized point set, not a fixed one.</figcaption>
+</figure>
+
+
+<h2 id="2">2. Owen scrambling: randomize, keep the stratification<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Owen scrambling walks the binary tree of each coordinate's digits and flips a random, independent coin at every node, deciding whether to swap the subtree below it. Two consequences fall out of that nested structure:</p>
+<ul>
+<li><strong>Each point becomes uniform.</strong> Randomly permuting the digits of a value sends it to a uniformly distributed point in $[0,1)$, so any single Owen-scrambled estimate is <em>unbiased</em>: $\mathbb E[\hat I]=\int f$. Average $M$ independent scrambles and you have an unbiased estimate <em>with</em> a sample variance — honest error bars, which raw deterministic Sobol cannot give.</li>
+<li><strong>The stratification survives.</strong> A nested digit-permutation maps dyadic boxes to dyadic boxes, so the one-point-per-elementary-interval property is preserved. You keep the QMC convergence — and for smooth integrands Owen's nested scramble actively <em>improves</em> it to $\sim N^{-3/2}$ RMSE.</li>
+</ul>
+<p>The file uses the cheap hash-based Owen scramble of Laine–Karras / Burley (2020): a handful of multiply-xor operations on the reversed bits, seeded per dimension. Averaging over seeds is <strong>randomized QMC</strong>.</p>
+
+
+<h2 id="3">3. The convergence: three different slopes<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Integrating the smooth $\iint_{[0,1]^2}e^{x+y}=(e-1)^2$ at matched sample counts — random as RMS over trials, raw Sobol as a single deterministic error, Owen-Sobol as RMS over scrambles:</p>
+
+<table>
+<thead><tr><th class="num">N</th><th class="num">random RMSE</th><th class="num">Sobol err</th><th class="num">Owen-Sobol RMSE</th></tr></thead>
+<tbody>
+<tr><td class="num">64</td><td class="num">1.56e−1</td><td class="num">4.35e−2</td><td class="num">3.40e−3</td></tr>
+<tr><td class="num">256</td><td class="num">7.11e−2</td><td class="num">1.15e−2</td><td class="num">4.52e−4</td></tr>
+<tr><td class="num">1024</td><td class="num">3.66e−2</td><td class="num">2.88e−3</td><td class="num">6.18e−5</td></tr>
+<tr><td class="num">4096</td><td class="num">1.72e−2</td><td class="num">7.10e−4</td><td class="num">9.15e−6</td></tr>
+<tr><td class="num">16384</td><td class="num">8.91e−3</td><td class="num">1.69e−4</td><td class="num">1.24e−6</td></tr>
+</tbody>
+</table>
+
+<p>Three different convergence <em>orders</em>: fitting slopes gives <strong>random $\approx-0.50$, raw Sobol $\approx-1.0$, Owen-Sobol $\approx-1.45$</strong> — close to the theoretical $N^{-1/2}$, $N^{-1}$, and $N^{-3/2}$. Owen scrambling doesn't just randomize Sobol for free error bars; on a smooth integrand it converges meaningfully <em>faster</em> than the raw sequence. At $N=16384$ Owen-Sobol's error is already $\sim$7000× below random's.</p>
+
+<figure>
+<svg id="fig-conv" viewBox="0 0 600 360" role="img" aria-label="Log-log error vs N for random, Sobol, and Owen-Sobol, with reference slopes minus a half, minus one, and minus three halves."></svg>
+<figcaption>Figure 2. Error vs sample count, log–log. <span style="color:var(--random)">Random</span> tracks slope $-\tfrac12$; <span style="color:var(--sobol)">raw Sobol</span> tracks $-1$; <span style="color:var(--owen)">Owen-Sobol</span> is steeper still, near $-\tfrac32$ — three separate convergence orders, widening without limit as $N$ grows.</figcaption>
+</figure>
+
+
+<h2 id="4">4. In the renderer<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Owen-scrambled Sobol is the modern default sampler in production renderers (pbrt's <code>ZSobolSampler</code>, and the samplers in Arnold, Cycles, and others). Each pixel draws its path dimensions from the Sobol sequence, Owen-scrambled with a per-pixel seed — so every pixel gets the fast QMC convergence <em>and</em> a decorrelated, randomized set whose remaining error is blue-noise-like (<a href="30_blue_noise.html#2">example 30</a>) across the image. The randomization is what makes it unbiased and lets the renderer estimate its own error and drive adaptive sampling (<a href="17_adaptive_sampling.html#3">example 17</a>). The <a href="https://github.com/INedelcu/PathTracingDemo/blob/main/Assets/Shaders/Utils.hlsl">PathTracingDemo</a> renderer uses a plain hashed RNG (the random column above); swapping in Owen-Sobol is the single highest-leverage sampler upgrade, turning $N^{-1/2}$ into nearly $N^{-3/2}$ on the smooth parts of the image.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/35_sobol_owen.cpp" target="_blank" rel="noopener"><code>35_sobol_owen.cpp</code></a>.</p>
+
+<p>Sobol is XORs of direction numbers; the Owen scramble is a hash on the reversed bits.</p>
+
+<pre class="language-cpp"><code class="language-cpp">// Sobol dim 1: XOR direction numbers v_k = v_{k-1} ^ (v_{k-1} &gt;&gt; 1)
+uint32_t Sobol1(uint32_t i) {
+    uint32_t r = 0;
+    for (uint32_t v = 1u &lt;&lt; 31; i; i &gt;&gt;= 1, v ^= v &gt;&gt; 1)
+        if (i &amp; 1u) r ^= v;
+    return r;
+}
+// Hash-based Owen (nested-uniform) scramble — Laine-Karras / Burley 2020
+uint32_t OwenScramble(uint32_t x, uint32_t seed) {
+    x = ReverseBits(x);
+    x ^= x * 0x3d20adeau;  x += seed;  x *= (seed &gt;&gt; 16) | 1u;
+    x ^= x * 0x05526c56u;  x ^= x * 0x53a22864u;
+    return ReverseBits(x);                       // uniform, and stratification preserved
+}
+// average over several seeds -> randomized QMC: unbiased, error bars, ~N^-1.5 RMSE.</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> Sobol generates low-discrepancy points from a few XORs; its first two dimensions form a $(0,2)$-sequence, stratified in every dyadic box. Owen scrambling applies a nested random digit-permutation that makes each point uniform (so estimates are unbiased and averageable) while preserving that stratification (so QMC convergence survives) — and on smooth integrands accelerates the RMSE to $\sim N^{-3/2}$, vs raw Sobol's $N^{-1}$ and random's $N^{-1/2}$. Owen-scrambled Sobol is the modern renderer's default sampler.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="34_equiangular_sampling.html">34 — Equiangular sampling</a>. Builds on: <a href="11_low_discrepancy.html">11 — Low-discrepancy sequences</a>, <a href="16_sampling_patterns_2d.html">16 — Sample patterns</a>. Next: <a href="36_rng_decorrelation.html">36 — Per-pixel RNG decorrelation</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  // --- Sobol + Owen (ported from the .cpp) ---
+  function reverseBits(n){
+    n=((n<<16)|(n>>>16))>>>0;
+    n=(((n&0x00ff00ff)<<8)|((n&0xff00ff00)>>>8))>>>0;
+    n=(((n&0x0f0f0f0f)<<4)|((n&0xf0f0f0f0)>>>4))>>>0;
+    n=(((n&0x33333333)<<2)|((n&0xcccccccc)>>>2))>>>0;
+    n=(((n&0x55555555)<<1)|((n&0xaaaaaaaa)>>>1))>>>0;
+    return n>>>0;
+  }
+  function sobol0(i){return reverseBits(i>>>0);}
+  function sobol1(i){let r=0;for(let v=0x80000000;i;i>>>=1,v=(v^(v>>>1))>>>0){if(i&1)r=(r^v)>>>0;}return r>>>0;}
+  function owen(x,seed){
+    x=reverseBits(x);
+    x=(x^Math.imul(x,0x3d20adea))>>>0;
+    x=(x+seed)>>>0;
+    x=Math.imul(x,((seed>>>16)|1))>>>0;
+    x=(x^Math.imul(x,0x05526c56))>>>0;
+    x=(x^Math.imul(x,0x53a22864))>>>0;
+    return reverseBits(x>>>0);
+  }
+  function hashSeed(a,b){let h=(Math.imul(a,747796405)+Math.imul(b,2891336453))>>>0;h^=h>>>16;h=Math.imul(h,0x7feb352d)>>>0;h^=h>>>15;return h>>>0;}
+  const toF=u=>(u>>>0)*Math.pow(2,-32);
+
+  // ---------- Figure 1: three scatters ----------
+  (function(){
+    let N=64, seedBase=12345;
+    function drawDisk(id,pts,col){
+      const cv=document.getElementById(id); const ctx=cv.getContext('2d'),S=cv.width;
+      ctx.clearRect(0,0,S,S);ctx.fillStyle='#fff';ctx.fillRect(0,0,S,S);
+      ctx.strokeStyle='#cbd0d9';ctx.strokeRect(0.5,0.5,S-1,S-1);
+      ctx.fillStyle=col;
+      pts.forEach(p=>ctx.fillRect(p[0]*S-1.4,(1-p[1])*S-1.4,2.8,2.8));
+    }
+    function roll(){
+      const rnd=[],sob=[],ow=[];
+      const s0=hashSeed(seedBase,0), s1=hashSeed(seedBase,1);
+      for(let i=0;i<N;i++){
+        rnd.push([Math.random(),Math.random()]);
+        sob.push([toF(sobol0(i)),toF(sobol1(i))]);
+        ow.push([toF(owen(sobol0(i),s0)),toF(owen(sobol1(i),s1))]);
+      }
+      drawDisk('sb-rand',rnd,'#dd6b20'); drawDisk('sb-sobol',sob,'#2b6cb0'); drawDisk('sb-owen',ow,'#2f9e64');
+    }
+    document.getElementById('sb-n').addEventListener('input',e=>{N=Math.pow(2,+e.target.value);document.getElementById('sb-nval').textContent=N;roll();});
+    document.getElementById('sb-roll').addEventListener('click',()=>{seedBase=(seedBase*1664525+1013904223)>>>0;roll();});
+    roll();
+  })();
+
+  // ---------- Figure 2: convergence ----------
+  (function(){
+    const svg=document.getElementById('fig-conv'); if(!svg) return;
+    const Ns=[64,256,1024,4096,16384];
+    const rand=[0.156,0.0711,0.0366,0.0172,0.00891];
+    const sob=[0.04354,0.01149,0.002879,0.0007103,0.0001691];
+    const ow=[0.003401,0.0004515,0.00006180,0.000009154,0.000001237];
+    const x0=64,x1=560,top=34,bot=300;
+    const lN0=Math.log10(64), lN1=Math.log10(16384);
+    const px=N=>x0+(Math.log10(N)-lN0)/(lN1-lN0)*(x1-x0);
+    const EY0=-6,EY1=0;
+    const pyv=e=>bot-(Math.log10(e)-EY0)/(EY1-EY0)*(bot-top);
+    for(let k=EY0;k<=EY1;k++){const y=pyv(Math.pow(10,k));svg.appendChild(el('line',{x1:x0,y1:y,x2:x1,y2:y,stroke:'#eef0f4'}));svg.appendChild(txt(x0-8,y+4,'1e'+k,{'font-size':10.5,fill:'var(--muted)','text-anchor':'end'}));}
+    Ns.forEach(N=>svg.appendChild(txt(px(N),bot+16,N.toLocaleString(),{'font-size':10,fill:'var(--muted)','text-anchor':'middle'})));
+    svg.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(el('line',{x1:x0,y1:top,x2:x0,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(txt((x0+x1)/2,bot+34,'number of points N  (log)',{'font-size':12.5,fill:'var(--muted)','text-anchor':'middle'}));
+    svg.appendChild(txt(16,(top+bot)/2,'error (log)',{'font-size':12.5,fill:'var(--muted)','text-anchor':'middle',transform:`rotate(-90 16 ${(top+bot)/2})`}));
+    // slope guides anchored at N=64
+    function guide(e0,expo,lab){
+      svg.appendChild(el('line',{x1:px(64),y1:pyv(e0),x2:px(16384),y2:pyv(e0*Math.pow(64/16384,expo)),stroke:'#cbd0d9','stroke-width':1.3,'stroke-dasharray':'6 4'}));
+      svg.appendChild(txt(px(16384)+2,pyv(e0*Math.pow(64/16384,expo)),lab,{'font-size':10.5,fill:'#8a8f9c','text-anchor':'end'}));
+    }
+    guide(0.156,0.5,'−½'); guide(0.04354,1.0,'−1'); guide(0.003401,1.5,'−3/2');
+    function fit(arr){const xs=Ns.map(n=>Math.log10(n)),ys=arr.map(v=>Math.log10(v));const n=xs.length,mx=xs.reduce((a,b)=>a+b)/n,my=ys.reduce((a,b)=>a+b)/n;let nu=0,de=0;for(let i=0;i<n;i++){nu+=(xs[i]-mx)*(ys[i]-my);de+=(xs[i]-mx)**2;}return nu/de;}
+    function series(arr,col,name){
+      let d='';arr.forEach((e,i)=>{d+=(i?'L':'M')+px(Ns[i])+','+pyv(e)+' ';});
+      svg.appendChild(el('path',{d:d.trim(),fill:'none',stroke:col,'stroke-width':2.4}));
+      arr.forEach((e,i)=>svg.appendChild(el('circle',{cx:px(Ns[i]),cy:pyv(e),r:2.8,fill:col})));
+    }
+    series(rand,'var(--random)'); series(sob,'var(--sobol)'); series(ow,'var(--owen)');
+    const lg=[['random '+fit(rand).toFixed(2),'var(--random)'],['Sobol '+fit(sob).toFixed(2),'var(--sobol)'],['Owen-Sobol '+fit(ow).toFixed(2),'var(--owen)']];
+    lg.forEach((s,i)=>{const ly=top+8+i*16;svg.appendChild(el('line',{x1:x1-150,y1:ly,x2:x1-128,y2:ly,stroke:s[1],'stroke-width':3}));svg.appendChild(txt(x1-122,ly+4,s[0],{'font-size':11.5,fill:'var(--ink)'}));});
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

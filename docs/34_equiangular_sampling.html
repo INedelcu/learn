@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>34 — Equiangular sampling for volumetric single scattering — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --falloff:#2b6cb0; --uniform:#dd6b20; --equi:#2f9e64; --light:#d9a500; --accent:#2b6cb0; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--equi)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:160px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button:active{transform:translateY(1px)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Equiangular sampling for volumetric single scattering</h1>
+<p class="sub">34_equiangular_sampling.cpp — a camera ray through fog near a bright light gathers in-scattered light that spikes at the closest point. Sample distances by the 1/d² falloff — whose inverse CDF is an arctangent — and the variance collapses.</p>
+
+<p class="lead">Picture a camera ray crossing fog near a small bright light — the classic god-rays setup. The in-scattered light gathered along the ray is dominated by the inverse-square falloff to the light, $1/(h^2+t^2)$, where $t$ runs along the ray and $h$ is its closest distance to the light. That integrand is a sharp spike near the closest point, and sampling $t$ uniformly wastes almost every sample far from it. <strong>Equiangular sampling</strong> (Kulla &amp; Conty 2012) draws $t$ with a density matching $1/(h^2+t^2)$ — which has an analytic inverse CDF — so the estimator is nearly constant and the variance nearly vanishes.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> The single-scattering integrand spikes as $1/(h^2+t^2)$ near the ray's closest approach to the light; equiangular sampling draws $t$ with density $\propto 1/(h^2+t^2)$ via the arctangent inverse CDF $t=h\tan\!\big(\theta_a+u(\theta_b-\theta_a)\big)$ — so $f/p$ is constant (zero variance for the bare falloff, the importance-sampling ideal of example 06) while uniform sampling sprays its samples where the integrand is nearly zero.</p>
+</div>
+
+<div class="legend">
+  <span><i class="swatch" style="border-color:var(--falloff)"></i> falloff $1/(h^2+t^2)$</span>
+  <span><i class="dot" style="background:var(--uniform)"></i> uniform samples</span>
+  <span><i class="dot" style="background:var(--equi)"></i> equiangular samples</span>
+  <span><i class="dot" style="background:var(--light)"></i> closest point</span>
+</div>
+
+
+<h2 id="1">1. The integrand spikes at the closest point<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Along the camera ray, the distance to the light at parameter $t$ is $d(t)=\sqrt{h^2+t^2}$, minimized at $t=0$ (the closest point). The in-scattered contribution falls as $1/d^2$:</p>
+$$f(t)=\frac{1}{h^2+t^2},$$
+<p>a Lorentzian spike of width $\sim h$ centered on $t=0$. The smaller $h$ — the nearer the ray passes the light — the sharper the spike and the more concentrated the energy. Sampling $t$ uniformly over the ray segment puts most samples out on the flat tails where $f\approx0$, and only rarely lands one under the spike that holds nearly all the integral — the recipe for high variance. Slide $h$ and watch the spike sharpen while uniform samples (orange) miss it and equiangular samples (green) track it:</p>
+
+<figure>
+<svg id="fig-spike" viewBox="0 0 600 320" role="img" aria-label="The 1/(h^2+t^2) falloff with uniform samples spread evenly and equiangular samples concentrated at the spike."></svg>
+<div class="ctl">
+  closest distance $h$ = <b id="eq-hval" style="display:inline-block;min-width:2.4em;text-align:right;font-variant-numeric:tabular-nums">0.10</b>
+  <input id="eq-h" type="range" min="3" max="60" value="10" step="1">
+</div>
+<figcaption>Figure 1. The falloff <span style="color:var(--falloff)">$1/(h^2+t^2)$</span> over the ray segment, peaking at the <span style="color:var(--light)">closest point</span> $t=0$. <span style="color:var(--uniform)">Uniform samples</span> are evenly spaced in $t$, so almost all land on the near-zero tails. <span style="color:var(--equi)">Equiangular samples</span> are dense under the spike and sparse on the tails — exactly where the integrand puts its weight. Shrink $h$ and uniform sampling's mismatch becomes hopeless.</figcaption>
+</figure>
+
+
+<h2 id="2">2. Sample the angle: an arctangent inverse CDF<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Importance-sample the falloff: take $p(t)\propto 1/(h^2+t^2)$. The normalizer over $[a,b]$ is its integral — and $\int 1/(h^2+t^2)\,dt=\tfrac1h\arctan(t/h)$, so</p>
+$$Z=\int_a^b\frac{dt}{h^2+t^2}=\frac1h\Big(\arctan\tfrac{b}{h}-\arctan\tfrac{a}{h}\Big),\qquad p(t)=\frac{1}{Z\,(h^2+t^2)}.$$
+<p>Invert the CDF (<a href="05_sampling_distributions.html#2">example 05</a>): set the cumulative $\frac1{Zh}\big(\arctan\tfrac th-\arctan\tfrac ah\big)$ equal to $u$ and solve for $t$. The $\arctan$ turns the substitution into a uniform draw <em>in angle</em> — hence "equiangular":</p>
+$$\boxed{\,t=h\tan\!\Big(\theta_a+u\,(\theta_b-\theta_a)\Big),\quad \theta_a=\arctan\tfrac ah,\ \theta_b=\arctan\tfrac bh\,}$$
+<p>Geometrically, $u$ sweeps the angle subtended at the light uniformly between the segment's endpoints, and $t=h\tan\theta$ maps that back to distance along the ray. Equal angle per sample is exactly the $1/d^2$ density.</p>
+
+
+<h2 id="3">3. The variance collapses<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Because the density is the integrand up to the constant $Z$, the per-sample estimator is</p>
+$$\frac{f(t)}{p(t)}=\frac{1/(h^2+t^2)}{1/\big(Z(h^2+t^2)\big)}=Z\quad\text{(constant!)},$$
+<p>so <em>every</em> sample returns the exact integral $Z$ — variance zero. This is the perfect-importance-sampling ideal $p\propto f$ from <a href="06_importance_sampling.html#2">example 06</a>, here realized exactly because the dominant factor $1/d^2$ has a closed-form inverse CDF. The C++ run integrates $\int_{-1}^{1.5}1/(h^2+t^2)\,dt$ with $h=0.1$ (exact $29.7536$):</p>
+
+<table>
+<thead><tr><th>method</th><th class="num">estimate</th><th class="num">variance</th></tr></thead>
+<tbody>
+<tr><td>uniform</td><td class="num">29.700</td><td class="num">3.03e+3</td></tr>
+<tr><td>equiangular</td><td class="num">29.753558</td><td class="num">2.7e−30</td></tr>
+</tbody>
+</table>
+
+<p>The equiangular variance is machine-zero — it is exact on every single sample — while uniform sampling, spraying the flat tails, has variance $\sim3000$. The per-sample estimator value tells the whole story: equiangular is a flat line at $Z$, uniform towers at the closest point and is near-zero everywhere else:</p>
+
+<figure>
+<svg id="fig-est" viewBox="0 0 600 300" role="img" aria-label="Per-sample estimator value across the ray: equiangular flat at the exact integral, uniform spiking at the closest point."></svg>
+<figcaption>Figure 2. The per-sample estimator value as a function of where the sample lands. <span style="color:var(--equi)">Equiangular</span> is the flat line $f/p=Z$ — the exact integral, regardless of $t$ — so its average has no spread. <span style="color:var(--uniform)">Uniform</span>'s estimator $f(t)\,(b-a)$ spikes to $\sim250$ at the closest point and collapses to near zero on the tails; that wild swing is the variance. Matching the density to the integrand turns a spike into a constant.</figcaption>
+</figure>
+
+
+<h2 id="4">4. In the renderer<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Equiangular sampling is the standard way to choose the scatter distance for volumetric single scattering — god rays, light shafts, the glow around a street lamp in fog. A real estimator also carries the transmittance $T(t)$ along the ray and the phase function, so the density no longer matches $f$ <em>exactly</em> and the cancellation is no longer perfect — but the $1/d^2$ factor is by far the spikiest part, so equiangular still wins by large margins, and it is routinely combined with a transmittance-based distance sample through MIS (<a href="24_nee_mis.html#3">example 24</a>): equiangular owns the near-light spike, the transmittance sample owns the falloff through dense media, and MIS takes the better of the two per sample. It is the volumetric cousin of BRDF importance sampling — match the density to the integrand's dominant factor, and the noise goes away.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/34_equiangular_sampling.cpp" target="_blank" rel="noopener"><code>34_equiangular_sampling.cpp</code></a>.</p>
+
+<p>One <code>tan</code> of a uniform angle gives the distance; the estimator is then exact.</p>
+
+<pre class="language-cpp"><code class="language-cpp">double atanA = std::atan(a / h), atanB = std::atan(b / h);
+double Z = (atanB - atanA) / h;                          // integral of 1/(h^2+t^2) over [a,b]
+
+// equiangular: sample t with density proportional to 1/(h^2+t^2)
+double t = h * std::tan(atanA + rng.NextFloat() * (atanB - atanA));   // arctan inverse CDF
+double p = (1.0 / (h*h + t*t)) / Z;                      // normalized density = f/Z
+double est = (1.0 / (h*h + t*t)) / p;                    // f / p = Z  ->  exact, zero variance
+
+// uniform (for contrast): t ~ U[a,b], estimator f(t)*(b-a) -- spikes near t=0, noisy.</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> Volumetric single scattering near a light is governed by the $1/(h^2+t^2)$ falloff — a sharp spike uniform sampling can't find. Equiangular sampling draws the distance with density $\propto1/(h^2+t^2)$ through the arctangent inverse CDF $t=h\tan(\theta_a+u(\theta_b-\theta_a))$, making $f/p=Z$ constant: zero variance for the bare falloff (the example-06 ideal), and a large win even with transmittance and phase folded in. It is how renderers sample distance for god rays.
+</div>
+
+<p class="small" style="margin-top:34px">The latest entry in the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="33_delta_tracking.html">33 — Delta tracking</a>. Builds on: <a href="06_importance_sampling.html">06 — Importance sampling</a>, <a href="05_sampling_distributions.html">05 — Inverse-CDF sampling</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  const a=-1.0, b=1.5;
+  const f=(t,h)=>1/(h*h+t*t);
+  const Zof=h=>(Math.atan(b/h)-Math.atan(a/h))/h;
+
+  // ---------- Figure 1: falloff + sample densities ----------
+  (function(){
+    const svg=document.getElementById('fig-spike'); if(!svg) return;
+    const sl=document.getElementById('eq-h');
+    const x0=56,x1=566,top=28,bot=232;
+    const px=t=>x0+(t-a)/(b-a)*(x1-x0);
+    const gS=el('g'); svg.appendChild(gS); const gD=el('g'); svg.appendChild(gD);
+    function draw(){
+      while(gS.firstChild)gS.removeChild(gS.firstChild);
+      while(gD.firstChild)gD.removeChild(gD.firstChild);
+      const h=+sl.value/100, fmax=f(0,h), py=v=>bot-(v/(fmax*1.05))*(bot-top);
+      // axes
+      gS.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+      [a,0,b].forEach(t=>gS.appendChild(txt(px(t),bot+16,t.toFixed(1),{'font-size':11,fill:'var(--muted)','text-anchor':'middle'})));
+      gS.appendChild(txt((x0+x1)/2,bot+50,'distance along ray  t',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+      // closest point
+      gS.appendChild(el('line',{x1:px(0),y1:top,x2:px(0),y2:bot,stroke:'var(--light)','stroke-width':1,'stroke-dasharray':'3 3'}));
+      gS.appendChild(txt(px(0)+4,top+12,'closest point',{'font-size':10.5,fill:'var(--light)'}));
+      // falloff curve
+      let d='';for(let i=0;i<=240;i++){const t=a+(b-a)*i/240;d+=(i?'L':'M')+px(t).toFixed(1)+','+py(f(t,h)).toFixed(1)+' ';}
+      gS.appendChild(el('path',{d:d.trim(),fill:'none',stroke:'var(--falloff)','stroke-width':2.4}));
+      // sample ticks
+      const n=22, atA=Math.atan(a/h), atB=Math.atan(b/h);
+      for(let i=0;i<n;i++){
+        const tu=a+(i+0.5)/n*(b-a);
+        gD.appendChild(el('line',{x1:px(tu),y1:bot+22,x2:px(tu),y2:bot+30,stroke:'var(--uniform)','stroke-width':2}));
+        const te=h*Math.tan(atA+(i+0.5)/n*(atB-atA));
+        gD.appendChild(el('line',{x1:px(te),y1:bot+32,x2:px(te),y2:bot+40,stroke:'var(--equi)','stroke-width':2}));
+      }
+      gD.appendChild(txt(x1+0,bot+28,'',{}));
+      gS.appendChild(txt(x0-4,bot+28,'uniform',{'font-size':10.5,fill:'var(--uniform)','text-anchor':'end'}));
+      gS.appendChild(txt(x0-4,bot+38,'equiang.',{'font-size':10.5,fill:'var(--equi)','text-anchor':'end'}));
+      document.getElementById('eq-hval').textContent=h.toFixed(2);
+    }
+    sl.addEventListener('input',draw); draw();
+  })();
+
+  // ---------- Figure 2: per-sample estimator value ----------
+  (function(){
+    const svg=document.getElementById('fig-est'); if(!svg) return;
+    const h=0.1, Z=Zof(h);
+    const x0=56,x1=566,top=28,bot=250, YMAX=260;
+    const px=t=>x0+(t-a)/(b-a)*(x1-x0), py=v=>bot-(Math.min(v,YMAX)/YMAX)*(bot-top);
+    [0,50,100,150,200,250].forEach(v=>{svg.appendChild(el('line',{x1:x0,y1:py(v),x2:x1,y2:py(v),stroke:'#eef0f4'}));svg.appendChild(txt(x0-8,py(v)+4,v,{'font-size':10.5,fill:'var(--muted)','text-anchor':'end'}));});
+    svg.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    [a,0,b].forEach(t=>svg.appendChild(txt(px(t),bot+16,t.toFixed(1),{'font-size':11,fill:'var(--muted)','text-anchor':'middle'})));
+    svg.appendChild(txt((x0+x1)/2,bot+32,'where the sample lands  t',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    svg.appendChild(txt(x0-30,top-12,'estimator value',{'font-size':12,fill:'var(--muted)'}));
+    // uniform estimator f(t)*(b-a)
+    let d='';for(let i=0;i<=300;i++){const t=a+(b-a)*i/300;d+=(i?'L':'M')+px(t).toFixed(1)+','+py(f(t,h)*(b-a)).toFixed(1)+' ';}
+    svg.appendChild(el('path',{d:d.trim(),fill:'none',stroke:'var(--uniform)','stroke-width':2.4}));
+    svg.appendChild(txt(px(0)+8,py(250)+14,'uniform: f·(b−a)',{'font-size':11.5,fill:'var(--uniform)'}));
+    // equiangular estimator = Z (flat)
+    svg.appendChild(el('line',{x1:x0,y1:py(Z),x2:x1,y2:py(Z),stroke:'var(--equi)','stroke-width':2.6}));
+    svg.appendChild(txt(x1-2,py(Z)-6,'equiangular: f/p = Z = '+Z.toFixed(2)+'  (flat)',{'font-size':11.5,fill:'var(--equi)','text-anchor':'end'}));
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

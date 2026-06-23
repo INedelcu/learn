@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>36 — Per-pixel RNG seeding: why decorrelation matters — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --bad:#dd6b20; --good:#2f9e64; --accent:#2b6cb0; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--good)}
+  .callout.warn{border-left-color:var(--bad)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  canvas{display:block; width:100%; max-width:220px; margin:0 auto; image-rendering:pixelated; border:1px solid var(--line); border-radius:8px; background:#fff}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Per-pixel RNG seeding: why decorrelation matters</h1>
+<p class="sub">36_rng_decorrelation.cpp — every pixel gets its own random stream, and how you seed it is easy to get wrong. A poorly mixed seed makes neighbouring pixels draw correlated numbers — visible structure no amount of averaging removes cleanly.</p>
+
+<p class="lead">A path tracer gives every pixel its own random number stream. Seeding those streams sounds trivial, but a careless choice — a raw linear index, an under-mixed hash — makes adjacent pixels draw nearly the same numbers. The result isn't "more" or "less" random; each pixel's value is still uniform. It's that neighbours are <strong>correlated</strong>, so the error has low-frequency structure — diagonal banding — that the eye latches onto and averaging cannot easily clean up. The fix is to <em>hash</em> the seed so nearby pixels scatter to unrelated states.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> Seed each pixel's stream by hashing its coordinates (and frame, and convergence step); a good hash sends pixel $i$ and pixel $i{+}1$ to totally unrelated states, so their samples are independent and the per-pixel noise is structureless — whereas a smooth/under-mixed seed leaves neighbours correlated, producing visible banding. The test: the mean absolute difference of adjacent pixels' first samples is $\tfrac13$ for independent uniforms and far below it when they are correlated.</p>
+</div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--bad)"></i> bad seed (smooth / under-mixed)</span>
+  <span><i class="dot" style="background:var(--good)"></i> good seed (Wang hash)</span>
+</div>
+
+
+<h2 id="1">1. Each pixel's stream needs its own seed<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>To make each pixel reproducible and parallel-safe, a renderer derives that pixel's random stream from a <em>seed</em> built out of its identity — pixel coordinates, the frame index, the convergence step. Pixels are laid out on a grid, so their raw seeds are almost identical: pixel $(x,y)$ and $(x{+}1,y)$ differ by one. If the seed-to-stream map is smooth — barely changing for a one-unit change in input — then adjacent pixels produce nearly the same samples, and the image fills with structure instead of noise. Whatever produces the stream, the seed must be <strong>scrambled</strong> first.</p>
+
+
+<h2 id="2">2. Bad seed vs good seed<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Fill an image where each pixel's value is its <em>first</em> random sample, two ways. <strong>Bad</strong>: a smooth function of position, $\operatorname{frac}(0.123x+0.317y)$ — what "low-effort" seeding gives you, adjacent pixels barely differ. <strong>Good</strong>: a Wang hash of the pixel index, which scrambles nearby seeds into unrelated values.</p>
+
+<figure>
+<div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center">
+  <div style="flex:1 1 200px;text-align:center;min-width:180px">
+    <div style="font-size:14px;font-weight:600;color:var(--bad);margin:0 0 4px">bad: smooth seed</div>
+    <canvas id="rg-bad" width="160" height="160"></canvas>
+  </div>
+  <div style="flex:1 1 200px;text-align:center;min-width:180px">
+    <div style="font-size:14px;font-weight:600;color:var(--good);margin:0 0 4px">good: Wang-hashed seed</div>
+    <canvas id="rg-good" width="160" height="160"></canvas>
+  </div>
+</div>
+<div class="panel">
+  <div class="row"><span>mean |adjacent diff| — bad</span><b id="rg-mb" style="color:var(--bad)">—</b></div>
+  <div class="row"><span>mean |adjacent diff| — good</span><b id="rg-mg" style="color:var(--good)">—</b></div>
+</div>
+<figcaption>Figure 1. Each pixel shows its first sample. The <span style="color:var(--bad)">bad</span> seed is diagonal banding — neighbours are nearly equal. The <span style="color:var(--good)">good</span> (Wang-hashed) seed is structureless white noise. Both are uniform in $[0,1]$ on average; only their <em>spatial correlation</em> differs.</figcaption>
+</figure>
+
+<div class="callout">
+<strong>The $\tfrac13$ test.</strong> A clean number for "are neighbours independent?" is the mean absolute difference of adjacent pixels. For two independent uniforms $X,Y\sim U[0,1]$,</p>
+$$\mathbb E\,|X-Y|=\int_0^1\!\!\int_0^1|x-y|\,dx\,dy=2\!\int_0^1\!\!\int_0^y(y-x)\,dx\,dy=2\!\int_0^1\frac{y^2}{2}\,dy=\frac13.$$
+<p style="margin-bottom:0">So independent neighbours average $\tfrac13\approx0.333$; a much smaller value means correlation. The C++ run measures the <span style="color:var(--bad)">bad</span> scheme at $0.2157$ (far below $\tfrac13$ — correlated) and the <span style="color:var(--good)">Wang-hashed</span> scheme at $0.3289$ ($\approx\tfrac13$ — independent).</p>
+</div>
+
+
+<h2 id="3">3. It's correlation, not randomness<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The bad scheme is not "less random" — every pixel's value is still a perfectly good uniform in $[0,1]$. What's wrong is the <em>joint</em> distribution: neighbours move together. A single scanline makes it plain — the bad seed is a smooth sawtooth ramp (each pixel almost predicts the next), the good seed is jagged and unpredictable:</p>
+
+<figure>
+<svg id="fig-scan" viewBox="0 0 600 240" role="img" aria-label="One scanline of pixel values: the bad seed is a smooth sawtooth, the good seed is jagged noise."></svg>
+<figcaption>Figure 2. One row of values vs pixel $x$. The <span style="color:var(--bad)">bad</span> seed climbs in a tidy sawtooth (slope $0.123$/pixel, wrapping) — pure low-frequency structure. The <span style="color:var(--good)">good</span> seed jumps unpredictably between neighbours — high-frequency white noise. Recall from <a href="30_blue_noise.html#2">example 30</a> that low-frequency error is exactly the kind the eye sees and averaging struggles to remove; correlated seeding manufactures the worst possible spectrum.</figcaption>
+</figure>
+
+
+<h2 id="4">4. In the renderer<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The <a href="https://github.com/INedelcu/PathTracingDemo/blob/main/Assets/Shaders/Utils.hlsl">PathTracingDemo</a> renderer seeds its generator by mixing the pixel coordinates, the frame index, and the convergence step through a <strong>Wang hash</strong> (<code>WangHash</code> / <code>RandomFloat01</code> in <code>Utils.hlsl</code>). Folding in the frame and step matters as much as the pixel: it decorrelates a pixel's stream <em>across time</em> too, so successive frames add fresh independent samples rather than re-drawing the same ones. This is the unglamorous plumbing under every sample the renderer takes — and it interacts with everything else here: Owen scrambling (<a href="35_sobol_owen.html#2">example 35</a>) is a fancier per-pixel decorrelation, and the goal of blue-noise seed masks (<a href="30_blue_noise.html#4">example 30</a>) is to make even the residual correlation high-frequency. Good seeding is as important as the sampling math; a great estimator on a correlated stream still looks broken.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/36_rng_decorrelation.cpp" target="_blank" rel="noopener"><code>36_rng_decorrelation.cpp</code></a>.</p>
+
+<p>The Wang hash turns a near-sequential index into a decorrelated state.</p>
+
+<pre class="language-cpp"><code class="language-cpp">// Wang hash: thoroughly scrambles an integer seed (the renderer's family).
+uint32_t WangHash(uint32_t s) {
+    s = (s ^ 61u) ^ (s &gt;&gt; 16);
+    s *= 9u;
+    s = s ^ (s &gt;&gt; 4);
+    s *= 0x27d4eb2du;
+    s = s ^ (s &gt;&gt; 15);
+    return s;
+}
+uint32_t idx = y * W + x;
+float bad  = std::fmod(0.123f*x + 0.317f*y, 1.0f);   // smooth seed -> correlated neighbours
+float good = WangHash(idx) * 0x1p-32f;               // hashed seed -> independent neighbours
+// mean |adjacent diff|:  bad 0.216 (correlated)  vs  good 0.329 (~1/3, independent)
+// the renderer hashes (pixel, frame, convergence step) so streams decorrelate in space AND time.</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> Per-pixel RNG streams must be seeded through a hash, or adjacent pixels — whose raw seeds differ by one — draw correlated numbers and the image shows banding that averaging can't remove. The mean adjacent-pixel difference is $\tfrac13$ for independent uniforms; a smooth seed measures $0.22$ (correlated), a Wang hash $0.33$. It is not about being "more random" but about decorrelation, and hashing the (pixel, frame, step) seed — as the renderer does — is what turns per-pixel streams into clean, structureless noise.
+</div>
+
+<p class="small" style="margin-top:34px">The latest entry in the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="35_sobol_owen.html">35 — Sobol &amp; Owen scrambling</a>. Builds on: <a href="30_blue_noise.html">30 — Blue noise</a>, <a href="13_image_convergence_ppm.html">13 — Image-space convergence</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  function wangHash(s){s=((s^61)^(s>>>16))>>>0;s=Math.imul(s,9)>>>0;s=(s^(s>>>4))>>>0;s=Math.imul(s,0x27d4eb2d)>>>0;s=(s^(s>>>15))>>>0;return s>>>0;}
+  const W=160, H=160;
+  const badVal=(x,y)=>{let v=0.123*x+0.317*y; return v-Math.floor(v);};
+  const goodVal=(x,y)=>wangHash((y*W+x)>>>0)*Math.pow(2,-32);
+
+  // ---------- Figure 1: two images ----------
+  (function(){
+    function render(id,fn){
+      const cv=document.getElementById(id); const ctx=cv.getContext('2d');
+      const img=ctx.createImageData(W,H);
+      for(let y=0;y<H;y++)for(let x=0;x<W;x++){const v=fn(x,y);const g=Math.max(0,Math.min(255,Math.round(v*255)));const o=(y*W+x)*4;img.data[o]=img.data[o+1]=img.data[o+2]=g;img.data[o+3]=255;}
+      ctx.putImageData(img,0,0);
+    }
+    function adjDiff(fn){let s=0,n=0;for(let y=0;y<H;y++)for(let x=0;x<W-1;x++){s+=Math.abs(fn(x+1,y)-fn(x,y));n++;}return s/n;}
+    render('rg-bad',badVal); render('rg-good',goodVal);
+    document.getElementById('rg-mb').textContent=adjDiff(badVal).toFixed(4);
+    document.getElementById('rg-mg').textContent=adjDiff(goodVal).toFixed(4);
+  })();
+
+  // ---------- Figure 2: one scanline ----------
+  (function(){
+    const svg=document.getElementById('fig-scan'); if(!svg) return;
+    const x0=56,x1=566,top=24,bot=200, NX=48, y0=40;
+    const px=i=>x0+(i/(NX-1))*(x1-x0), py=v=>bot-v*(bot-top);
+    [0,0.5,1].forEach(v=>{svg.appendChild(el('line',{x1:x0,y1:py(v),x2:x1,y2:py(v),stroke:'#eef0f4'}));svg.appendChild(txt(x0-8,py(v)+4,v.toFixed(1),{'font-size':11,fill:'var(--muted)','text-anchor':'end'}));});
+    svg.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(txt((x0+x1)/2,bot+30,'pixel x  (one scanline)',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    svg.appendChild(txt(x0-30,top-10,'value',{'font-size':12,fill:'var(--muted)'}));
+    function plot(fn,col,dots){
+      let d='';for(let i=0;i<NX;i++){d+=(i?'L':'M')+px(i).toFixed(1)+','+py(fn(i,y0)).toFixed(1)+' ';}
+      svg.appendChild(el('path',{d:d.trim(),fill:'none',stroke:col,'stroke-width':2}));
+      if(dots)for(let i=0;i<NX;i++)svg.appendChild(el('circle',{cx:px(i),cy:py(fn(i,y0)),r:1.8,fill:col}));
+    }
+    plot(badVal,'var(--bad)',true);
+    plot(goodVal,'var(--good)',true);
+    svg.appendChild(txt(px(NX-1),py(badVal(NX-1,y0))-6,'bad (sawtooth)',{'font-size':11,fill:'var(--bad)','text-anchor':'end'}));
+    svg.appendChild(txt(px(2),top+8,'good (noise)',{'font-size':11,fill:'var(--good)'}));
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>
