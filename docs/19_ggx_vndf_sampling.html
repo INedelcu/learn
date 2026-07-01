@@ -72,6 +72,11 @@
   .twocanvas>div{flex:1 1 220px; text-align:center; min-width:180px}
   canvas{display:block; width:100%; max-width:240px; margin:0 auto; image-rendering:pixelated; border:1px solid var(--line); border-radius:8px; background:#fff}
   .pcap{font-size:14px; font-weight:600; margin:8px 0 4px}
+  #ggx3d{position:relative; display:flex; justify-content:center; min-height:382px}
+  #ggx3d canvas{width:600px; max-width:100%; image-rendering:auto; margin:0; background:transparent; touch-action:none}
+  .fig3d-key{position:absolute; top:10px; left:10px; font-size:12.5px; line-height:1.55; color:var(--muted);
+    background:rgba(255,255,255,.72); padding:7px 10px; border:1px solid var(--line); border-radius:8px; pointer-events:none}
+  .fig3d-key b{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -142,14 +147,11 @@ $$\frac{f_r\cos\theta_i}{\text{pdf}(\omega_i)}=\frac{D(h)\,G_2\,F\big/\big(4(n\!
 <p>No $D$, no division by tiny cosines, no chance of a spike — just a bounded ratio of Smith terms, near 1. Below, watch where the two samplers send their rays: VNDF clusters under the lobe, uniform scatters everywhere.</p>
 
 <figure>
-<div class="twocanvas">
-  <div>
-    <div class="pcap" style="color:var(--bar)">VNDF samples</div>
-    <canvas id="sc-vndf" width="220" height="220"></canvas>
-  </div>
-  <div>
-    <div class="pcap" style="color:var(--uni)">uniform hemisphere</div>
-    <canvas id="sc-uni" width="220" height="220"></canvas>
+<div id="ggx3d" role="img" aria-label="Interactive 3D view: the GGX lobe as a shaded surface inside the hemisphere, with sampled reflection directions on the dome; drag to orbit.">
+  <div class="fig3d-key">
+    <b>drag</b> to rotate · <b>scroll</b> to zoom<br>
+    <span style="color:var(--sun)">◆</span> lobe f·cosθ &nbsp; <span style="color:var(--bar)">●</span> VNDF &nbsp; <span style="color:var(--uni)">●</span> uniform<br>
+    <span style="color:var(--ink)">→</span> view ωₒ &nbsp; <span style="color:var(--hit)">→</span> mirror
   </div>
 </div>
 <div class="ctl">
@@ -157,9 +159,15 @@ $$\frac{f_r\cos\theta_i}{\text{pdf}(\omega_i)}=\frac{D(h)\,G_2\,F\big/\big(4(n\!
   <input id="sc-a" type="range" min="5" max="80" value="20" step="1">
   &nbsp; view $\theta_o$ = <b id="sc-tval" style="display:inline-block; min-width:2.6em; text-align:right; font-variant-numeric:tabular-nums">45°</b>
   <input id="sc-t" type="range" min="0" max="80" value="45" step="1">
+</div>
+<div class="ctl" style="margin-top:8px">
+  strategy:
+  <button id="sc-vndfbtn" class="sel">VNDF</button>
+  <button id="sc-unibtn">uniform</button>
+  <span style="margin-left:auto"></span>
   <button id="sc-roll">Re-roll</button>
 </div>
-<figcaption>Figure 2. 600 sampled reflection directions $\omega_i$, viewed top-down on the hemisphere disk (each dot is $(\omega_{i,x},\omega_{i,y})$). The <span style="color:var(--hit)">green ✕</span> is the mirror direction. <span style="color:var(--bar)">VNDF</span> samples concentrate around it — tightly for low roughness — so nearly every ray carries useful energy; <span style="color:var(--uni)">uniform</span> samples ignore the lobe entirely.</figcaption>
+<figcaption>Figure 2. The scene in 3-D (drag to orbit, scroll to zoom): the <span style="color:var(--sun)">GGX lobe</span> $f_r\cos\theta_i$ drawn as a shaded surface — evaluated per-vertex in a GLSL shader, on a mesh warped by the NDF itself so the spike stays crisp at any roughness — with the <span style="color:var(--ink)">view direction</span> $\omega_o$, its <span style="color:var(--hit)">mirror reflection</span>, and 1,500 sampled directions $\omega_i$ on the unit dome. <span style="color:var(--bar)">VNDF</span> samples pile exactly onto the lobe — tighter as the roughness falls — while <span style="color:var(--uni)">uniform</span> samples ignore it entirely. Orbit to the top-down view to recover the disk picture of the samplers.</figcaption>
 </figure>
 
 
@@ -308,29 +316,340 @@ float GgxG2(const Vec3&amp; wo, const Vec3&amp; wi, float a) {
     slA.addEventListener('input',redraw); slT.addEventListener('input',redraw); redraw();
   })();
 
-  // ---------- Figure 2: sample scatter on the disk ----------
+  // ---------- Figure 2: 3D GGX lobe + sampled directions (WebGL2 + GLSL) ----------
+  // The lobe surface is evaluated per-vertex in the vertex shader; the grid is
+  // warped by the GGX NDF itself so vertices concentrate under the spike at any
+  // roughness. Renders only on interaction — no continuous loop.
   (function(){
-    const cv=document.getElementById('sc-vndf'), cu=document.getElementById('sc-uni'); if(!cv) return;
-    const gv=cv.getContext('2d'), gu=cu.getContext('2d'), S=cv.width, Rd=S/2-8, cx=S/2, cy=S/2;
-    const slA=document.getElementById('sc-a'), slT=document.getElementById('sc-t');
-    function base(ctx){ctx.clearRect(0,0,S,S);ctx.fillStyle='#fff';ctx.fillRect(0,0,S,S);ctx.strokeStyle='#cbd0d9';ctx.beginPath();ctx.arc(cx,cy,Rd,0,2*PI);ctx.stroke();}
-    function plotMirror(ctx,wo){const m=reflect(wo,V(0,0,1));const px=cx+m.x*Rd, py=cy-m.y*Rd;ctx.strokeStyle='#2f9e64';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px-5,py-5);ctx.lineTo(px+5,py+5);ctx.moveTo(px+5,py-5);ctx.lineTo(px-5,py+5);ctx.stroke();}
-    function draw(){
-      const a=+slA.value/100, th=+slT.value*PI/180, wo=woFrom(th);
-      base(gv); base(gu);
-      gv.fillStyle='rgba(43,108,176,0.6)'; gu.fillStyle='rgba(138,147,162,0.6)';
-      for(let i=0;i<600;i++){
-        const h=sampleVNDF(wo,a,Math.random(),Math.random()); const wi=reflect(wo,h);
-        if(wi.z>0){gv.fillRect(cx+wi.x*Rd-1.2,cy-wi.y*Rd-1.2,2.4,2.4);}
-        const z=Math.random(), r=Math.sqrt(Math.max(0,1-z*z)), ph=2*PI*Math.random();
-        const u=V(r*Math.cos(ph),r*Math.sin(ph),z); gu.fillRect(cx+u.x*Rd-1.2,cy-u.y*Rd-1.2,2.4,2.4);
-      }
-      plotMirror(gv,wo); plotMirror(gu,wo);
-      document.getElementById('sc-aval').textContent=a.toFixed(2);
-      document.getElementById('sc-tval').textContent=(+slT.value)+'°';
+    const host=document.getElementById('ggx3d'); if(!host) return;
+    const CSSW=600, CSSH=382, DPR=Math.min(window.devicePixelRatio||1,2);
+    const cv=document.createElement('canvas');
+    cv.width=Math.round(CSSW*DPR); cv.height=Math.round(CSSH*DPR);
+    cv.style.width=CSSW+'px'; cv.style.height=CSSH+'px';
+    host.appendChild(cv);
+    const gl=cv.getContext('webgl2',{antialias:true,alpha:false});
+    if(!gl){ const w=document.createElement('p'); w.className='small'; w.textContent='WebGL2 is not available in this browser.'; host.appendChild(w); return; }
+
+    // ---- GLSL ----
+    const flatVS=`#version 300 es
+layout(location=0) in vec3 aPos;
+uniform mat4 uMVP;
+void main(){ gl_Position=uMVP*vec4(aPos,1.0); }`;
+    const flatFS=`#version 300 es
+precision mediump float;
+uniform vec4 uColor;
+out vec4 o;
+void main(){ o=uColor; }`;
+    const ptVS=`#version 300 es
+layout(location=0) in vec3 aPos;
+uniform mat4 uMVP;
+uniform float uSize;
+void main(){ gl_Position=uMVP*vec4(aPos,1.0); gl_PointSize=uSize; }`;
+    const ptFS=`#version 300 es
+precision mediump float;
+uniform vec4 uColor;
+out vec4 o;
+void main(){
+  vec2 d=gl_PointCoord-0.5;
+  float a=1.0-smoothstep(0.16,0.25,dot(d,d));
+  if(a<0.02) discard;
+  o=vec4(uColor.rgb,uColor.a*a);
+}`;
+    // Lobe surface: each vertex carries grid coords (u1,u2). The vertex shader
+    // warps them with the GGX NDF sampling formula to a half-vector h, reflects
+    // the view vector, evaluates f_r cosθ (F=1) and pushes the vertex out to
+    // radius ∝ value. Slider changes are just uniform updates — no CPU rebuild.
+    const lbVS=`#version 300 es
+layout(location=0) in vec2 aUV;
+uniform mat4 uMVP;
+uniform vec3 uWo;
+uniform float uAlpha;
+uniform float uScale;
+uniform float uLobeR;
+out float vT;
+out vec3 vPos;
+float lam(vec3 v, float a){
+  float c=abs(v.z);
+  if(c>=0.99999) return 0.0;
+  float t2=(1.0-c*c)/(c*c);
+  return 0.5*(-1.0+sqrt(1.0+a*a*t2));
+}
+void main(){
+  float a2=uAlpha*uAlpha;
+  float ct=sqrt((1.0-aUV.x)/(1.0+aUV.x*(a2-1.0)));
+  float st=sqrt(max(0.0,1.0-ct*ct));
+  float phi=6.28318530718*aUV.y;
+  vec3 h=vec3(st*cos(phi), st*sin(phi), ct);
+  float voh=dot(uWo,h);
+  vec3 wi=2.0*voh*h-uWo;
+  float dd=ct*ct*(a2-1.0)+1.0;
+  float D=a2/(3.14159265*dd*dd);
+  float g2=1.0/(1.0+lam(uWo,uAlpha)+lam(wi,uAlpha));
+  float denom=4.0*uWo.z*wi.z;
+  float f=(voh>0.0&&wi.z>0.0&&denom>1e-7)? D*g2/denom*wi.z : 0.0;
+  float tt=clamp(f*uScale,0.0,1.0);
+  vT=tt;
+  vec3 p=wi*(tt*uLobeR);
+  vPos=p;
+  gl_Position=uMVP*vec4(p,1.0);
+}`;
+    const lbFS=`#version 300 es
+precision mediump float;
+in float vT;
+in vec3 vPos;
+out vec4 o;
+void main(){
+  vec3 cold=vec3(0.96,0.91,0.86);
+  vec3 hot=vec3(0.867,0.420,0.125);
+  vec3 col=mix(cold,hot,sqrt(vT));
+  vec3 nrm=normalize(cross(dFdx(vPos),dFdy(vPos)));
+  float sh=0.72+0.28*abs(nrm.z);
+  o=vec4(col*sh,1.0);
+}`;
+    function compileSh(type,src){ const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+      if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+    function programOf(vs,fs){ const pr=gl.createProgram();
+      gl.attachShader(pr,compileSh(gl.VERTEX_SHADER,vs)); gl.attachShader(pr,compileSh(gl.FRAGMENT_SHADER,fs));
+      gl.linkProgram(pr); if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr)); return pr; }
+    const PF=programOf(flatVS,flatFS), PP=programOf(ptVS,ptFS), PL=programOf(lbVS,lbFS);
+    const UF={mvp:gl.getUniformLocation(PF,'uMVP'), color:gl.getUniformLocation(PF,'uColor')};
+    const UP={mvp:gl.getUniformLocation(PP,'uMVP'), color:gl.getUniformLocation(PP,'uColor'), size:gl.getUniformLocation(PP,'uSize')};
+    const UL={mvp:gl.getUniformLocation(PL,'uMVP'), wo:gl.getUniformLocation(PL,'uWo'),
+              alpha:gl.getUniformLocation(PL,'uAlpha'), scale:gl.getUniformLocation(PL,'uScale'), lober:gl.getUniformLocation(PL,'uLobeR')};
+
+    // ---- minimal column-major mat4 ----
+    function lookAt(e,c,up){
+      const nz=a=>{const l=Math.hypot(a[0],a[1],a[2]);return[a[0]/l,a[1]/l,a[2]/l];};
+      const xp=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+      const f=nz([c[0]-e[0],c[1]-e[1],c[2]-e[2]]), s=nz(xp(f,up)), u=xp(s,f);
+      return [s[0],u[0],-f[0],0, s[1],u[1],-f[1],0, s[2],u[2],-f[2],0,
+              -(s[0]*e[0]+s[1]*e[1]+s[2]*e[2]), -(u[0]*e[0]+u[1]*e[1]+u[2]*e[2]), f[0]*e[0]+f[1]*e[1]+f[2]*e[2], 1];
     }
-    slA.addEventListener('input',draw); slT.addEventListener('input',draw);
-    document.getElementById('sc-roll').addEventListener('click',draw); draw();
+    function persp(fovy,asp,near,far){ const s=1/Math.tan(fovy/2), d=near-far;
+      return [s/asp,0,0,0, 0,s,0,0, 0,0,(far+near)/d,-1, 0,0,2*far*near/d,0]; }
+    function mmul(a,b){ const o=new Array(16).fill(0);
+      for(let i=0;i<4;i++)for(let j=0;j<4;j++)for(let k=0;k<4;k++)o[4*i+j]+=b[4*i+k]*a[4*k+j]; return o; }
+
+    // ---- geometry ----
+    function vaoOf(data,size,dynamic){ const v=gl.createVertexArray(); gl.bindVertexArray(v);
+      const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b);
+      gl.bufferData(gl.ARRAY_BUFFER,data,dynamic?gl.DYNAMIC_DRAW:gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,size,gl.FLOAT,false,0,0);
+      gl.bindVertexArray(null); return {vao:v,buf:b}; }
+
+    const SEG=64;
+    const disk=[0,0,0];
+    for(let i=0;i<=SEG;i++){ const a=2*PI*i/SEG; disk.push(Math.cos(a),Math.sin(a),0); }
+    const vDisk=vaoOf(new Float32Array(disk),3);
+    const guides=[];
+    [[0,1],[0.33,Math.sqrt(1-0.33*0.33)],[0.66,Math.sqrt(1-0.66*0.66)]].forEach(zr=>{
+      const z=zr[0], r=zr[1];
+      for(let i=0;i<SEG;i++){ const a0=2*PI*i/SEG, a1=2*PI*(i+1)/SEG;
+        guides.push(r*Math.cos(a0),r*Math.sin(a0),z, r*Math.cos(a1),r*Math.sin(a1),z); }
+    });
+    const vGuides=vaoOf(new Float32Array(guides),3), nGuides=guides.length/3;
+    const vNormal=vaoOf(new Float32Array([0,0,0, 0,0,1.22]),3);
+
+    // lobe grid: (u1,u2) pairs, triangles over an NU x NP grid
+    const NU=48, NP=96, lobeUV=[];
+    const uAt=i=>0.995*i/NU;
+    for(let i=0;i<NU;i++)for(let j=0;j<NP;j++){
+      const u0=uAt(i),u1=uAt(i+1), p0=j/NP,p1=(j+1)/NP;
+      lobeUV.push(u0,p0, u1,p0, u1,p1,  u0,p0, u1,p1, u0,p1);
+    }
+    const vLobe=vaoOf(new Float32Array(lobeUV),2), nLobe=lobeUV.length/2;
+
+    // arrows (view + mirror): small dynamic line+cone buffers
+    function coneAt(dir,base,tipLen,rad){
+      const u0=Math.abs(dir.z)<0.9?V(0,0,1):V(1,0,0);
+      const s=norm(cross(dir,u0)), q=norm(cross(dir,s));
+      const bx=dir.x*base, by=dir.y*base, bz=dir.z*base;
+      const tx=dir.x*(base+tipLen), ty=dir.y*(base+tipLen), tz=dir.z*(base+tipLen);
+      const ring=i=>{ const a=2*PI*i/12;
+        return [bx+rad*(Math.cos(a)*s.x+Math.sin(a)*q.x),
+                by+rad*(Math.cos(a)*s.y+Math.sin(a)*q.y),
+                bz+rad*(Math.cos(a)*s.z+Math.sin(a)*q.z)]; };
+      const tri=[];
+      for(let i=0;i<12;i++){ const b0=ring(i), b1=ring(i+1);
+        tri.push(tx,ty,tz, b0[0],b0[1],b0[2], b1[0],b1[1],b1[2]);
+        tri.push(bx,by,bz, b1[0],b1[1],b1[2], b0[0],b0[1],b0[2]); }
+      return tri;
+    }
+    const vViewLine=vaoOf(new Float32Array(6),3,true),   vViewCone=vaoOf(new Float32Array(216),3,true);
+    const vMirLine =vaoOf(new Float32Array(6),3,true),   vMirCone =vaoOf(new Float32Array(216),3,true);
+    function setArrow(lineVao,coneVao,dir,len){
+      gl.bindBuffer(gl.ARRAY_BUFFER,lineVao.buf);
+      gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([0,0,0, dir.x*len,dir.y*len,dir.z*len]),gl.DYNAMIC_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER,coneVao.buf);
+      gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(coneAt(dir,len,0.09,0.035)),gl.DYNAMIC_DRAW);
+    }
+
+    // ---- samples on the dome ----
+    const NDOTS=1500;
+    let mode='vndf';
+    let alpha=0.20, theta=45*PI/180, wo=woFrom(theta);
+    let dots=new Float32Array(NDOTS*3);
+    const vDots=vaoOf(dots,3,true);
+    function regenDots(){
+      let k=0;
+      for(let i=0;i<NDOTS;i++){
+        let wi;
+        if(mode==='vndf'){
+          let tries=0;
+          do{ const h=sampleVNDF(wo,alpha,Math.random(),Math.random()); wi=reflect(wo,h); tries++; }
+          while(wi.z<=0&&tries<8);
+          if(wi.z<=0) continue;
+        } else {
+          const z=Math.random(), r=Math.sqrt(Math.max(0,1-z*z)), ph=2*PI*Math.random();
+          wi=V(r*Math.cos(ph),r*Math.sin(ph),z);
+        }
+        dots[k++]=wi.x*1.002; dots[k++]=wi.y*1.002; dots[k++]=wi.z*1.002;
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER,vDots.buf);
+      gl.bufferData(gl.ARRAY_BUFFER,dots.subarray(0,k),gl.DYNAMIC_DRAW);
+      return k/3;
+    }
+    let nDotsLive=0;
+
+    // peak of f_r cosθ over the incidence plane, for lobe normalization
+    function peakF(){
+      let mx=1e-9;
+      for(let i=0;i<=720;i++){ const ti=-PI/2+i/720*PI; const wi=V(Math.sin(ti),0,Math.cos(ti));
+        if(wi.z<=0) continue;
+        const h=norm(add(wo,wi)); const f=brdfNoF(wo,wi,h,alpha)*wi.z;
+        if(f>mx) mx=f; }
+      return mx;
+    }
+    let uScale=1/peakF();
+
+    // hemisphere quadrature of E(wo) — same values as the C++ reference table
+    function quadE(a,th){
+      const w=woFrom(th); const Nt=180,Np=360; let s=0;
+      for(let it=0;it<Nt;it++){ const tt=(it+0.5)/Nt*(PI/2), ct=Math.cos(tt), st=Math.sin(tt);
+        for(let ip=0;ip<Np;ip++){ const ph=(ip+0.5)/Np*2*PI;
+          const wi=V(st*Math.cos(ph),st*Math.sin(ph),ct);
+          const h=norm(add(w,wi)); s+=brdfNoF(w,wi,h,a)*ct*st; } }
+      return s*(PI/2/Nt)*(2*PI/Np);
+    }
+
+    // ---- orbit camera ----
+    const FOVY=0.62;
+    let yaw=-1.25, pitch=0.38, dist=2.95;
+    const TGT=[0,0,0.30];
+    function mvpMat(){
+      const cp=Math.cos(pitch);
+      const eye=[TGT[0]+dist*cp*Math.cos(yaw), TGT[1]+dist*cp*Math.sin(yaw), TGT[2]+dist*Math.sin(pitch)];
+      return mmul(persp(FOVY,CSSW/CSSH,0.1,50), lookAt(eye,TGT,[0,0,1]));
+    }
+
+    const DOTCOL={vndf:[0.169,0.423,0.690], uni:[0.541,0.576,0.635]};
+    const opts={lobe:true,dots:true};
+    let frames=0;
+    function draw(){
+      frames++;
+      const M=new Float32Array(mvpMat());
+      gl.viewport(0,0,cv.width,cv.height);
+      gl.clearColor(0.969,0.973,0.984,1);
+      gl.enable(gl.DEPTH_TEST);
+      gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+      // scene
+      gl.useProgram(PF); gl.uniformMatrix4fv(UF.mvp,false,M);
+      gl.bindVertexArray(vDisk.vao); gl.uniform4f(UF.color,0.922,0.937,0.961,1);
+      gl.drawArrays(gl.TRIANGLE_FAN,0,SEG+2);
+      gl.bindVertexArray(vGuides.vao); gl.uniform4f(UF.color,0.804,0.831,0.871,1);
+      gl.drawArrays(gl.LINES,0,nGuides);
+      gl.bindVertexArray(vNormal.vao); gl.uniform4f(UF.color,0.72,0.76,0.82,1);
+      gl.drawArrays(gl.LINES,0,2);
+      // view arrow (ink) + mirror arrow (green)
+      gl.uniform4f(UF.color,0.122,0.141,0.188,1);
+      gl.bindVertexArray(vViewLine.vao); gl.drawArrays(gl.LINES,0,2);
+      gl.bindVertexArray(vViewCone.vao); gl.drawArrays(gl.TRIANGLES,0,72);
+      gl.uniform4f(UF.color,0.184,0.620,0.392,1);
+      gl.bindVertexArray(vMirLine.vao); gl.drawArrays(gl.LINES,0,2);
+      gl.bindVertexArray(vMirCone.vao); gl.drawArrays(gl.TRIANGLES,0,72);
+      // the lobe surface
+      if(opts.lobe){
+        gl.useProgram(PL); gl.uniformMatrix4fv(UL.mvp,false,M);
+        gl.uniform3f(UL.wo,wo.x,wo.y,wo.z);
+        gl.uniform1f(UL.alpha,alpha); gl.uniform1f(UL.scale,uScale); gl.uniform1f(UL.lober,0.92);
+        gl.bindVertexArray(vLobe.vao);
+        gl.drawArrays(gl.TRIANGLES,0,nLobe);
+      }
+      // sampled directions
+      if(opts.dots&&nDotsLive>0){
+        gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+        gl.depthMask(false);
+        gl.useProgram(PP); gl.uniformMatrix4fv(UP.mvp,false,M);
+        const c=DOTCOL[mode==='vndf'?'vndf':'uni'];
+        gl.uniform1f(UP.size,4.4*DPR);
+        gl.uniform4f(UP.color,c[0],c[1],c[2],0.85);
+        gl.bindVertexArray(vDots.vao);
+        gl.drawArrays(gl.POINTS,0,nDotsLive);
+        gl.depthMask(true); gl.disable(gl.BLEND);
+      }
+      gl.bindVertexArray(null);
+    }
+    let pending=false;
+    function requestDraw(){ if(pending) return; pending=true;
+      requestAnimationFrame(function(){ pending=false; draw(); }); }
+
+    // ---- interaction ----
+    let dragging=false,lx=0,ly=0;
+    cv.addEventListener('pointerdown',e=>{ dragging=true; lx=e.clientX; ly=e.clientY; cv.setPointerCapture(e.pointerId); });
+    cv.addEventListener('pointermove',e=>{ if(!dragging) return;
+      yaw-=(e.clientX-lx)*0.008;
+      pitch=Math.max(-0.08,Math.min(1.45,pitch+(e.clientY-ly)*0.008));
+      lx=e.clientX; ly=e.clientY; requestDraw(); });
+    cv.addEventListener('pointerup',()=>{ dragging=false; });
+    cv.addEventListener('pointercancel',()=>{ dragging=false; });
+    cv.addEventListener('wheel',e=>{ e.preventDefault();
+      dist=Math.max(1.6,Math.min(8,dist*Math.exp(e.deltaY*0.0011))); requestDraw(); },{passive:false});
+
+    // ---- parameters & controls ----
+    const slA=document.getElementById('sc-a'), slT=document.getElementById('sc-t');
+    function refresh(){
+      alpha=+slA.value/100; theta=+slT.value*PI/180; wo=woFrom(theta);
+      uScale=1/peakF();
+      setArrow(vViewLine,vViewCone,wo,1.14);
+      setArrow(vMirLine,vMirCone,V(-wo.x,-wo.y,wo.z),1.14);
+      nDotsLive=regenDots();
+      document.getElementById('sc-aval').textContent=alpha.toFixed(2);
+      document.getElementById('sc-tval').textContent=(+slT.value)+'°';
+      draw();
+    }
+    function setMode(m){ mode=m; nDotsLive=regenDots(); draw();
+      document.getElementById('sc-vndfbtn').classList.toggle('sel',m==='vndf');
+      document.getElementById('sc-unibtn').classList.toggle('sel',m==='uni'); }
+    slA.addEventListener('input',refresh); slT.addEventListener('input',refresh);
+    document.getElementById('sc-vndfbtn').onclick=function(){ setMode('vndf'); };
+    document.getElementById('sc-unibtn').onclick=function(){ setMode('uni'); };
+    document.getElementById('sc-roll').onclick=function(){ nDotsLive=regenDots(); draw(); };
+
+    // verification hooks: the VNDF estimator of E(wo) is the mean of G2/G1 —
+    // it must land on the same quadrature values as the C++ reference table.
+    window.__fig19={
+      E:function(K){ let s=0;
+        for(let i=0;i<K;i++){ const h=sampleVNDF(wo,alpha,Math.random(),Math.random());
+          const wi=reflect(wo,h); s+=(wi.z>0? G2(wo,wi,alpha)/G1(wo,alpha) : 0); }
+        return s/K; },
+      quadE:function(a,thDeg){ return quadE(a,thDeg*PI/180); },
+      setParams:function(a,thDeg){ slA.value=Math.round(a*100); slT.value=thDeg; refresh(); },
+      probe:function(){ draw();
+        const px=new Uint8Array(cv.width*cv.height*4);
+        gl.readPixels(0,0,cv.width,cv.height,gl.RGBA,gl.UNSIGNED_BYTE,px);
+        let lit=0; for(let i=0;i<px.length;i+=4) if(Math.abs(px[i]-247)>10) lit++;
+        return lit; },
+      setView:function(y,pch,d){ yaw=y; pitch=Math.max(-0.08,Math.min(1.45,pch));
+        if(d) dist=Math.max(1.6,Math.min(8,d)); draw(); },
+      layers:function(o){ if(o&&typeof o.lobe==='boolean')opts.lobe=o.lobe;
+        if(o&&typeof o.dots==='boolean')opts.dots=o.dots; draw(); },
+      get mode(){ return mode; }, get alpha(){ return alpha; },
+      get thetaDeg(){ return Math.round(theta*180/PI); },
+      get frames(){ return frames; },
+      redraw:draw
+    };
+
+    refresh();
   })();
 
   // ---------- Figure 3: live convergence ----------
