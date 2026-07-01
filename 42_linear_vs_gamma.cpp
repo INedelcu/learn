@@ -1,4 +1,4 @@
-// 40 — Average in linear space: the gamma trap
+// 42 — Average in linear space: the gamma trap
 // ============================================
 //
 // Monitors are non-linear: an 8-bit pixel value is sRGB-ENCODED, not proportional

@@ -1,4 +1,4 @@
-// 39 — Pixel reconstruction filters: turning samples into a pixel
+// 41 — Pixel reconstruction filters: turning samples into a pixel
 // ===============================================================
 //
 // A pixel's value is not just the average of the samples that landed in it -- it

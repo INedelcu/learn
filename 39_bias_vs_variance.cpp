@@ -1,4 +1,4 @@
-// 37 — Bias vs variance: unbiased, consistent, and the difference
+// 39 — Bias vs variance: unbiased, consistent, and the difference
 // ===============================================================
 //
 // Two different things can be wrong with an estimator:

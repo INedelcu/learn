@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>41 — Reconstruction filters: turning samples into a pixel — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --box:#dd6b20; --tent:#2f9e64; --gauss:#2b6cb0; --mitchell:#7c3aed; --ring:#e53e3e; --truth:#d9a500; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--mitchell)}
+  .callout.warn{border-left-color:var(--ring)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:200px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button:active{transform:translateY(1px)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Reconstruction filters: turning samples into a pixel</h1>
+<p class="sub">41_reconstruction_filters.cpp — a pixel is not the plain average of the samples that fell in it. It is a weighted average defined by a reconstruction filter centered on the pixel, and the shape of that filter is the last sharpness-vs-aliasing knob on the image.</p>
+
+<p class="lead">Path tracing produces a cloud of samples at continuous positions on the film; the display wants one value per pixel. The bridge is a <strong>reconstruction filter</strong> $k$ centered on each pixel: the pixel value is the filter-weighted average of nearby samples. The choice of $k$ is not cosmetic — a box filter is sharp but aliases, a Gaussian is smooth but blurry, and the Mitchell–Netravali filter buys apparent sharpness with small <em>negative</em> lobes that make edges ring. Every property that matters — brightness preservation, the softness of an edge, the overshoot of ringing — falls straight out of two integrals of $k$.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> A filter must integrate to $1$ or it rescales image brightness (box, tent, Gaussian all check out at $1.0000$); reconstructing a step edge is just the filter's <em>running integral</em>, which is why every filter passes through exactly $0.5$ at the edge center and why the box gives a hard 1-pixel ramp — and a filter with negative lobes (Mitchell) has a non-monotone running integral, so the edge overshoots past $1$ and dips below $0$: that overshoot is ringing, and it is the very thing that makes the filter look sharp.</p>
+</div>
+
+<div class="legend">
+  <span><i class="swatch" style="border-color:var(--box)"></i> box</span>
+  <span><i class="swatch" style="border-color:var(--tent)"></i> tent</span>
+  <span><i class="swatch" style="border-color:var(--gauss)"></i> gaussian</span>
+  <span><i class="swatch" style="border-color:var(--mitchell)"></i> mitchell</span>
+  <span><i class="dot" style="background:var(--ring)"></i> ringing (overshoot)</span>
+</div>
+
+
+<h2 id="1">1. A pixel is a filter-weighted average<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>A pixel centered at $p$ does not simply average the samples that landed inside its square. It takes a <em>weighted</em> average, with weights given by a reconstruction filter $k$ centered on $p$:</p>
+$$c(p)=\frac{\sum_i k(x_i-p)\,c_i}{\sum_i k(x_i-p)},$$
+<p>where $x_i$ are sample positions and $c_i$ their colors. A wide filter reaches into neighboring pixels; a narrow one ignores them. The box filter — flat over $|x|&lt;\tfrac12$ — recovers the naïve "average the samples in this pixel". The others fall off with distance, so a sample near the pixel center counts more than one near the edge. The four classic 1D kernels (renderers use the 2D product $k(x)k(y)$):</p>
+
+<figure>
+<svg id="fig-kernels" viewBox="0 0 600 300" role="img" aria-label="The four reconstruction kernels box, tent, Gaussian and Mitchell-Netravali plotted over x, showing Mitchell's negative side lobes."></svg>
+<figcaption>Figure 1. The four kernels. <span style="color:var(--box)">Box</span> (flat, radius $\tfrac12$) and <span style="color:var(--tent)">tent</span> (linear, radius $1$) are cheap and non-negative. The <span style="color:var(--gauss)">Gaussian</span> ($\sigma=\tfrac12$) is the smoothest and stays positive everywhere. <span style="color:var(--mitchell)">Mitchell–Netravali</span> ($B=C=\tfrac13$, radius $2$) has small <span style="color:var(--ring)">negative lobes</span> just outside $|x|=1$ — those are what sharpen edges, and what make them ring.</figcaption>
+</figure>
+
+
+<h2 id="2">2. A filter must integrate to one<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Feed the pipeline a flat field of constant radiance $c_0$. Every reconstructed pixel should come back as $c_0$ — no brightening, no darkening. In the continuous limit that says $\int k(x)\,dx=1$: the weights must sum to unity. A kernel that integrates to $1.05$ would make a uniform image $5\%$ too bright. The first three check out by hand:</p>
+$$\int_{-1/2}^{1/2}\!\!1\,dx=1,\qquad \int_{-1}^{1}(1-|x|)\,dx=2\!\int_0^1(1-x)\,dx=2\cdot\tfrac12=1,\qquad \frac{1}{\sigma\sqrt{2\pi}}\!\int_{\mathbb R}\! e^{-x^2/2\sigma^2}dx=1,$$
+<p>the Gaussian using $\sigma=\tfrac12$, whose normalizer $1/(\sigma\sqrt{2\pi})=0.79788$ is exactly the constant in the code. The Mitchell–Netravali cubic is normalized <em>by construction</em> for every $(B,C)$ — the $/6$ in its definition is precisely that normalizer. The C++ integrates each kernel numerically and confirms all four:</p>
+
+<table>
+<thead><tr><th>filter</th><th class="num">$\int k$ (numeric)</th><th>note</th></tr></thead>
+<tbody>
+<tr><td><span style="color:var(--box)">box</span></td><td class="num">1.0000</td><td>exact</td></tr>
+<tr><td><span style="color:var(--tent)">tent</span></td><td class="num">1.0000</td><td>exact</td></tr>
+<tr><td><span style="color:var(--gauss)">gaussian</span></td><td class="num">0.9999</td><td>$0.0001$ lost past radius $2$</td></tr>
+<tr><td><span style="color:var(--mitchell)">mitchell</span></td><td class="num">1.0000</td><td>normalized for all $B,C$</td></tr>
+</tbody>
+</table>
+
+<p>The Gaussian's $0.9999$ is not error in the formula — it is the truncation: a true Gaussian has infinite support, and clipping it at radius $2$ discards the $0.01\%$ of mass in the tails. In practice you either accept it or renormalize by the truncated sum.</p>
+
+
+<h2 id="3">3. Reconstructing an edge is the filter's running integral<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The sharpest test signal is a step edge: black for $t&lt;0$, white for $t\ge 0$, i.e. $s(t)=[t\ge0]$. Reconstructing it at a pixel centered at $p$ convolves the step with the filter:</p>
+$$R(p)=\int s(t)\,k(t-p)\,dt=\int_{0}^{\infty} k(t-p)\,dt=\int_{-p}^{\infty} k(u)\,du = 1-C(-p),$$
+<p>substituting $u=t-p$ and writing $C(x)=\int_{-\infty}^{x}k$ for the filter's cumulative. So <strong>the reconstructed edge is nothing but the filter's running integral, read backwards.</strong> Two consequences drop out immediately. First, at the edge center $p=0$ every normalized <em>symmetric</em> filter gives $R(0)=\int_0^\infty k = \tfrac12$ — half the mass sits on each side. The C++ table shows all four columns hitting exactly $0.5000$ at $p=0$, a clean check on the whole pipeline. Second, for the box, $R(p)=\int_{-p}^{1/2}1\,du=\tfrac12+p$ clamped to $[0,1]$: a straight ramp exactly one pixel wide. Wider filters spread the ramp wider and softer.</p>
+
+<figure>
+<svg id="fig-edge" viewBox="0 0 600 320" role="img" aria-label="Reconstructed step-edge profiles for the four filters as the pixel center p sweeps across the edge; Mitchell overshoots above 1 and below 0."></svg>
+<div class="ctl">
+  <label>pixel center $p$: <input id="rf-p" type="range" min="-1.5" max="1.5" step="0.05" value="0"></label>
+  <span id="rf-preadout" class="small"></span>
+</div>
+<div class="panel">
+  <div class="row"><span style="color:var(--box)">box</span><b id="rf-box">—</b></div>
+  <div class="row"><span style="color:var(--tent)">tent</span><b id="rf-tent">—</b></div>
+  <div class="row"><span style="color:var(--gauss)">gaussian</span><b id="rf-gauss">—</b></div>
+  <div class="row"><span style="color:var(--mitchell)">mitchell</span><b id="rf-mitch">—</b></div>
+</div>
+<figcaption>Figure 2. The reconstructed edge $R(p)$ for each filter (dots are the C++ table values). All four cross $\tfrac12$ at $p=0$. The <span style="color:var(--box)">box</span> is a hard one-pixel ramp; the <span style="color:var(--gauss)">Gaussian</span> a wide soft one that never quite reaches $0$ or $1$; <span style="color:var(--mitchell)">Mitchell</span> a crisp ramp that pokes into the <span style="color:var(--ring)">shaded ringing zones</span> above $1$ and below $0$. Drag $p$ to read any column against the C++ output.</figcaption>
+</figure>
+
+
+<h2 id="4">4. Ringing is exactly the negative lobes<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Whether an edge can overshoot is decided entirely by the sign of $k$. If $k\ge0$ everywhere — box, tent, Gaussian — then $C(x)=\int_{-\infty}^x k$ climbs <em>monotonically</em> from $0$ to $1$, so $R(p)=1-C(-p)$ is trapped in $[0,1]$. No overshoot is possible; the price is that a non-negative kernel wide enough to suppress aliasing must also blur. The Mitchell cubic breaks this on purpose. On $1&lt;|x|&lt;2$ its outer lobe goes negative — plugging $B=C=\tfrac13$ into the outer piece gives</p>
+$$k(x)=\frac{-\tfrac73 x^3+12x^2-20x+\tfrac{32}{3}}{6},\qquad k(1.5)=\frac{-0.208}{6}\approx-0.035 &lt; 0.$$
+<p>A negative lobe makes $C$ <em>non-monotone</em>: near $x=-2$ the cumulative first dips below $0$, so $R(p)=1-C(-p)$ climbs <em>above</em> $1$ for $p\in(1,2)$; symmetrically it dips below $0$ for $p\in(-2,-1)$. That is ringing — a bright fringe on the light side of an edge, a dark fringe on the dark side. The C++ table shows it to the digit:</p>
+
+<table>
+<thead><tr><th class="num">$p$</th><th class="num">box</th><th class="num">tent</th><th class="num">gauss</th><th class="num">mitchell</th></tr></thead>
+<tbody>
+<tr><td class="num">−1.25</td><td class="num">0.0000</td><td class="num">0.0000</td><td class="num">0.0062</td><td class="num" style="color:var(--ring)">−0.0161</td></tr>
+<tr><td class="num">−0.25</td><td class="num">0.2500</td><td class="num">0.2812</td><td class="num">0.3085</td><td class="num">0.2871</td></tr>
+<tr><td class="num">0.00</td><td class="num">0.5000</td><td class="num">0.5000</td><td class="num">0.5000</td><td class="num">0.5000</td></tr>
+<tr><td class="num">0.25</td><td class="num">0.7500</td><td class="num">0.7187</td><td class="num">0.6915</td><td class="num">0.7129</td></tr>
+<tr><td class="num">1.00</td><td class="num">1.0000</td><td class="num">1.0000</td><td class="num">0.9773</td><td class="num" style="color:var(--ring)">1.0139</td></tr>
+<tr><td class="num">1.25</td><td class="num">1.0000</td><td class="num">1.0000</td><td class="num">0.9938</td><td class="num" style="color:var(--ring)">1.0161</td></tr>
+</tbody>
+</table>
+
+<p>The box column is a hard staircase; the Gaussian column eases in over the widest span but stays strictly inside $[0,1]$ (it reads $0.9773$, not $1$, even a full pixel past the edge — that is its blur). Only Mitchell breaks the bounds, and that little $\pm1.6\%$ overshoot at $p=\pm1.25$ is what the eye reads as a crisp, sharp edge. Sharpness and ringing are the same phenomenon.</p>
+
+
+<h2 id="5">5. Choosing a filter, and what the renderer does<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The filter is the last aliasing-vs-sharpness knob on the image. <strong>Box</strong>: sharpest passband but leaks aliasing badly — jaggies and moiré. <strong>Tent</strong>: cheap, mild smoothing, a common default when a real filter is overkill. <strong>Gaussian</strong>: no ringing ever (it is strictly positive), at the cost of visible blur. <strong>Mitchell–Netravali</strong> with $B=C=\tfrac13$: the tuned sweet spot most renderers ship as default, sharp-looking with only faint ringing.</p>
+
+<p>This demo takes the simplest choice by construction. The ray generator jitters each primary ray <em>uniformly</em> within the pixel square and accumulates the results with equal weight — a uniform jitter over the pixel is exactly a <strong>box</strong> reconstruction. That is the sibling of <a href="12_gaussian_box_muller.html">example 12</a>: to use a Gaussian filter instead, you would <em>importance-sample the filter</em> — jitter primary rays with a Gaussian offset (Box–Muller) rather than a uniform one — so the sample density itself carries the filter weight and no explicit weighted sum is needed. Choosing the reconstruction filter and choosing the sample jitter distribution are two views of the same decision.</p>
+
+
+<h2 id="6">6. The code<a class="hlink" href="#6" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/41_reconstruction_filters.cpp" target="_blank" rel="noopener"><code>41_reconstruction_filters.cpp</code></a>.</p>
+
+<p>The four kernels, and the Mitchell cubic whose negative outer lobe produces the ringing.</p>
+
+<pre class="language-cpp"><code class="language-cpp">float Box(float x)  { return std::fabs(x) &lt; 0.5f ? 1.0f : 0.0f; }        // flat, radius 1/2
+float Tent(float x) { x = std::fabs(x); return x &lt; 1.0f ? 1.0f - x : 0.0f; }
+float Gauss(float x){ return std::fabs(x) &gt; 2.0f ? 0.0f
+                          : 0.7978846f * std::exp(-2.0f*x*x); }          // sigma=1/2 -> integral ~1
+
+float Mitchell(float x) {               // B = C = 1/3, radius 2, normalized by the /6
+    const float B = 1.0f/3, C = 1.0f/3;
+    x = std::fabs(x); float x2 = x*x, x3 = x2*x;
+    if (x &lt; 1) return ((12-9*B-6*C)*x3 + (-18+12*B+6*C)*x2 + (6-2*B)) / 6.0f;
+    if (x &lt; 2) return ((-B-6*C)*x3 + (6*B+30*C)*x2 + (-12*B-48*C)*x + (8*B+24*C)) / 6.0f;
+    return 0.0f;                         // outer piece goes NEGATIVE near x=1.5 -> ringing
+}
+
+// Reconstruct a step edge s(t)=[t&gt;=0] at center p:  integral s(t) k(t-p) dt / norm.
+double R = 0, dx = 2*radius / M;
+for (int i = 0; i &lt; M; ++i) {
+    double t = p - radius + (i + 0.5) * dx;
+    if (t &gt;= 0) R += k(t - p);           // the step is 1 only for t &gt;= 0
+}
+R = R * dx / norm;                       // = 1 - C(-p): the filter's running integral</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> A pixel is a filter-weighted average of samples, and everything the filter does is two integrals. It must integrate to $1$ (box/tent/gauss/mitchell $=1.0000/1.0000/0.9999/1.0000$) or it rescales brightness. Reconstructing an edge is the filter's running integral $R(p)=1-C(-p)$, so all symmetric filters pass through $0.5$ at the edge and the box gives a one-pixel ramp. A non-negative filter can never overshoot but must blur; Mitchell's negative lobes make its running integral non-monotone, so its edge rings ($1.0161$ at $p=1.25$) — and that overshoot is exactly what reads as sharpness. Filter choice and jitter distribution (<a href="12_gaussian_box_muller.html">example 12</a>) are the same knob.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="40_fireflies_clamping.html">40 — Fireflies &amp; clamping</a>. Builds on: <a href="12_gaussian_box_muller.html">12 — Gaussian sampling (Box–Muller)</a>, <a href="13_image_convergence_ppm.html">13 — Image convergence</a>. Next: <a href="42_linear_vs_gamma.html">42 — Linear vs gamma</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+
+  // ---- kernels (match the C++) ----
+  function Box(x){return Math.abs(x)<0.5?1:0;}
+  function Tent(x){x=Math.abs(x);return x<1?1-x:0;}
+  function Gauss(x){return Math.abs(x)>2?0:0.7978846*Math.exp(-2*x*x);}
+  function Mitchell(x){const B=1/3,C=1/3;x=Math.abs(x);const x2=x*x,x3=x2*x;
+    if(x<1)return((12-9*B-6*C)*x3+(-18+12*B+6*C)*x2+(6-2*B))/6;
+    if(x<2)return((-B-6*C)*x3+(6*B+30*C)*x2+(-12*B-48*C)*x+(8*B+24*C))/6;
+    return 0;}
+  const NORM={box:1,tent:1,gauss:0.9999,mitchell:1};
+  // reconstructed edge R(p) for kernel k with radius r (numeric, matches C++ EdgeValue)
+  function edge(k,p,r,norm){const M=2000,dx=2*r/M;let s=0;for(let i=0;i<M;i++){const t=p-r+(i+0.5)*dx;if(t>=0)s+=k(t-p);}return s*dx/norm;}
+
+  // ---------- Figure 1: kernel shapes ----------
+  (function(){
+    const svg=document.getElementById('fig-kernels'); if(!svg) return;
+    const x0=50,x1=566,top=24,bot=250, XR=2.5;
+    const px=x=>x0+(x+XR)/(2*XR)*(x1-x0);
+    const ymin=-0.12, ymax=1.05;
+    const py=v=>bot-(v-ymin)/(ymax-ymin)*(bot-top);
+    // axes
+    svg.appendChild(el('line',{x1:x0,y1:py(0),x2:x1,y2:py(0),stroke:'#9aa0ad'}));
+    [-2,-1,0,1,2].forEach(x=>{svg.appendChild(el('line',{x1:px(x),y1:top,x2:px(x),y2:bot,stroke:'#eef0f4'}));svg.appendChild(txt(px(x),bot+16,x.toString(),{'font-size':10.5,fill:'var(--muted)','text-anchor':'middle'}));});
+    [0,0.5,1].forEach(v=>{svg.appendChild(txt(x0-8,py(v)+4,v.toString(),{'font-size':10,fill:'var(--muted)','text-anchor':'end'}));});
+    svg.appendChild(txt((x0+x1)/2,bot+30,'distance from pixel center  x',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    svg.appendChild(txt(x0-34,top-6,'k(x)',{'font-size':12,fill:'var(--muted)'}));
+    // shade Mitchell negative region
+    svg.appendChild(el('rect',{x:px(1),y:py(0),width:px(2)-px(1),height:py(ymin)-py(0),fill:'var(--ring)','fill-opacity':0.06}));
+    svg.appendChild(el('rect',{x:px(-2),y:py(0),width:px(-1)-px(-2),height:py(ymin)-py(0),fill:'var(--ring)','fill-opacity':0.06}));
+    function curve(k,col,w){let d='';for(let i=0;i<=240;i++){const x=-XR+2*XR*i/240;d+=(i?'L':'M')+px(x).toFixed(1)+','+py(k(x)).toFixed(1)+' ';}svg.appendChild(el('path',{d:d.trim(),fill:'none',stroke:col,'stroke-width':w||2.2}));}
+    curve(Gauss,'var(--gauss)'); curve(Tent,'var(--tent)'); curve(Box,'var(--box)',2.4); curve(Mitchell,'var(--mitchell)',2.6);
+    svg.appendChild(txt(px(0)+5,py(1)-4,'box',{'font-size':11.5,fill:'var(--box)'}));
+    svg.appendChild(txt(px(-0.55),py(0.62),'tent',{'font-size':11.5,fill:'var(--tent)','text-anchor':'end'}));
+    svg.appendChild(txt(px(0.9),py(0.42),'gauss',{'font-size':11.5,fill:'var(--gauss)'}));
+    svg.appendChild(txt(px(0.62),py(0.92),'mitchell',{'font-size':11.5,fill:'var(--mitchell)'}));
+    svg.appendChild(txt(px(1.5),py(-0.055),'negative lobe',{'font-size':10.5,fill:'var(--ring)','text-anchor':'middle'}));
+  })();
+
+  // ---------- Figure 2: edge reconstruction ----------
+  (function(){
+    const svg=document.getElementById('fig-edge'); if(!svg) return;
+    const x0=50,x1=566,top=24,bot=250, PR=1.6;
+    const px=p=>x0+(p+PR)/(2*PR)*(x1-x0);
+    const ymin=-0.14, ymax=1.14;
+    const py=v=>bot-(v-ymin)/(ymax-ymin)*(bot-top);
+    // ringing zones
+    svg.appendChild(el('rect',{x:x0,y:top,width:x1-x0,height:py(1)-top,fill:'var(--ring)','fill-opacity':0.06}));
+    svg.appendChild(el('rect',{x:x0,y:py(0),width:x1-x0,height:bot-py(0),fill:'var(--ring)','fill-opacity':0.06}));
+    // guides
+    [0,0.5,1].forEach(v=>{svg.appendChild(el('line',{x1:x0,y1:py(v),x2:x1,y2:py(v),stroke:'#eef0f4'}));svg.appendChild(txt(x0-8,py(v)+4,v.toString(),{'font-size':10,fill:'var(--muted)','text-anchor':'end'}));});
+    svg.appendChild(el('line',{x1:px(0),y1:top,x2:px(0),y2:bot,stroke:'#cfd4dd','stroke-dasharray':'3 3'}));
+    [-1.5,-1,-0.5,0,0.5,1,1.5].forEach(p=>svg.appendChild(txt(px(p),bot+16,p.toString(),{'font-size':10.5,fill:'var(--muted)','text-anchor':'middle'})));
+    svg.appendChild(txt((x0+x1)/2,bot+30,'pixel center position  p  (edge at p=0)',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    svg.appendChild(txt(px(-1.35),py(1.07),'ringing: R>1',{'font-size':10,fill:'var(--ring)'}));
+    svg.appendChild(txt(px(-1.35),py(-0.07),'ringing: R<0',{'font-size':10,fill:'var(--ring)'}));
+    const filters=[[Box,0.5,NORM.box,'var(--box)'],[Tent,1,NORM.tent,'var(--tent)'],[Gauss,2,NORM.gauss,'var(--gauss)'],[Mitchell,2,NORM.mitchell,'var(--mitchell)']];
+    filters.forEach(([k,r,norm,col])=>{let d='';for(let i=0;i<=200;i++){const p=-PR+2*PR*i/200;d+=(i?'L':'M')+px(p).toFixed(1)+','+py(edge(k,p,r,norm)).toFixed(1)+' ';}svg.appendChild(el('path',{d:d.trim(),fill:'none',stroke:col,'stroke-width':2.1}));});
+    // C++ table dots (mitchell column, the interesting one)
+    const mp=[-1.5,-1.25,-1,-0.75,-0.5,-0.25,0,0.25,0.5,0.75,1,1.25,1.5];
+    const mv=[-0.0078,-0.0161,-0.0139,0.0223,0.1207,0.2871,0.5000,0.7129,0.8793,0.9777,1.0139,1.0161,1.0078];
+    mp.forEach((p,i)=>svg.appendChild(el('circle',{cx:px(p),cy:py(mv[i]),r:2.6,fill:'var(--mitchell)'})));
+    // movable marker
+    const marker=el('line',{x1:px(0),y1:top,x2:px(0),y2:bot,stroke:'var(--truth)','stroke-width':1.5}); svg.appendChild(marker);
+    const dots=filters.map(([,, ,col])=>{const c=el('circle',{r:3.6,fill:col,stroke:'#fff','stroke-width':1.2});svg.appendChild(c);return c;});
+    const slider=document.getElementById('rf-p');
+    function update(){
+      const p=parseFloat(slider.value);
+      marker.setAttribute('x1',px(p));marker.setAttribute('x2',px(p));
+      const vals=filters.map(([k,r,norm])=>edge(k,p,r,norm));
+      dots.forEach((c,i)=>{c.setAttribute('cx',px(p));c.setAttribute('cy',py(vals[i]));});
+      document.getElementById('rf-box').textContent=vals[0].toFixed(4);
+      document.getElementById('rf-tent').textContent=vals[1].toFixed(4);
+      document.getElementById('rf-gauss').textContent=vals[2].toFixed(4);
+      const m=vals[3]; const mb=document.getElementById('rf-mitch');
+      mb.textContent=m.toFixed(4); mb.style.color=(m>1||m<0)?'var(--ring)':'var(--ink)';
+      document.getElementById('rf-preadout').textContent='p = '+p.toFixed(2);
+    }
+    slider.addEventListener('input',update); update();
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

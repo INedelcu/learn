@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>38 — High dimensions: where QMC (and scrambling) earn their keep — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --raw:#e53e3e; --scram:#2f9e64; --rand:#5b6472; --accent:#2b6cb0; --truth:#d9a500; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--scram)}
+  .callout.warn{border-left-color:var(--raw)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px 18px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:8px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button.on{background:var(--accent); color:#fff; border-color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>High dimensions: where QMC (and scrambling) earn their keep</h1>
+<p class="sub">38_high_dimensional_qmc.cpp — path-tracing integrals are high-dimensional (pixel, lens, time, then two numbers per bounce → easily 10–30 dimensions). That is where the sampling strategies diverge most, and where quasi-Monte Carlo hits its limits.</p>
+
+<p class="lead">Quasi-Monte Carlo shines in low dimensions, but a path integral has dozens. Two things break there. First, the <strong>Halton trap</strong>: Halton uses the radical inverse in the $d$-th prime base, and a large base $b$ marches monotonically $0,\tfrac1b,\tfrac2b,\dots$ for its first $b$ samples — so two high dimensions stay almost perfectly correlated, their 2D projection collapsing to a few diagonal stripes. Second, even after you fix that with <strong>scrambling</strong>, QMC's advantage erodes as the integrand's <em>effective</em> dimension rises — the curse of dimensionality. Both are visible in the numbers, and both point at the same fix that production renderers use: Owen-scrambled Sobol.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> In high dimensions raw Halton's large prime bases march in lockstep, so a pair of dimensions collapses onto diagonal stripes ($8\times8$ $\chi^2=2102$ vs random's $72$); random <em>digit scrambling</em> — an independent permutation of the base-$b$ digits — breaks the lockstep ($\chi^2=38$) and restores an unbiased randomized-QMC estimator, but the benefit depends on the integrand's effective dimension: on a low-effective-dimension (additive) integrand scrambled Halton wins at every $d$, while on a high-effective-dimension (product) integrand raw Halton <em>detonates</em> ($\sim\!10^6$ error at $d=32$) and every method drifts back toward random's $1/\sqrt N$.</p>
+</div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--raw)"></i> raw Halton</span>
+  <span><i class="dot" style="background:var(--scram)"></i> scrambled Halton</span>
+  <span><i class="dot" style="background:var(--rand)"></i> plain random</span>
+</div>
+
+
+<h2 id="1">1. The Halton trap in high dimensions<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The Halton sequence assigns dimension $d$ the radical inverse $\Phi_{b_d}$ in the $d$-th prime base — bases $2,3,5$ for the first dimensions, but $127,131$ by the thirty-first and thirty-second. Low bases interleave beautifully; high bases do not. The projection onto two high dimensions is the diagnostic, and it is stark:</p>
+
+<figure>
+<svg id="fig-proj" viewBox="0 0 600 250" role="img" aria-label="Three scatter plots of dimensions 31 and 32: raw Halton collapsed to diagonal stripes, scrambled Halton filling the square, and plain random."></svg>
+<div class="panel">
+  <div class="row"><span style="color:var(--raw)">raw $\chi^2$</span><b id="chi-raw">—</b></div>
+  <div class="row"><span style="color:var(--scram)">scrambled $\chi^2$</span><b id="chi-scram">—</b></div>
+  <div class="row"><span style="color:var(--rand)">random $\chi^2$</span><b id="chi-rand">—</b></div>
+</div>
+<figcaption>Figure 1. Dimensions 31 &amp; 32 (bases $127,131$), $1024$ points. <span style="color:var(--raw)">Raw Halton</span> collapses onto a few diagonal stripes — its live $\chi^2$ reproduces the C++'s $2102$ exactly (deterministic). <span style="color:var(--scram)">Scrambled Halton</span> fills the square (a representative run; the C++ measured $37.9$), and <span style="color:var(--rand)">plain random</span> clumps normally (C++ $71.8$). The stripes are the trap; scrambling is the escape.</figcaption>
+</figure>
+
+
+<h2 id="2">2. Why it collapses to stripes<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The radical inverse writes $i$ in base $b$ and reflects its digits about the point: if $i=\sum_k d_k b^k$ then $\Phi_b(i)=\sum_k d_k b^{-(k+1)}$. For every index smaller than the base, $1\le i&lt;b$, there is only the single digit $d_0=i$, so</p>
+$$\Phi_b(i)=\frac{i}{b}\qquad(1\le i&lt;b).$$
+<p>Now put two high bases together. For $i&lt;127$ the projection onto dimensions 31 and 32 is</p>
+$$\big(\Phi_{127}(i),\,\Phi_{131}(i)\big)=\Big(\frac{i}{127},\frac{i}{131}\Big),$$
+<p>which is just the point $i\cdot(\tfrac1{127},\tfrac1{131})$ — a set of samples marching in lockstep straight up the line $y=\tfrac{127}{131}x$. Only once $i$ passes $127$ does a second base-127 digit appear and start folding the sequence back across the square; base 131 folds a little later still. With only $N=1024$ points the two bases complete just a handful of these sweeps, so the projection is a few parallel diagonals rather than a filled square — the $\chi^2=2102$ you see in Figure 1. An integrand that depends on dimensions 31 and 32 <em>jointly</em> is then integrated over a 1D smear instead of a 2D area, and the estimate suffers.</p>
+
+
+<h2 id="3">3. Scrambling breaks the lockstep<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The fix is <strong>random digit scrambling</strong>: for each dimension and each digit position, draw an independent random permutation $\pi$ of the $b$ possible digit values and apply it, $\Phi_b^\pi(i)=\sum_k \pi_k(d_k)\,b^{-(k+1)}$. The crucial one is the permutation of the <em>leading</em> digit: $\Phi_b(i)=i/b$ becomes $\pi_0(i)/b$, and a genuine permutation (not merely an additive shift) scatters the once-monotonic march across the whole unit interval — the lockstep is gone. Because $\pi$ is uniformly random, the scrambled point is uniform, so the estimator is unbiased and averageable with error bars: <em>randomized</em> QMC, the same principle as the Owen scramble of <a href="35_sobol_owen.html">example 35</a>, applied here to Halton. In the numbers the $8\times8$ $\chi^2$ for dimensions 31 &amp; 32 falls from $2102$ to $37.9$ — from pathological back to indistinguishable-from-random, exactly what you want before asking QMC to do better than random.</p>
+
+
+<h2 id="4">4. Effective dimension and the curse<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Fixing the projections is necessary but not sufficient — QMC's edge also depends on how the integrand <em>uses</em> its dimensions. An <strong>additive</strong> function $f=\tfrac1d\sum_j e^{x_j}$ has low <em>effective</em> dimension: it is a sum of 1D pieces, and QMC only needs each 1D projection to be well spread. A <strong>product</strong> $f=\prod_j|4x_j-2|$ is the opposite — it needs the full joint distribution across all $d$ dimensions at once. Integrating both at $N=4096$ and sweeping the dimension tells the whole story:</p>
+
+<figure>
+<svg id="fig-dim" viewBox="0 0 600 320" role="img" aria-label="RMS error versus dimension for random, raw Halton, and scrambled Halton, switchable between an additive and a product integrand."></svg>
+<div class="ctl">
+  <button id="btn-add" class="on">additive $\tfrac1d\sum e^{x_j}$ (low eff. dim)</button>
+  <button id="btn-prod">product $\prod|4x_j-2|$ (high eff. dim)</button>
+</div>
+<figcaption>Figure 2. RMS error vs dimension $d$ at $N=4096$ (log $y$), C++ data. <b>Additive:</b> <span style="color:var(--scram)">scrambled Halton</span> wins at every $d$; <span style="color:var(--raw)">raw Halton</span> starts strong but slips past <span style="color:var(--rand)">random</span> by $d\!\approx\!16$ as its big-base dimensions go bad. <b>Product:</b> raw Halton <em>detonates</em> — $1.6\times10^{1}$ at $d=16$, $1.0\times10^{6}$ at $d=32$ — scrambling saves most of it, and by $d=32$ all three converge toward random's $1/\sqrt N$: the curse of dimensionality.</figcaption>
+</figure>
+
+<p>Read the two regimes. On the additive integrand scrambled Halton is essentially flat near $8\times10^{-5}$ — its low effective dimension means extra dimensions barely cost anything — while raw Halton climbs from $5.8\times10^{-4}$ at $d=2$ to $4.8\times10^{-3}$ at $d=32$, overtaken by plain random ($1.3\times10^{-3}$) because its high-base projections are the striped mess of Figure 1. On the product integrand the joint distribution is everything: raw Halton's correlated high dimensions produce a wildly wrong estimate ($1.0\times10^{6}$ absolute error at $d=32$), scrambling recovers most of the accuracy ($0.61$), but even it is now only matching random ($0.87$) — no method escapes the curse when the effective dimension is genuinely high. Two lessons fall out: scrambling matters <em>most</em> exactly in high dimensions, and QMC's speed-up is contingent on the integrand's effective dimension, not just its nominal one.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/38_high_dimensional_qmc.cpp" target="_blank" rel="noopener"><code>38_high_dimensional_qmc.cpp</code></a>.</p>
+
+<p>The radical inverse whose single leading digit causes the lockstep, and the scrambled version that permutes each digit to break it.</p>
+
+<pre class="language-cpp"><code class="language-cpp">// Raw radical inverse: for i &lt; base there is ONE digit, so Phi(i) = i/base --
+// two high bases then march in lockstep -> diagonal stripes.
+double RadicalInverse(int base, uint32_t i) {
+    double invBase = 1.0/base, invBaseN = 1.0, r = 0.0;
+    while (i) { invBaseN *= invBase; r += (i % base) * invBaseN; i /= base; }
+    return r;
+}
+
+// Scrambled: apply an independent random permutation of the digits at each
+// (dimension, position). Permuting the LEADING digit is what breaks the lockstep.
+double Scrambler::inv(int d, uint32_t i) const {
+    int base = kPrimes[d]; double invBase = 1.0/base, invBaseN = 1.0, r = 0.0;
+    for (size_t pos = 0; pos &lt; perm[d].size(); ++pos) {
+        int dig = perm[d][pos][i % base];      // <- permuted digit, not i%base
+        invBaseN *= invBase; r += dig * invBaseN; i /= base;
+    }
+    return r;                                  // uniform -> unbiased randomized QMC
+}</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> Path integrals are high-dimensional, and that is where QMC strains. Halton's high dimensions use large prime bases whose radical inverse $\Phi_b(i)=i/b$ marches in lockstep for $i&lt;b$, so a pair of dimensions collapses onto diagonal stripes ($\chi^2=2102$ vs random's $72$). Random digit scrambling permutes each digit — breaking the leading-digit lockstep — and restores an unbiased, near-random projection ($\chi^2=38$). But the payoff depends on effective dimension: scrambled Halton dominates a low-effective-dimension (additive) integrand at every $d$, while on a high-effective-dimension (product) integrand raw Halton detonates to $10^6$ error and every method slides back to random's $1/\sqrt N$. Production path tracers use Owen-scrambled Sobol — a better high-dimensional base than Halton, randomized by exactly this scrambling.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="37_rng_comparison.html">37 — PRNG vs low-discrepancy</a>. Builds on: <a href="11_low_discrepancy.html">11 — Low-discrepancy sequences</a>, <a href="35_sobol_owen.html">35 — Sobol &amp; Owen scrambling</a>, <a href="37_rng_comparison.html">37 — PRNG vs low-discrepancy</a>. Next: <a href="39_bias_vs_variance.html">39 — Bias vs variance</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+
+  const B_A=127, B_B=131, N=1024;
+  function radinv(base,i){let inv=1/base,invn=1,r=0;while(i){invn*=inv;r+=(i%base)*invn;i=Math.floor(i/base);}return r;}
+  // small deterministic PRNG (mulberry32) for the demo scramble + random panel
+  function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  function makePerms(base,seed){const K=Math.max(1,Math.ceil(24/(Math.log(base)/Math.LN2)));const rng=mulberry32(seed);const perms=[];for(let pos=0;pos<K;pos++){const p=[];for(let k=0;k<base;k++)p.push(k);for(let k=base-1;k>0;k--){const j=(rng()*(k+1))|0;const tmp=p[k];p[k]=p[j];p[j]=tmp;}perms.push(p);}return perms;}
+  function scramInv(base,perms,i){let inv=1/base,invn=1,r=0;for(let pos=0;pos<perms.length;pos++){const dig=perms[pos][i%base];invn*=inv;r+=dig*invn;i=Math.floor(i/base);}return r;}
+  function chi2(p,g){const c=new Array(g*g).fill(0);for(const[x,y]of p){let ix=Math.min(g-1,x*g|0),iy=Math.min(g-1,y*g|0);c[iy*g+ix]++;}const e=p.length/(g*g);let s=0;for(const v of c)s+=(v-e)*(v-e)/e;return s;}
+
+  // ---------- Figure 1: three projections ----------
+  (function(){
+    const svg=document.getElementById('fig-proj'); if(!svg) return;
+    const raw=[],scr=[],rnd=[];
+    const pA=makePerms(B_A,12345),pB=makePerms(B_B,999);
+    const rr=mulberry32(7);
+    for(let i=0;i<N;i++){
+      raw.push([radinv(B_A,i),radinv(B_B,i)]);
+      scr.push([scramInv(B_A,pA,i),scramInv(B_B,pB,i)]);
+      rnd.push([rr(),rr()]);
+    }
+    const S=170,top=16,gap=25,labels=['raw Halton','scrambled','random'],cols=['var(--raw)','var(--scram)','var(--rand)'],data=[raw,scr,rnd];
+    const x0=[15,15+S+gap,15+2*(S+gap)];
+    for(let k=0;k<3;k++){const ox=x0[k];
+      svg.appendChild(el('rect',{x:ox,y:top,width:S,height:S,fill:'#fff',stroke:'var(--line)'}));
+      svg.appendChild(txt(ox+S/2,top+S+20,labels[k],{'font-size':12,fill:cols[k],'text-anchor':'middle','font-weight':600}));
+      for(const [x,y] of data[k]) svg.appendChild(el('circle',{cx:(ox+x*S).toFixed(1),cy:(top+(1-y)*S).toFixed(1),r:0.9,fill:cols[k],'fill-opacity':0.75}));
+    }
+    document.getElementById('chi-raw').textContent=chi2(raw,8).toFixed(1);
+    document.getElementById('chi-scram').textContent=chi2(scr,8).toFixed(1);
+    document.getElementById('chi-rand').textContent=chi2(rnd,8).toFixed(1);
+  })();
+
+  // ---------- Figure 2: error vs dimension, two integrands ----------
+  (function(){
+    const svg=document.getElementById('fig-dim'); if(!svg) return;
+    const ds=[2,4,8,16,32];
+    const DATA={
+      add:{ rand:[6.71e-3,4.00e-3,3.13e-3,1.67e-3,1.25e-3], raw:[5.84e-4,8.94e-4,1.34e-3,2.22e-3,4.76e-3], scr:[1.39e-4,1.03e-4,9.62e-5,8.76e-5,8.15e-5], lo:-4, hi:0 },
+      prod:{ rand:[1.46e-2,2.80e-2,4.54e-2,1.45e-1,8.68e-1], raw:[6.36e-5,2.08e-5,1.92e-2,1.59e1,1.05e6], scr:[4.33e-4,1.52e-3,1.76e-2,1.53e-1,6.08e-1], lo:-5, hi:6 }
+    };
+    const x0=64,x1=560,top=24,bot=250;
+    const px=i=>x0+i/(ds.length-1)*(x1-x0);
+    let cur='add', gLayer=el('g'); svg.appendChild(gLayer);
+    // x axis (dimension)
+    ds.forEach((d,i)=>svg.appendChild(txt(px(i),bot+16,d.toString(),{'font-size':10.5,fill:'var(--muted)','text-anchor':'middle'})));
+    svg.appendChild(txt((x0+x1)/2,bot+30,'dimension d   (N = 4096)',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    svg.appendChild(txt(x0-44,top-6,'RMS err',{'font-size':12,fill:'var(--muted)'}));
+    function draw(){
+      while(gLayer.firstChild)gLayer.removeChild(gLayer.firstChild);
+      const D=DATA[cur], LY0=D.lo, LY1=D.hi;
+      const py=v=>bot-(Math.log10(Math.max(v,Math.pow(10,LY0)))-LY0)/(LY1-LY0)*(bot-top);
+      for(let k=LY0;k<=LY1;k++){const y=py(Math.pow(10,k));gLayer.appendChild(el('line',{x1:x0,y1:y,x2:x1,y2:y,stroke:'#eef0f4'}));gLayer.appendChild(txt(x0-8,y+4,'1e'+k,{'font-size':10,fill:'var(--muted)','text-anchor':'end'}));}
+      gLayer.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+      [['rand','var(--rand)','random'],['raw','var(--raw)','raw Halton'],['scr','var(--scram)','scrambled']].forEach(([key,col])=>{
+        let d='';D[key].forEach((v,i)=>{d+=(i?'L':'M')+px(i).toFixed(1)+','+py(v).toFixed(1)+' ';});
+        gLayer.appendChild(el('path',{d:d.trim(),fill:'none',stroke:col,'stroke-width':2.2}));
+        D[key].forEach((v,i)=>gLayer.appendChild(el('circle',{cx:px(i),cy:py(v),r:2.6,fill:col})));
+      });
+      // labels at right edge
+      gLayer.appendChild(txt(px(4)+6,py(D.raw[4]),'raw',{'font-size':11,fill:'var(--raw)'}));
+      gLayer.appendChild(txt(px(4)+6,py(D.scr[4]),'scrambled',{'font-size':11,fill:'var(--scram)'}));
+      gLayer.appendChild(txt(px(4)+6,py(D.rand[4]),'random',{'font-size':11,fill:'var(--rand)'}));
+    }
+    const bAdd=document.getElementById('btn-add'),bProd=document.getElementById('btn-prod');
+    bAdd.addEventListener('click',()=>{cur='add';bAdd.classList.add('on');bProd.classList.remove('on');draw();});
+    bProd.addEventListener('click',()=>{cur='prod';bProd.classList.add('on');bAdd.classList.remove('on');draw();});
+    draw();
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

@@ -13,14 +13,13 @@
 <style>
   :root{
     --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
-    --accent:#2b6cb0; --true:#2f9e64; --codebg:#f4f6f9;
+    --accent:#2b6cb0; --accent-soft:rgba(43,108,176,.10); --true:#2f9e64; --codebg:#f4f6f9;
   }
   *{box-sizing:border-box}
   body{margin:0; background:var(--bg); color:var(--ink);
     font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
-  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  .wrap{max-width:900px; margin:0 auto; padding:42px 22px 90px}
   h1{font-size:30px; line-height:1.2; margin:0 0 6px}
-  h2{font-family:Georgia,"Iowan Old Style","Times New Roman",serif; font-size:19px; font-weight:600; color:var(--accent); margin:44px 0 10px; letter-spacing:0}
   p{margin:12px 0}
   .sub{color:var(--muted); font-size:15px; margin-top:0}
   a{color:var(--accent)}
@@ -28,18 +27,86 @@
   .lead{font-size:17px}
   .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:8px; padding:12px 16px; margin:18px 0; font-size:15px}
 
-  .toc{display:flex; flex-direction:column; gap:12px; margin-top:14px}
-  a.entry{display:flex; gap:16px; align-items:flex-start; padding:15px 18px; border:1px solid var(--line);
-    border-radius:12px; background:var(--card); text-decoration:none; color:inherit; transition:border-color .15s, box-shadow .15s, transform .05s}
+  /* ---- chapter overview strip ---- */
+  .overview{display:flex; flex-wrap:wrap; gap:8px; margin:22px 0 0}
+  .ov-chip{display:inline-flex; align-items:center; gap:8px; padding:7px 11px; border:1px solid var(--line);
+    border-radius:10px; background:var(--card); cursor:pointer; font-size:13.5px; color:var(--ink); text-decoration:none;
+    transition:border-color .12s, background .12s, transform .05s}
+  .ov-chip:hover{border-color:var(--accent); background:#fff}
+  .ov-chip:active{transform:translateY(1px)}
+  .ov-badge{width:20px; height:20px; border-radius:6px; background:var(--accent); color:#fff; font-size:11.5px;
+    font-weight:700; display:grid; place-items:center; font-family:Georgia,serif}
+  .ov-n{color:var(--muted); font-variant-numeric:tabular-nums; font-size:12.5px}
+
+  /* ---- toolbar (sticky) ---- */
+  .toolbar{position:sticky; top:0; z-index:8; display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    padding:12px 0; margin:14px 0 8px; background:var(--bg); border-bottom:1px solid var(--line)}
+  .search{position:relative; flex:1; min-width:220px}
+  .search input{width:100%; padding:9px 12px 9px 34px; border:1px solid var(--line); border-radius:10px;
+    font:inherit; font-size:14.5px; background:var(--card); color:var(--ink)}
+  .search input:focus{outline:none; border-color:var(--accent); background:#fff; box-shadow:0 0 0 3px var(--accent-soft)}
+  .search > svg{position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--muted); pointer-events:none}
+  .tb-btn{font:inherit; font-size:13.5px; padding:8px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:9px; cursor:pointer; color:var(--ink)}
+  .tb-btn:hover{background:var(--card); border-color:var(--accent); color:var(--accent)}
+  .tb-count{font-size:13px; color:var(--muted); margin-left:2px; font-variant-numeric:tabular-nums}
+  kbd{font:inherit; font-size:11px; background:#fff; border:1px solid var(--line); border-bottom-width:2px;
+    border-radius:5px; padding:0 5px; color:var(--muted)}
+
+  /* ---- chapter accordion ---- */
+  .ch{border:1px solid var(--line); border-radius:14px; margin:12px 0; background:#fff; overflow:hidden;
+    box-shadow:0 1px 2px rgba(16,24,40,.03); scroll-margin-top:72px}
+  .ch-h2{margin:0}
+  .ch-head{display:flex; align-items:center; gap:14px; width:100%; text-align:left; font:inherit;
+    background:none; border:0; border-left:4px solid var(--accent); padding:15px 16px 15px 18px; cursor:pointer;
+    color:inherit; transition:background .12s}
+  .ch-head:hover{background:var(--card)}
+  .ch-head:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+  .ch-badge{flex:none; width:30px; height:30px; border-radius:9px; background:var(--accent); color:#fff;
+    font-weight:700; font-size:15px; display:grid; place-items:center; font-family:Georgia,serif}
+  .ch-head-main{display:flex; flex-direction:column; min-width:0; flex:1}
+  .ch-title{font-family:Georgia,"Iowan Old Style","Times New Roman",serif; font-size:19px; font-weight:600;
+    color:var(--accent); line-height:1.25}
+  .ch-sub{font-size:13px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .ch-meta{flex:none; display:flex; align-items:center; gap:7px}
+  .ch-range,.ch-count{font-size:12.5px; color:var(--muted); background:var(--card); border:1px solid var(--line);
+    border-radius:999px; padding:2px 9px; font-variant-numeric:tabular-nums; white-space:nowrap}
+  .ch-chevron{flex:none; color:var(--muted); transition:transform .28s ease; margin-left:2px}
+  .ch.collapsed .ch-chevron{transform:rotate(-90deg)}
+
+  .ch-wrap{display:grid; grid-template-rows:1fr; transition:grid-template-rows .30s cubic-bezier(.4,0,.2,1)}
+  .ch.collapsed .ch-wrap{grid-template-rows:0fr}
+  .ch-body{overflow:hidden; min-height:0}
+  .toc{display:flex; flex-direction:column; gap:11px; padding:4px 16px 16px}
+
+  a.entry{display:flex; gap:16px; align-items:flex-start; padding:14px 16px; border:1px solid var(--line);
+    border-radius:11px; background:var(--card); text-decoration:none; color:inherit;
+    transition:border-color .15s, box-shadow .15s, transform .05s}
   a.entry:hover{border-color:var(--accent); box-shadow:0 3px 14px rgba(43,108,176,.10)}
   a.entry:active{transform:translateY(1px)}
-  .entry .num{font-size:20px; font-weight:700; color:var(--accent); min-width:34px; text-align:right; font-variant-numeric:tabular-nums; padding-top:1px}
-  .entry .body{flex:1}
-  .entry .body h3{margin:0 0 4px; font-size:17px; color:var(--ink)}
-  .entry .body .d{margin:0; font-size:14.5px; color:var(--muted)}
+  .entry .num{font-size:19px; font-weight:700; color:var(--accent); min-width:32px; text-align:right;
+    font-variant-numeric:tabular-nums; padding-top:1px}
+  .entry .body{flex:1; min-width:0}
+  .entry .body h3{margin:0 0 4px; font-size:16.5px; color:var(--ink)}
+  .entry .body .d{margin:0; font-size:14px; color:var(--muted)}
   .tags{margin-top:9px; display:flex; flex-wrap:wrap; gap:6px}
   .tag{font-size:12px; background:#fff; border:1px solid var(--line); border-radius:999px; padding:2px 9px; color:var(--muted)}
+  mark{background:#fff2b8; color:inherit; border-radius:3px; padding:0 1px}
+
+  .entry.hide,.ch.hide{display:none}
+  .filtering .ch-wrap{grid-template-rows:1fr}
+  .filtering .ch-chevron{opacity:.3}
+  .filtering .ch-head{cursor:default}
+  .empty{display:none; color:var(--muted); font-size:15px; padding:24px 4px}
+  .empty.show{display:block}
+
   .foot{margin-top:48px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:13.5px}
+
+  @media (max-width:640px){
+    .ch-sub{display:none}
+    .ch-range{display:none}
+    .ch-head{gap:11px; padding:13px 12px 13px 14px}
+  }
 </style>
 </head>
 <body>
@@ -55,8 +122,29 @@
 The whole series is, ultimately, about one formula — estimating an integral as the average of (integrand)/(sampling&nbsp;density) — and about understanding and shrinking its error. These explainers develop that story one idea at a time.
 </div>
 
+<div class="overview" id="overview"></div>
+
+<div class="toolbar">
+  <label class="search">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M11 11l3.5 3.5"/></svg>
+    <input id="q" type="search" placeholder="Filter lessons — try &ldquo;sobol&rdquo;, &ldquo;MIS&rdquo;, &ldquo;fireflies&rdquo;&hellip;" autocomplete="off" spellcheck="false">
+  </label>
+  <button class="tb-btn" id="expandAll" type="button">Expand all</button>
+  <button class="tb-btn" id="collapseAll" type="button">Collapse all</button>
+  <span class="tb-count" id="count"></span>
+</div>
+
+<p class="empty" id="empty">No lessons match that filter.</p>
+
 <!-- ENTRIES: keep in numeric order; add a new <a class="entry"> when a new sample doc is generated -->
-<h2>Foundations</h2>
+<section class="ch" id="ch-A">
+<h2 class="ch-h2"><button class="ch-head" type="button" aria-expanded="true" aria-controls="chb-A">
+  <span class="ch-badge">A</span>
+  <span class="ch-head-main"><span class="ch-title">Foundations</span><span class="ch-sub">The full probability toolkit — from expectation and variance to the GGX specular sampler.</span></span>
+  <span class="ch-meta"><span class="ch-range">01–19</span><span class="ch-count">19 lessons</span></span>
+  <svg class="ch-chevron" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+</button></h2>
+<div class="ch-wrap"><div class="ch-body" id="chb-A">
 <div class="toc">
 
   <a class="entry" href="01_random_and_estimators.html">
@@ -231,8 +319,17 @@ The whole series is, ultimately, about one formula — estimating an integral as
   </a>
 
 </div>
+</div></div>
+</section>
 
-<h2>BRDFs &amp; energy</h2>
+<section class="ch" id="ch-B">
+<h2 class="ch-h2"><button class="ch-head" type="button" aria-expanded="true" aria-controls="chb-B">
+  <span class="ch-badge">B</span>
+  <span class="ch-head-main"><span class="ch-title">BRDFs &amp; energy</span><span class="ch-sub">Fresnel reflectance, the white-furnace energy test, and refraction at a dielectric.</span></span>
+  <span class="ch-meta"><span class="ch-range">20–22</span><span class="ch-count">3 lessons</span></span>
+  <svg class="ch-chevron" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+</button></h2>
+<div class="ch-wrap"><div class="ch-body" id="chb-B">
 <div class="toc">
 
   <a class="entry" href="20_fresnel.html">
@@ -263,8 +360,17 @@ The whole series is, ultimately, about one formula — estimating an integral as
   </a>
 
 </div>
+</div></div>
+</section>
 
-<h2>Geometry of sampling</h2>
+<section class="ch" id="ch-C">
+<h2 class="ch-h2"><button class="ch-head" type="button" aria-expanded="true" aria-controls="chb-C">
+  <span class="ch-badge">C</span>
+  <span class="ch-head-main"><span class="ch-title">Geometry of sampling</span><span class="ch-sub">Jacobians, next-event estimation, area-light shapes, and local frames.</span></span>
+  <span class="ch-meta"><span class="ch-range">23–26</span><span class="ch-count">4 lessons</span></span>
+  <svg class="ch-chevron" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+</button></h2>
+<div class="ch-wrap"><div class="ch-body" id="chb-C">
 <div class="toc">
 
   <a class="entry" href="23_change_of_variables.html">
@@ -304,8 +410,17 @@ The whole series is, ultimately, about one formula — estimating an integral as
   </a>
 
 </div>
+</div></div>
+</section>
 
-<h2>Variance reduction</h2>
+<section class="ch" id="ch-D">
+<h2 class="ch-h2"><button class="ch-head" type="button" aria-expanded="true" aria-controls="chb-D">
+  <span class="ch-badge">D</span>
+  <span class="ch-head-main"><span class="ch-title">Variance reduction</span><span class="ch-sub">Control variates, antithetics, Latin hypercube, blue noise, and the efficiency scoreboard.</span></span>
+  <span class="ch-meta"><span class="ch-range">27–31</span><span class="ch-count">5 lessons</span></span>
+  <svg class="ch-chevron" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+</button></h2>
+<div class="ch-wrap"><div class="ch-body" id="chb-D">
 <div class="toc">
 
   <a class="entry" href="27_control_variates.html">
@@ -354,8 +469,17 @@ The whole series is, ultimately, about one formula — estimating an integral as
   </a>
 
 </div>
+</div></div>
+</section>
 
-<h2>Transport &amp; media</h2>
+<section class="ch" id="ch-E">
+<h2 class="ch-h2"><button class="ch-head" type="button" aria-expanded="true" aria-controls="chb-E">
+  <span class="ch-badge">E</span>
+  <span class="ch-head-main"><span class="ch-title">Transport &amp; media</span><span class="ch-sub">The rendering equation as a series, delta tracking, and volumetric single scattering.</span></span>
+  <span class="ch-meta"><span class="ch-range">32–34</span><span class="ch-count">3 lessons</span></span>
+  <svg class="ch-chevron" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+</button></h2>
+<div class="ch-wrap"><div class="ch-body" id="chb-E">
 <div class="toc">
 
   <a class="entry" href="32_neumann_series.html">
@@ -386,8 +510,17 @@ The whole series is, ultimately, about one formula — estimating an integral as
   </a>
 
 </div>
+</div></div>
+</section>
 
-<h2>RNG &amp; QMC</h2>
+<section class="ch" id="ch-F">
+<h2 class="ch-h2"><button class="ch-head" type="button" aria-expanded="true" aria-controls="chb-F">
+  <span class="ch-badge">F</span>
+  <span class="ch-head-main"><span class="ch-title">RNG &amp; QMC</span><span class="ch-sub">Sobol/Owen, per-pixel decorrelation, PRNGs vs sequences, and high-dimensional QMC.</span></span>
+  <span class="ch-meta"><span class="ch-range">35–38</span><span class="ch-count">4 lessons</span></span>
+  <svg class="ch-chevron" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+</button></h2>
+<div class="ch-wrap"><div class="ch-body" id="chb-F">
 <div class="toc">
 
   <a class="entry" href="35_sobol_owen.html">
@@ -408,10 +541,172 @@ The whole series is, ultimately, about one formula — estimating an integral as
     </span>
   </a>
 
+  <a class="entry" href="37_rng_comparison.html">
+    <span class="num">37</span>
+    <span class="body">
+      <h3>Comparing random sources: PRNGs vs low-discrepancy</h3>
+      <p class="d">A PRNG and a low-discrepancy sequence aren't rivals — they're different tools. Wang hash and PCG are white noise (8×8 $\chi^2\approx70$, visible clumps); Owen-Sobol is stratified ($\chi^2\approx0$); a bad LCG collapses to a lattice ($641$). The punchline is the rate: two <em>different</em> good PRNGs both sit on $1/\sqrt N$ (error·$\sqrt N$ flat at $\sim$1.2–1.5), while Owen-Sobol runs at $\sim N^{-1.4}$ (error·$N$ still shrinking, $0.22\!\to\!0.02$). A better PRNG doesn't converge faster — better <em>placement</em> does. Use a hashed PRNG for randomness and a low-discrepancy sequence for placement, together.</p>
+      <span class="tags"><span class="tag">white noise vs LDS</span><span class="tag">Owen-Sobol</span><span class="tag">convergence rate</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="38_high_dimensional_qmc.html">
+    <span class="num">38</span>
+    <span class="body">
+      <h3>High dimensions: where QMC (and scrambling) earn their keep</h3>
+      <p class="d">Path integrals are high-dimensional, and that's where quasi-Monte Carlo strains. Halton's high dimensions use big prime bases whose radical inverse marches in lockstep — dimensions 31 &amp; 32 collapse onto diagonal stripes ($\chi^2=2102$ vs random's $72$). Random digit scrambling permutes the digits and breaks the lockstep ($\chi^2=38$), restoring an unbiased randomized-QMC estimator. But the edge depends on the integrand's <em>effective</em> dimension: on a product integrand raw Halton detonates ($\sim\!10^6$ error at $d=32$), scrambling wins most of it back, and every method drifts toward random's $1/\sqrt N$ — the curse of dimensionality.</p>
+      <span class="tags"><span class="tag">Halton trap</span><span class="tag">digit scrambling</span><span class="tag">effective dimension</span></span>
+    </span>
+  </a>
+
 </div>
+</div></div>
+</section>
+
+<section class="ch" id="ch-G">
+<h2 class="ch-h2"><button class="ch-head" type="button" aria-expanded="true" aria-controls="chb-G">
+  <span class="ch-badge">G</span>
+  <span class="ch-head-main"><span class="ch-title">Pathologies &amp; image</span><span class="ch-sub">Bias vs variance, fireflies, reconstruction filters, and the gamma trap.</span></span>
+  <span class="ch-meta"><span class="ch-range">39–42</span><span class="ch-count">4 lessons</span></span>
+  <svg class="ch-chevron" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+</button></h2>
+<div class="ch-wrap"><div class="ch-body" id="chb-G">
+<div class="toc">
+
+  <a class="entry" href="39_bias_vs_variance.html">
+    <span class="num">39</span>
+    <span class="body">
+      <h3>Bias vs variance: unbiased, consistent, and the difference</h3>
+      <p class="d">Variance is noise that averages away as $1/N$; bias is a wrong mean that doesn't. A kernel/photon density estimate is biased by $\tfrac16 p''(x_0)h^2$ — a <em>fixed</em> kernel converges precisely to the wrong, blurred value, while a kernel shrinking as $h\propto N^{-1/5}$ is consistent but converges as $N^{-2/5}$, slower than unbiased path tracing's $N^{-1/2}$. The fault line between path tracing (unbiased, trustworthy convergence) and photon mapping / caching / denoisers (biased, fast, only right if the smoothing goes to zero).</p>
+      <span class="tags"><span class="tag">bias vs variance</span><span class="tag">consistency</span><span class="tag">kernel bandwidth</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="40_fireflies_clamping.html">
+    <span class="num">40</span>
+    <span class="body">
+      <h3>Fireflies: heavy tails and the clamping tradeoff</h3>
+      <p class="d">Those stray bright pixels are the estimator's heavy tail. Drawing $X\sim2x$ to estimate $\int_0^1 1$ gives $Y=1/(2X)$: mean $1$, but $\mathbb E[Y^2]=\int\frac1{2x}$ <em>diverges</em> — a $y^{-2}$ tail, infinite variance, fireflies. Clamping at $c$ restores finite variance but discards tail energy, biasing the result low by exactly $-1/(4c)$ while variance grows as $\tfrac12\ln c$ — no $c$ wins on both. The real cure is to sample so the tail never forms (NEE + MIS); clamping is the pragmatic, knowingly-biased backstop.</p>
+      <span class="tags"><span class="tag">fireflies</span><span class="tag">infinite variance</span><span class="tag">clamping bias</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="41_reconstruction_filters.html">
+    <span class="num">41</span>
+    <span class="body">
+      <h3>Reconstruction filters: turning samples into a pixel</h3>
+      <p class="d">A pixel is a filter-weighted average of samples, not a plain one — and every property of the filter is two integrals. It must integrate to $1$ (box/tent/gauss/mitchell $=1.0000/1.0000/0.9999/1.0000$) or it rescales brightness. Reconstructing an edge is the filter's running integral $R(p)=1-C(-p)$, so all symmetric filters pass through $0.5$ at the edge and the box gives a hard one-pixel ramp. A non-negative filter can never overshoot but must blur; Mitchell's negative lobes make its edge ring ($1.0161$ at $p=1.25$) — and that overshoot is exactly what reads as sharpness.</p>
+      <span class="tags"><span class="tag">box / tent / gauss</span><span class="tag">mitchell–netravali</span><span class="tag">ringing</span></span>
+    </span>
+  </a>
+
+  <a class="entry" href="42_linear_vs_gamma.html">
+    <span class="num">42</span>
+    <span class="body">
+      <h3>Average in linear space: the gamma trap</h3>
+      <p class="d">Monitor codes are sRGB-encoded, not proportional to light, and the encode $f$ is concave with $f(0)=0,f(1)=1$ — so it bows above the diagonal and $f(c)\ge c$. Averaging linear radiance then encoding once gives the correct pixel $f(\text{cov})$; averaging already-encoded values gives $\text{cov}$, always darker — up to $73/255$ in the midtones, $60/255$ at a $50\%$ edge ($188$ vs $128$). Monte Carlo rendering is averaging, so keep every accumulation, blend and filter in linear and apply the curve only at the final pixel.</p>
+      <span class="tags"><span class="tag">sRGB encoding</span><span class="tag">Jensen / concavity</span><span class="tag">linear workflow</span></span>
+    </span>
+  </a>
+
+</div>
+</div></div>
+</section>
 
 <p class="foot">Math rendered with KaTeX; figures are self-contained SVG + JavaScript, no build step. More explainers added as the series progresses.</p>
 
 </div>
+<script>
+(function(){
+  var chapters = [].slice.call(document.querySelectorAll('.ch'));
+  var entries  = [].slice.call(document.querySelectorAll('.entry'));
+  var KEY = 'mc_index_collapsed_v1';
+
+  // ---- chapter overview strip ----
+  var ov = document.getElementById('overview');
+  chapters.forEach(function(ch){
+    var letter = ch.querySelector('.ch-badge').textContent;
+    var title  = ch.querySelector('.ch-title').textContent;
+    var n      = ch.querySelectorAll('.entry').length;
+    var a = document.createElement('a');
+    a.className = 'ov-chip'; a.href = '#' + ch.id;
+    a.innerHTML = '<span class="ov-badge">' + letter + '</span><span>' + title + '</span><span class="ov-n">' + n + '</span>';
+    a.addEventListener('click', function(e){ e.preventDefault(); setCollapsed(ch, false); ch.scrollIntoView({behavior:'smooth', block:'start'}); });
+    ov.appendChild(a);
+  });
+
+  // ---- collapse state (persisted) ----
+  function setCollapsed(ch, val, silent){
+    ch.classList.toggle('collapsed', val);
+    ch.querySelector('.ch-head').setAttribute('aria-expanded', val ? 'false' : 'true');
+    if(!silent) save();
+  }
+  function save(){
+    var ids = chapters.filter(function(c){ return c.classList.contains('collapsed'); }).map(function(c){ return c.id; });
+    try{ localStorage.setItem(KEY, JSON.stringify(ids)); }catch(e){}
+  }
+  try{
+    var stored = JSON.parse(localStorage.getItem(KEY) || '[]');
+    chapters.forEach(function(c){ if(stored.indexOf(c.id) >= 0) setCollapsed(c, true, true); });
+  }catch(e){}
+
+  chapters.forEach(function(ch){
+    ch.querySelector('.ch-head').addEventListener('click', function(){
+      if(document.body.classList.contains('filtering')) return;
+      setCollapsed(ch, !ch.classList.contains('collapsed'));
+    });
+  });
+  document.getElementById('expandAll').addEventListener('click', function(){ chapters.forEach(function(c){ setCollapsed(c, false, true); }); save(); });
+  document.getElementById('collapseAll').addEventListener('click', function(){ chapters.forEach(function(c){ setCollapsed(c, true, true); }); save(); });
+
+  // ---- live filter ----
+  var q = document.getElementById('q');
+  var countEl = document.getElementById('count');
+  var emptyEl = document.getElementById('empty');
+  function hay(e){
+    if(!e._hay){
+      var head = e.querySelector('h3').textContent + ' ' + e.querySelector('.d').textContent;
+      var tags = [].slice.call(e.querySelectorAll('.tag')).map(function(x){ return x.textContent; }).join(' ');
+      e._hay = (head + ' ' + tags).toLowerCase();
+    }
+    return e._hay;
+  }
+  function runFilter(){
+    var v = q.value.trim().toLowerCase();
+    if(!v){
+      document.body.classList.remove('filtering');
+      entries.forEach(function(e){ e.classList.remove('hide'); });
+      chapters.forEach(function(c){ c.classList.remove('hide'); });
+      countEl.textContent = ''; emptyEl.classList.remove('show');
+      return;
+    }
+    document.body.classList.add('filtering');
+    var total = 0;
+    chapters.forEach(function(c){
+      var vis = 0;
+      [].slice.call(c.querySelectorAll('.entry')).forEach(function(e){
+        var m = hay(e).indexOf(v) >= 0;
+        e.classList.toggle('hide', !m); if(m) vis++;
+      });
+      c.classList.toggle('hide', vis === 0); total += vis;
+    });
+    countEl.textContent = total + (total === 1 ? ' match' : ' matches');
+    emptyEl.classList.toggle('show', total === 0);
+  }
+  q.addEventListener('input', runFilter);
+  q.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ q.value = ''; runFilter(); q.blur(); } });
+  document.addEventListener('keydown', function(e){
+    if(e.key === '/' && document.activeElement !== q && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)){
+      e.preventDefault(); q.focus();
+    }
+  });
+
+  // open a chapter that is deep-linked via #hash
+  if(location.hash){
+    var el = document.querySelector(location.hash);
+    if(el && el.classList.contains('ch')) setCollapsed(el, false, true);
+  }
+})();
+</script>
 </body>
 </html>

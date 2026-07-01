@@ -179,7 +179,7 @@ Vec3 world = b1*local.x + b2*local.y + n*local.z;    // pure rotation, Jacobian 
 <strong>Takeaway.</strong> Every hemisphere/BRDF sampler works in a local frame with the normal at $(0,0,1)$; using its output means rotating onto the real normal, $\boldsymbol\omega=\ell_x\mathbf b_1+\ell_y\mathbf b_2+\ell_z\mathbf n$, which needs an orthonormal $(\mathbf b_1,\mathbf b_2,\mathbf n)$. The Duff sign trick builds the tangents with no branches and no pole blow-up — $\mathbf b_1\!\cdot\!\mathbf n=0$ drops out of $n_x^2+n_y^2=1-n_z^2$ — and since the map is a pure rotation it carries the sampling distribution onto $\mathbf n$ untouched (cosine stays cosine, mean $\cos\theta=\tfrac23$). It is the transform under every bounce the renderer traces.
 </div>
 
-<p class="small" style="margin-top:34px">The latest entry in the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="25_area_light_sampling.html">25 — Sampling area lights</a>. Builds on: <a href="08_hemisphere_sampling.html">08 — Hemisphere sampling</a>, <a href="23_change_of_variables.html">23 — Change of variables</a>.</p>
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="25_area_light_sampling.html">25 — Sampling area lights</a>. Builds on: <a href="08_hemisphere_sampling.html">08 — Hemisphere sampling</a>, <a href="23_change_of_variables.html">23 — Change of variables</a>.</p>
 
 </div>
 

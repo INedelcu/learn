@@ -1,10 +1,10 @@
-// 42 — High dimensions: where quasi-Monte Carlo (and scrambling) earn their keep
+// 38 — High dimensions: where quasi-Monte Carlo (and scrambling) earn their keep
 // ==============================================================================
 //
-// A companion to example 41. Path-tracing integrals are HIGH-DIMENSIONAL (pixel
+// A companion to example 37. Path-tracing integrals are HIGH-DIMENSIONAL (pixel
 // xy, lens, time, then two numbers per bounce -> easily 10-30 dimensions). This is
 // where the differences between sampling strategies get dramatic, and also where
-// the quasi-Monte Carlo (QMC) sequences of examples 11/35/41 hit their limits.
+// the quasi-Monte Carlo (QMC) sequences of examples 11/35/37 hit their limits.
 //
 // THE HALTON TRAP IN HIGH DIMENSIONS. Halton uses the radical inverse in the d-th
 // prime base for dimension d. Low dimensions (bases 2, 3, 5) are great, but high

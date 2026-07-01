@@ -1,4 +1,4 @@
-// 38 — Fireflies: heavy-tailed estimators and the clamping tradeoff
+// 40 — Fireflies: heavy-tailed estimators and the clamping tradeoff
 // =================================================================
 //
 // Those lone bright white pixels in a noisy render -- "fireflies" -- are not a
@@ -16,7 +16,7 @@
 //
 // The common fix is CLAMPING: cap each sample at some value c. This tames the
 // variance dramatically, but it throws away the rare-but-real energy in the tail,
-// so the result is BIASED low (example 37's other failure mode). Clamp tightly and
+// so the result is BIASED low (example 39's other failure mode). Clamp tightly and
 // you get a clean but too-dark image; clamp loosely (or not at all) and you get the
 // correct brightness but fireflies. We show the whole tradeoff curve.
 

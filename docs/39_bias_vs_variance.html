@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>39 — Bias vs variance: unbiased, consistent, and the difference — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --truth:#d9a500; --fixed:#dd6b20; --shrink:#2f9e64; --pdf:#2b6cb0; --accent:#2b6cb0; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--shrink)}
+  .callout.warn{border-left-color:var(--fixed)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:200px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button:active{transform:translateY(1px)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Bias vs variance: unbiased, consistent, and the difference</h1>
+<p class="sub">39_bias_vs_variance.cpp — variance is noise that averages away as 1/N; bias is a wrong answer that doesn't. Path tracing is unbiased; photon mapping and denoisers are biased-but-consistent — they need a smoothing parameter driven to zero, or more samples just nail down the blur.</p>
+
+<p class="lead">Two different things can be wrong with an estimator. <strong>Variance</strong> is scatter around its average — noise, which shrinks as $1/N$. <strong>Bias</strong> is when that average is the <em>wrong number</em> — and it does not shrink with $N$ at all. Path tracing is <strong>unbiased</strong>: its expected value is the true integral, so more samples drive the error to zero. Many faster methods — photon mapping, irradiance caching, denoisers — are <strong>biased but consistent</strong>: they reach the truth only if a smoothing parameter is also driven to zero as $N$ grows. Hold that parameter fixed and you converge precisely to the wrong, blurred answer.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> A kernel density estimate — photon mapping's exact math — counts samples within a half-width $h$ of $x_0$; its expectation is the window average $p(x_0)+\tfrac16 p''(x_0)h^2+\dots$, so a <em>fixed</em> $h$ leaves a permanent $O(h^2)$ bias no matter how large $N$ is (precise but wrong), while shrinking $h\to0$ with $N$ removes the bias (consistent) at the price of convergence slower than the unbiased $1/\sqrt N$.</p>
+</div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--truth)"></i> truth $p(x_0)=0.75$</span>
+  <span><i class="dot" style="background:var(--fixed)"></i> fixed $h$ (biased)</span>
+  <span><i class="dot" style="background:var(--shrink)"></i> shrinking $h$ (consistent)</span>
+  <span><i class="swatch" style="border-color:var(--pdf)"></i> density $p(x)=3x^2$</span>
+</div>
+
+
+<h2 id="1">1. Two ways to be wrong<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Split an estimator's error into two pieces. The mean-squared error decomposes exactly as</p>
+$$\operatorname{MSE}=\underbrace{\big(\mathbb E[\hat I]-I\big)^2}_{\text{bias}^2}+\underbrace{\operatorname{Var}[\hat I]}_{\text{variance}}.$$
+<p>Variance is the part that <em>averages out</em>: it falls as $1/N$ (<a href="04_variance_and_clt.html#2">example 04</a>), so with enough samples the noise vanishes. Bias is the part that <em>doesn't</em>: if $\mathbb E[\hat I]\ne I$, no number of samples fixes it — you just measure the wrong value more precisely. An estimator is <strong>unbiased</strong> if $\mathbb E[\hat I]=I$ (path tracing, every estimator in this series so far), and <strong>consistent</strong> if $\hat I\to I$ as $N\to\infty$. Unbiased implies consistent, but a biased estimator can still be consistent — <em>if</em> its bias shrinks with $N$.</p>
+
+
+<h2 id="2">2. Kernel density estimation and the $h^2$ bias<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The cleanest example — and exactly photon mapping's math — is estimating a density $p$ at a point $x_0$ by counting samples $X_i\sim p$ within a kernel of half-width $h$:</p>
+$$\hat p(x_0)=\frac{\#\{\,i:|X_i-x_0|&lt;h\,\}}{2hN}.$$
+<p>Its expectation is not $p(x_0)$ but the <em>average of $p$ over the window</em>. Taylor-expanding $p$ around $x_0$ and integrating (the odd linear term cancels):</p>
+$$\mathbb E[\hat p(x_0)]=\frac{1}{2h}\int_{x_0-h}^{x_0+h}\! p(x)\,dx
+  =\frac{1}{2h}\Big(2h\,p(x_0)+\tfrac13 p''(x_0)h^3+\cdots\Big)=p(x_0)+\frac{p''(x_0)}{6}h^2+\cdots$$
+<p>The bias is $\tfrac16 p''(x_0)h^2$ — proportional to $h^2$ and the curvature, and <strong>independent of $N$</strong>. For $p(x)=3x^2$ ($p''=6$) it is exactly $h^2$. A convex density is systematically over-reported: the window laps up the higher values on either side. Slide $h$ and watch the window average climb above the true $p(x_0)=0.75$:</p>
+
+<figure>
+<svg id="fig-kernel" viewBox="0 0 600 300" role="img" aria-label="The density 3x^2 with a window around x0; the kernel estimate reports the window average, above the true value for a convex density."></svg>
+<div class="ctl">
+  kernel half-width $h$ = <b id="bv-hval" style="display:inline-block;min-width:2.6em;text-align:right;font-variant-numeric:tabular-nums">0.20</b>
+  <input id="bv-h" type="range" min="1" max="40" value="20" step="1">
+</div>
+<div class="panel">
+  <div class="row"><span>window average = $\mathbb E[\hat p]$</span><b id="bv-avg" style="color:var(--fixed)">—</b></div>
+  <div class="row"><span>bias = window avg − $p(x_0)$</span><b id="bv-bias" style="color:var(--fixed)">—</b></div>
+  <div class="row"><span>predicted $h^2$</span><b id="bv-h2" style="color:var(--truth)">—</b></div>
+</div>
+<figcaption>Figure 1. The density <span style="color:var(--pdf)">$p(x)=3x^2$</span>, with the kernel window $[x_0-h,x_0+h]$ shaded. The estimator reports the <span style="color:var(--fixed)">window average</span> (the flat line), which for this convex curve sits <em>above</em> the true <span style="color:var(--truth)">$p(x_0)=0.75$</span> — that gap is the bias, and it tracks $h^2$ exactly. Shrink $h$ and the window hugs $x_0$, the average drops to $0.75$, and the bias vanishes.</figcaption>
+</figure>
+
+
+<h2 id="3">3. Fixed $h$ parks; shrinking $h$ is consistent but slower<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Run the estimator as $N$ grows, two ways — a <strong>fixed</strong> $h=0.05$, and a <strong>shrinking</strong> $h=0.4\,N^{-1/5}$. The C++ output:</p>
+
+<table>
+<thead><tr><th class="num">N</th><th class="num">fixed h estimate</th><th class="num">bias</th><th class="num">shrinking h estimate</th><th class="num">bias</th></tr></thead>
+<tbody>
+<tr><td class="num">1,000</td><td class="num">0.71000</td><td class="num">−0.040</td><td class="num">0.89076</td><td class="num">+0.141</td></tr>
+<tr><td class="num">10,000</td><td class="num">0.76500</td><td class="num">+0.015</td><td class="num">0.75873</td><td class="num">+0.009</td></tr>
+<tr><td class="num">100,000</td><td class="num">0.75500</td><td class="num">+0.005</td><td class="num">0.75700</td><td class="num">+0.007</td></tr>
+<tr><td class="num">1,000,000</td><td class="num">0.75604</td><td class="num">+0.006</td><td class="num">0.75485</td><td class="num">+0.005</td></tr>
+<tr><td class="num">10,000,000</td><td class="num">0.75174</td><td class="num">+0.002</td><td class="num">0.74877</td><td class="num">−0.001</td></tr>
+</tbody>
+</table>
+
+<p>The fixed-$h$ estimate gets ever more <em>precise</em> — its variance shrinks — but it converges to $0.75+h^2=0.7525$, not $0.75$: a permanent bias of $h^2=0.0025$ that more samples cannot remove. The shrinking-$h$ estimate is <strong>consistent</strong> — its bias melts toward $0$. But that costs convergence speed: with variance $\sim1/(Nh)$ and bias $\sim h^2$, the MSE $\sim h^4+1/(Nh)$ is minimized at $h\propto N^{-1/5}$ (hence the $N^{-1/5}$ schedule), giving RMSE $\propto N^{-2/5}$ — strictly slower than the unbiased $N^{-1/2}$. Below, the fixed-$h$ mean parks above the truth while the shrinking-$h$ mean settles onto it (bands show the shrinking variance):</p>
+
+<figure>
+<svg id="fig-conv" viewBox="0 0 600 320" role="img" aria-label="Estimate versus N: fixed-h converges to a biased value above the truth; shrinking-h converges to the truth."></svg>
+<figcaption>Figure 2. Expected estimate vs $N$ (log axis). <span style="color:var(--fixed)">Fixed $h$</span> tightens onto its biased limit $0.7525$ — precise but permanently $0.0025$ too high. <span style="color:var(--shrink)">Shrinking $h$</span> approaches the <span style="color:var(--truth)">truth $0.75$</span> from above as its bias $h_N^2$ melts. Both variances (bands) shrink with $N$; only one estimator's <em>mean</em> lands on the right answer.</figcaption>
+</figure>
+
+
+<h2 id="4">4. In the renderer<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>This is the fault line between two families of renderers. <strong>Path tracing</strong> (this whole series, and the <a href="https://github.com/INedelcu/PathTracingDemo">PathTracingDemo</a> renderer) is unbiased: it is noisy, but every extra sample provably moves the image toward ground truth, and the noise is the honest $1/\sqrt N$. <strong>Photon mapping, irradiance caching, and radiance caching</strong> are biased: they blur illumination over a kernel (the photon-gather radius, the cache spacing) to trade noise for speed, and are only consistent if that radius shrinks as photons are added. <strong>Denoisers</strong> are the extreme case — heavily biased, with the "smoothing parameter" being the filter strength; they look clean but can be flatly wrong in ways more samples don't fix unless the filter relaxes. The practical rule: unbiased methods let you trust convergence and error bars (<a href="04_variance_and_clt.html#4">example 04</a>); biased methods buy early speed but you must know what smoothing you dialed in, and whether it goes to zero.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/39_bias_vs_variance.cpp" target="_blank" rel="noopener"><code>39_bias_vs_variance.cpp</code></a>.</p>
+
+<p>A box-kernel density estimate at two bandwidths — one fixed, one shrinking with $N$.</p>
+
+<pre class="language-cpp"><code class="language-cpp">double hFix = 0.05;                          // fixed bandwidth  -> permanent h^2 bias
+double hShr = 0.4 * std::pow((double)N, -0.2);   // shrinking (MSE-optimal order N^-1/5)
+
+long long cntFix = 0, cntShr = 0;
+for (long long i = 0; i &lt; N; ++i) {
+    double X = std::pow(rng.NextFloat(), 1.0/3.0);          // X ~ p(x) = 3x^2
+    if (std::fabs(X - x0) &lt; hFix) ++cntFix;
+    if (std::fabs(X - x0) &lt; hShr) ++cntShr;
+}
+double estFix = cntFix / (2.0 * hFix * N);   // E = p(x0) + p''(x0)/6 * h^2  -> biased by h^2
+double estShr = cntShr / (2.0 * hShr * N);   // bias -> 0 as h -> 0, but RMSE ~ N^-2/5 (slower)</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> Error is bias plus variance: variance is noise that averages away as $1/N$; bias is a wrong mean that doesn't. A kernel/photon estimate is biased by $\tfrac16 p''(x_0)h^2$ — a fixed kernel converges precisely to the wrong, blurred value, while a kernel shrinking as $h\propto N^{-1/5}$ is consistent but converges as $N^{-2/5}$, slower than unbiased path tracing's $N^{-1/2}$. Unbiased methods trade speed for trustworthy convergence; biased ones (photon mapping, caching, denoisers) trade correctness for speed, and are only right if their smoothing goes to zero.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="38_high_dimensional_qmc.html">38 — High-dimensional QMC</a>. Builds on: <a href="04_variance_and_clt.html">04 — Variance &amp; the CLT</a>, <a href="03_monte_carlo_integration.html">03 — Unbiasedness</a>. Next: <a href="40_fireflies_clamping.html">40 — Fireflies &amp; clamping</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  const x0=0.5, truth=0.75;
+  const p=x=>3*x*x;
+
+  // ---------- Figure 1: kernel window mechanism ----------
+  (function(){
+    const svg=document.getElementById('fig-kernel'); if(!svg) return;
+    const sl=document.getElementById('bv-h');
+    const X0=56,X1=566,top=28,bot=250, YMAX=3.1;
+    const px=x=>X0+x*(X1-X0), py=v=>bot-(v/YMAX)*(bot-top);
+    const gS=el('g'); svg.appendChild(gS); const gD=el('g'); svg.appendChild(gD);
+    // static: axes + p(x) curve + truth marker
+    [0,1,2,3].forEach(v=>{gS.appendChild(el('line',{x1:X0,y1:py(v),x2:X1,y2:py(v),stroke:'#eef0f4'}));gS.appendChild(txt(X0-8,py(v)+4,v,{'font-size':11,fill:'var(--muted)','text-anchor':'end'}));});
+    gS.appendChild(el('line',{x1:X0,y1:bot,x2:X1,y2:bot,stroke:'#9aa0ad'}));
+    [0,0.5,1].forEach(x=>gS.appendChild(txt(px(x),bot+16,x.toFixed(1),{'font-size':11,fill:'var(--muted)','text-anchor':'middle'})));
+    gS.appendChild(txt((X0+X1)/2,bot+30,'x',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    let d='';for(let i=0;i<=120;i++){const x=i/120;d+=(i?'L':'M')+px(x).toFixed(1)+','+py(p(x)).toFixed(1)+' ';}
+    gS.appendChild(el('path',{d:d.trim(),fill:'none',stroke:'var(--pdf)','stroke-width':2.4}));
+    gS.appendChild(txt(px(0.86),py(p(0.86))-6,'p = 3x²',{'font-size':12,fill:'var(--pdf)'}));
+    // true value marker at x0
+    gS.appendChild(el('circle',{cx:px(x0),cy:py(truth),r:4,fill:'var(--truth)'}));
+    gS.appendChild(txt(px(x0)-6,py(truth)-6,'p(x₀)=0.75',{'font-size':11,fill:'var(--truth)','text-anchor':'end'}));
+    function draw(){
+      while(gD.firstChild)gD.removeChild(gD.firstChild);
+      const h=+sl.value/100, a=Math.max(0,x0-h), b=Math.min(1,x0+h);
+      // window shade
+      gD.appendChild(el('rect',{x:px(a),y:top,width:px(b)-px(a),height:bot-top,fill:'var(--fixed)','fill-opacity':0.08}));
+      gD.appendChild(el('line',{x1:px(x0),y1:top,x2:px(x0),y2:bot,stroke:'#cbd0d9','stroke-dasharray':'3 3'}));
+      // window average = (integral p over [a,b]) / (b-a); analytic for 3x^2: (b^3-a^3)/(b-a)
+      const avg=(b*b*b-a*a*a)/(b-a);
+      gD.appendChild(el('line',{x1:px(a),y1:py(avg),x2:px(b),y2:py(avg),stroke:'var(--fixed)','stroke-width':2.6}));
+      gD.appendChild(txt(px(b)+4,py(avg),'window avg',{'font-size':11,fill:'var(--fixed)'}));
+      document.getElementById('bv-hval').textContent=h.toFixed(2);
+      document.getElementById('bv-avg').textContent=avg.toFixed(4);
+      document.getElementById('bv-bias').textContent='+'+(avg-truth).toFixed(4);
+      document.getElementById('bv-h2').textContent=(h*h).toFixed(4);
+    }
+    sl.addEventListener('input',draw); draw();
+  })();
+
+  // ---------- Figure 2: estimate vs N ----------
+  (function(){
+    const svg=document.getElementById('fig-conv'); if(!svg) return;
+    const x0px=64,x1=560,top=30,bot=250;
+    const lN0=3, lN1=7;   // 1e3 .. 1e7
+    const px=N=>x0px+(Math.log10(N)-lN0)/(lN1-lN0)*(x1-x0px);
+    const YLO=0.68, YHI=0.92, py=v=>bot-(v-YLO)/(YHI-YLO)*(bot-top);
+    [0.7,0.75,0.8,0.85,0.9].forEach(v=>{svg.appendChild(el('line',{x1:x0px,y1:py(v),x2:x1,y2:py(v),stroke:'#eef0f4'}));svg.appendChild(txt(x0px-8,py(v)+4,v.toFixed(2),{'font-size':10.5,fill:'var(--muted)','text-anchor':'end'}));});
+    [3,4,5,6,7].forEach(k=>svg.appendChild(txt(px(Math.pow(10,k)),bot+16,'1e'+k,{'font-size':10.5,fill:'var(--muted)','text-anchor':'middle'})));
+    svg.appendChild(el('line',{x1:x0px,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(txt((x0px+x1)/2,bot+32,'samples N  (log)',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    svg.appendChild(txt(x0px-30,top-12,'estimate',{'font-size':12,fill:'var(--muted)'}));
+    // truth + biased asymptote
+    svg.appendChild(el('line',{x1:x0px,y1:py(0.75),x2:x1,y2:py(0.75),stroke:'var(--truth)','stroke-width':1.6,'stroke-dasharray':'6 4'}));
+    svg.appendChild(txt(x1-2,py(0.75)+14,'truth 0.75',{'font-size':11,fill:'var(--truth)','text-anchor':'end'}));
+    svg.appendChild(el('line',{x1:x0px,y1:py(0.7525),x2:x1,y2:py(0.7525),stroke:'var(--fixed)','stroke-width':1,'stroke-dasharray':'3 3'}));
+    svg.appendChild(txt(x1-2,py(0.7525)-5,'fixed-h limit 0.7525',{'font-size':10.5,fill:'var(--fixed)','text-anchor':'end'}));
+    // expected mean curves + variance bands
+    const hFix=0.05;
+    function band(meanFn,hFn,col){
+      // variance of p_hat ~ p/(2 h N); std = sqrt(p/(2 h N))
+      let dTop='',dBot='';
+      for(let i=0;i<=80;i++){const lN=lN0+(lN1-lN0)*i/80, N=Math.pow(10,lN);const h=hFn(N),m=meanFn(N),sd=Math.sqrt(0.75/(2*h*N));
+        dTop+=(i?'L':'M')+px(N).toFixed(1)+','+py(Math.min(YHI,m+sd)).toFixed(1)+' ';
+        dBot+=(i?'L':'M')+px(N).toFixed(1)+','+py(Math.max(YLO,m-sd)).toFixed(1)+' ';}
+      // fill band
+      const pts=dTop+' '+dBot.split(' ').reverse().join(' ');
+      svg.appendChild(el('path',{d:'M'+dTop.slice(1)+' L'+dBot.split(' ').filter(Boolean).reverse().join(' L')+' Z',fill:col,'fill-opacity':0.10,stroke:'none'}));
+      // mean line
+      let dm='';for(let i=0;i<=80;i++){const lN=lN0+(lN1-lN0)*i/80,N=Math.pow(10,lN);dm+=(i?'L':'M')+px(N).toFixed(1)+','+py(meanFn(N)).toFixed(1)+' ';}
+      svg.appendChild(el('path',{d:dm.trim(),fill:'none',stroke:col,'stroke-width':2.4}));
+    }
+    band(N=>0.7525, N=>hFix,'var(--fixed)');
+    band(N=>0.75+Math.pow(0.4*Math.pow(N,-0.2),2), N=>0.4*Math.pow(N,-0.2),'var(--shrink)');
+    svg.appendChild(txt(px(3e6),py(0.7525)-8,'fixed h',{'font-size':11.5,fill:'var(--fixed)','text-anchor':'middle'}));
+    svg.appendChild(txt(px(2e4),py(0.79),'shrinking h',{'font-size':11.5,fill:'var(--shrink)'}));
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

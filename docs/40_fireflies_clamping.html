@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>40 — Fireflies: heavy tails and the clamping tradeoff — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --est:#2b6cb0; --firefly:#e53e3e; --clamp:#2f9e64; --bias:#dd6b20; --var:#7c3aed; --truth:#d9a500; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--clamp)}
+  .callout.warn{border-left-color:var(--firefly)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:180px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button:active{transform:translateY(1px)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Fireflies: heavy tails and the clamping tradeoff</h1>
+<p class="sub">40_fireflies_clamping.cpp — those lone bright pixels in a noisy render aren't a bug; they're the estimator's heavy tail showing through. When a rare path spikes f/p enormously the variance can be infinite — the mean is right, but nothing looks converged.</p>
+
+<p class="lead">The stray white pixels that pock a noisy render — <strong>fireflies</strong> — are the Monte Carlo estimator's heavy <em>tail</em> made visible. When a rare path carries a huge contribution (a tiny bright light hit through a low-probability direction, a near-singular BSDF/pdf ratio), the estimator $f(X)/p(X)$ spikes enormously. If the tail is heavy enough the estimator has <strong>infinite variance</strong>: the mean is still correct, but no practical number of samples looks converged, because one giant sample dominates the average. The usual fix, <strong>clamping</strong>, trades that variance for a darkening bias — the pathology and its cure, both quantifiable.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> Estimating $\int_0^1 1\,dx=1$ by drawing $X\sim p(x)=2x$ gives the estimator $Y=1/(2X)$ whose mean is $1$ but whose second moment $\int_0^1\frac{1}{2x}dx$ <em>diverges</em> — a power-law tail $P(Y&gt;y)=1/(4y^2)$, so infinite variance and fireflies; clamping at $c$ makes the variance finite but discards the tail energy, biasing the mean low by exactly $-1/(4c)$ — clamp tight for a clean-but-dark image, loose for correct brightness but fireflies.</p>
+</div>
+
+<div class="legend">
+  <span><i class="swatch" style="border-color:var(--est)"></i> estimator $Y=1/(2X)$</span>
+  <span><i class="dot" style="background:var(--firefly)"></i> firefly (giant sample)</span>
+  <span><i class="swatch" style="border-color:var(--bias)"></i> clamp bias</span>
+  <span><i class="swatch" style="border-color:var(--var)"></i> variance</span>
+</div>
+
+
+<h2 id="1">1. A firefly is the estimator's heavy tail<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Build the pathology on purpose. To estimate $I=\int_0^1 1\,dx=1$, draw $X$ from the density $p(x)=2x$ (so $X=\sqrt u$) — a pdf that is <em>tiny</em> near $0$ where the integrand is not. The estimator is</p>
+$$Y=\frac{f(X)}{p(X)}=\frac{1}{2X},$$
+<p>which blows up as $X\to0$. It is perfectly unbiased — $\mathbb E[Y]=\int_0^1\frac{1}{2x}\cdot 2x\,dx=\int_0^1 1\,dx=1$ — but a rare draw of $X$ near $0$ produces a colossal $Y$. Sample it and watch: the mean sits at $1$, yet the single largest sample is in the thousands, and the sample variance refuses to settle.</p>
+
+<figure>
+<svg id="fig-hist" viewBox="0 0 600 300" role="img" aria-label="Histogram of the estimator Y=1/(2X): most mass near 1 with a long heavy tail of rare giant values."></svg>
+<div class="ctl">
+  <button id="ff-add">+100,000 samples</button>
+  <button id="ff-reset">Reset</button>
+</div>
+<div class="panel">
+  <div class="row"><span>running mean (truth 1)</span><b id="ff-mean" style="color:var(--truth)">—</b></div>
+  <div class="row"><span>sample variance (true = ∞)</span><b id="ff-var" style="color:var(--var)">—</b></div>
+  <div class="row"><span>largest sample so far</span><b id="ff-max" style="color:var(--firefly)">—</b></div>
+  <div class="row"><span>samples</span><b id="ff-n">0</b></div>
+</div>
+<figcaption>Figure 1. Histogram of $Y=1/(2X)$ (tail clipped at $6$). Most mass piles just above the minimum $0.5$, but the density decays only as $y^{-3}$, so there is always a long tail — and every so often a <span style="color:var(--firefly)">giant sample</span> (the "largest sample" readout jumps into the hundreds or thousands). That lone spike is a firefly; it drags the sample variance around because the true variance is infinite.</figcaption>
+</figure>
+
+
+<h2 id="2">2. Why the variance is infinite<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The mean exists; the second moment does not. Computing it against the sampling density $p(x)=2x$:</p>
+$$\mathbb E[Y^2]=\int_0^1\Big(\frac{1}{2x}\Big)^2\,2x\,dx=\int_0^1\frac{1}{2x}\,dx=\Big[\tfrac12\ln x\Big]_0^1\to+\infty,$$
+<p>because $\ln x\to-\infty$ as $x\to0$. So $\operatorname{Var}[Y]=\mathbb E[Y^2]-1=\infty$. Equivalently, the tail is a power law right on the boundary: $P(Y&gt;y)=P\!\big(X&lt;\tfrac1{2y}\big)=\big(\tfrac1{2y}\big)^2=\dfrac{1}{4y^2}$, i.e. the density falls as $y^{-3}$. A $y^{-3}$ density has a <em>finite</em> mean (barely: $\int y\cdot y^{-3}$ converges) but an <em>infinite</em> second moment ($\int y^2\cdot y^{-3}=\int y^{-1}$ diverges) — the exact edge case. The Central Limit Theorem doesn't even apply; the sample mean converges, but slowly and erratically, jerked by each new record sample. In a render, that record sample is the firefly.</p>
+
+
+<h2 id="3">3. Clamping: trade variance for a darkening bias<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The common fix is to cap each sample at some value $c$: use $\min(Y,c)$. That makes the variance finite, but it throws away the rare-but-real energy in the tail, biasing the mean low. The bias has a clean closed form — subtract the discarded excess:</p>
+$$\mathbb E[\min(Y,c)]=1-\int_{0}^{1/(2c)}\!\Big(\tfrac{1}{2x}-c\Big)2x\,dx=1-\Big[x-cx^2\Big]_0^{1/(2c)}=1-\frac{1}{4c},$$
+<p>so the clamp bias is exactly $-\dfrac{1}{4c}$, and the (now finite) variance grows only logarithmically, $\operatorname{Var}[\min(Y,c)]=\tfrac12\ln(2c)+\tfrac14-\big(1-\tfrac1{4c}\big)^2$. The C++ table confirms both to the digit:</p>
+
+<table>
+<thead><tr><th class="num">clamp c</th><th class="num">mean</th><th class="num">bias (= −1/4c)</th><th class="num">variance</th></tr></thead>
+<tbody>
+<tr><td class="num">2</td><td class="num">0.87541</td><td class="num">−0.1246 (−0.1250)</td><td class="num">0.178</td></tr>
+<tr><td class="num">5</td><td class="num">0.95032</td><td class="num">−0.0497 (−0.0500)</td><td class="num">0.500</td></tr>
+<tr><td class="num">20</td><td class="num">0.98700</td><td class="num">−0.0130 (−0.0125)</td><td class="num">1.115</td></tr>
+<tr><td class="num">100</td><td class="num">0.99685</td><td class="num">−0.0031 (−0.0025)</td><td class="num">1.872</td></tr>
+<tr><td class="num">1000</td><td class="num">1.00108</td><td class="num">−0.0011 (−0.0003)</td><td class="num">3.608</td></tr>
+</tbody>
+</table>
+
+<p>The two failure modes pull in opposite directions. Tighten the clamp (small $c$) and the variance collapses but the bias $1/(4c)$ grows — a stable, clean, but <em>too-dark</em> image. Loosen it (large $c$) and the bias melts while the variance climbs back toward infinity — correct brightness, but fireflies return. You cannot have both; the clamp is a dial between them:</p>
+
+<figure>
+<svg id="fig-trade" viewBox="0 0 600 300" role="img" aria-label="Clamp bias falling and variance rising as the clamp value c increases, on log axes."></svg>
+<figcaption>Figure 2. The clamp tradeoff vs $c$ (log–log). <span style="color:var(--bias)">Bias</span> $=1/(4c)$ falls as the clamp loosens; <span style="color:var(--var)">variance</span> $\approx\tfrac12\ln(2c)$ rises without bound as it approaches the unclamped, infinite-variance estimator. There is no $c$ that is low on both — tight clamps are dark, loose clamps are noisy. The C++ points (dots) sit on both curves.</figcaption>
+</figure>
+
+
+<h2 id="4">4. In the renderer<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Fireflies show up wherever a path can hit a bright source through a low-probability direction: a small light seen only by a BSDF-sampled ray, a caustic, a sharp specular bounce into the sun. The estimator is unbiased, so they <em>are</em> real energy — averaging removes them eventually, but painfully slowly. Renderers use two remedies. First, <strong>sample better so the tail never forms</strong>: next-event estimation and light/BSDF MIS (<a href="24_nee_mis.html#3">example 24</a>) give the small light a proper pdf, keeping $f/p$ bounded (the whole point of the $G_2/G_1$ and MIS weights throughout this series). Second, when a tail is unavoidable, <strong>clamp indirect contributions</strong> at some $c$ — a knowingly-biased firefly fix that trades a little darkening for a lot of stability, exactly the $-1/(4c)$-for-variance trade above. The honest move is to clamp only the indirect bounces (where the eye is forgiving) and to make $c$ as loose as the noise budget allows.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/40_fireflies_clamping.cpp" target="_blank" rel="noopener"><code>40_fireflies_clamping.cpp</code></a>.</p>
+
+<p>The heavy-tailed estimator, and the one-line clamp that tames it (at a price).</p>
+
+<pre class="language-cpp"><code class="language-cpp">double X = std::sqrt(rng.NextFloat());       // X ~ p(x) = 2x  (tiny near 0)
+double Y = 1.0 / (2.0 * X);                  // estimator f/p, blows up as X -> 0
+// E[Y] = 1 (unbiased), but E[Y^2] = integral 1/(2x) dx = INFINITE -> fireflies
+
+double Yc = std::fmin(Y, c);                 // clamp: finite variance, but...
+// E[Yc] = 1 - 1/(4c)   -> a darkening bias of exactly -1/(4c)
+// Var[Yc] = 0.5*ln(2c) + 0.25 - (1 - 1/(4c))^2   -> grows only as ln(c)</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> Fireflies are an estimator with a heavy tail: here $Y=1/(2X)$ has mean $1$ but $\mathbb E[Y^2]=\int\frac1{2x}=\infty$, a $y^{-2}$ tail that makes the variance infinite and the sample mean lurch on each record draw. Clamping at $c$ restores finite variance but discards tail energy, biasing the result low by exactly $-1/(4c)$ while the variance grows as $\tfrac12\ln c$ — no $c$ wins on both. The real cure is to sample so the tail never forms (NEE + MIS); clamping is the pragmatic, knowingly-biased backstop.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="39_bias_vs_variance.html">39 — Bias vs variance</a>. Builds on: <a href="06_importance_sampling.html">06 — Importance sampling</a>, <a href="24_nee_mis.html">24 — NEE &amp; MIS</a>, <a href="39_bias_vs_variance.html">39 — Bias vs variance</a>. Next: <a href="41_reconstruction_filters.html">41 — Reconstruction filters</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+
+  // ---------- Figure 1: histogram of Y = 1/(2X) ----------
+  (function(){
+    const svg=document.getElementById('fig-hist'); if(!svg) return;
+    const x0=56,x1=566,top=28,bot=250, YCAP=6, NB=48;
+    const px=y=>x0+((y-0.5)/(YCAP-0.5))*(x1-x0);
+    const gS=el('g'); svg.appendChild(gS); const gD=el('g'); svg.appendChild(gD);
+    // static: true density 1/(2y^3) for reference (unnormalized to hist scale later)
+    gS.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    [0.5,1,2,3,4,5,6].forEach(y=>gS.appendChild(txt(px(y),bot+16,y.toString(),{'font-size':10.5,fill:'var(--muted)','text-anchor':'middle'})));
+    gS.appendChild(txt((x0+x1)/2,bot+30,'estimator value Y = 1/(2X)   (tail clipped at 6)',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    gS.appendChild(txt(x0-30,top-12,'count',{'font-size':12,fill:'var(--muted)'}));
+    let hist=new Int32Array(NB), n=0, mean=0, m2=0, maxY=0;
+    function add(M){
+      for(let i=0;i<M;i++){const X=Math.sqrt(Math.random()); const Y=1/(2*X);
+        if(Y>maxY)maxY=Y; n++; const d=Y-mean; mean+=d/n; m2+=d*(Y-mean);
+        let b=Math.floor((Math.min(Y,YCAP-1e-6)-0.5)/(YCAP-0.5)*NB); if(b<0)b=0; if(b>=NB)b=NB-1; hist[b]++;}
+      draw();
+    }
+    function draw(){
+      while(gD.firstChild)gD.removeChild(gD.firstChild);
+      let mx=1; for(const v of hist)mx=Math.max(mx,v);
+      const bw=(x1-x0)/NB, by=v=>bot-(v/(mx*1.08))*(bot-top);
+      for(let b=0;b<NB;b++){if(!hist[b])continue;gD.appendChild(el('rect',{x:x0+b*bw+0.5,y:by(hist[b]),width:bw-1,height:bot-by(hist[b]),fill:'var(--est)','fill-opacity':0.55}));}
+      // last bin overflow note (the clipped tail piles here)
+      gD.appendChild(txt(px(5.6),top+14,'→ heavy tail (fireflies)',{'font-size':11,fill:'var(--firefly)','text-anchor':'end'}));
+      document.getElementById('ff-mean').textContent=n?mean.toFixed(4):'—';
+      document.getElementById('ff-var').textContent=n>1?(m2/(n-1)).toExponential(2):'—';
+      document.getElementById('ff-max').textContent=n?maxY.toFixed(1):'—';
+      document.getElementById('ff-n').textContent=n.toLocaleString();
+    }
+    document.getElementById('ff-add').addEventListener('click',()=>add(100000));
+    document.getElementById('ff-reset').addEventListener('click',()=>{hist=new Int32Array(NB);n=0;mean=0;m2=0;maxY=0;draw();});
+    add(100000);
+  })();
+
+  // ---------- Figure 2: bias vs variance tradeoff ----------
+  (function(){
+    const svg=document.getElementById('fig-trade'); if(!svg) return;
+    const x0=64,x1=560,top=28,bot=250;
+    const CX0=0,CX1=3.2;          // log10 c: 1 .. ~1585
+    const px=c=>x0+(Math.log10(c)-CX0)/(CX1-CX0)*(x1-x0);
+    const VY0=-4,VY1=1;           // log10 value: 1e-4 .. 10
+    const py=v=>bot-(Math.log10(Math.max(1e-4,v))-VY0)/(VY1-VY0)*(bot-top);
+    for(let k=VY0;k<=VY1;k++){const y=py(Math.pow(10,k));svg.appendChild(el('line',{x1:x0,y1:y,x2:x1,y2:y,stroke:'#eef0f4'}));svg.appendChild(txt(x0-8,y+4,'1e'+k,{'font-size':10,fill:'var(--muted)','text-anchor':'end'}));}
+    [1,10,100,1000].forEach(c=>svg.appendChild(txt(px(c),bot+16,c.toString(),{'font-size':10.5,fill:'var(--muted)','text-anchor':'middle'})));
+    svg.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(txt((x0+x1)/2,bot+30,'clamp value c  (log)',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    const bias=c=>1/(4*c);
+    const variance=c=>0.5*Math.log(2*c)+0.25-Math.pow(1-1/(4*c),2);
+    function curve(fn,col){let d='';for(let i=0;i<=120;i++){const c=Math.pow(10,CX0+(CX1-CX0)*i/120);d+=(i?'L':'M')+px(c).toFixed(1)+','+py(fn(c)).toFixed(1)+' ';}svg.appendChild(el('path',{d:d.trim(),fill:'none',stroke:col,'stroke-width':2.4}));}
+    curve(bias,'var(--bias)'); curve(variance,'var(--var)');
+    svg.appendChild(txt(px(2)+4,py(bias(2))-6,'bias = 1/(4c)',{'font-size':11.5,fill:'var(--bias)'}));
+    svg.appendChild(txt(px(200),py(variance(200))-8,'variance ≈ ½ln(2c)',{'font-size':11.5,fill:'var(--var)','text-anchor':'middle'}));
+    // real data points
+    const cs=[2,5,20,100,1000], bs=[0.1246,0.0497,0.0130,0.0031,0.0011], vs=[0.178,0.500,1.115,1.872,3.608];
+    cs.forEach((c,i)=>{svg.appendChild(el('circle',{cx:px(c),cy:py(bs[i]),r:3,fill:'var(--bias)'}));svg.appendChild(el('circle',{cx:px(c),cy:py(vs[i]),r:3,fill:'var(--var)'}));});
+    svg.appendChild(txt(px(1.2),py(0.02),'tight: dark',{'font-size':10.5,fill:'var(--muted)'}));
+    svg.appendChild(txt(px(800),py(0.02),'loose: fireflies',{'font-size':10.5,fill:'var(--muted)','text-anchor':'end'}));
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-// 41 — Comparing "random" number sources: PRNGs vs low-discrepancy sequences
+// 37 — Comparing "random" number sources: PRNGs vs low-discrepancy sequences
 // ==========================================================================
 //
 // A natural question after examples 35 (Owen-scrambled Sobol) and 36 (the Wang

@@ -103,20 +103,16 @@ Read them in order; each leans on the previous ones.
 |---|------|---------|----------------------|
 | 35 | `35_sobol_owen.cpp` | **Sobol + Owen scrambling** | the (0,2)-sequence; randomized QMC keeps ~1/N convergence while being unbiased |
 | 36 | `36_rng_decorrelation.cpp` | **per-pixel RNG seeding** | bad seeds → structured banding, Wang hash → clean noise (+ PPMs); adjacent-pixel correlation |
+| 37 | `37_rng_comparison.cpp` | **PRNG vs low-discrepancy** | Wang/PCG (white noise) vs Owen-Sobol; scatter + chi-square + convergence + speed. A better PRNG does *not* converge faster — placement does; use both |
+| 38 | `38_high_dimensional_qmc.cpp` | **high-dimensional QMC** | Halton collapses to stripes in high dims; digit scrambling fixes it; error vs dimension shows the curse and effective dimension (raw Halton hits 1e6 error at d=32) |
 
 ### Group F — estimator pathologies & the image
 | # | File | Concept | What it demonstrates |
 |---|------|---------|----------------------|
-| 37 | `37_bias_vs_variance.cpp` | **bias vs consistency** | kernel density estimate (photon-mapping style); fixed bandwidth parks at a permanent bias |
-| 38 | `38_fireflies_clamping.cpp` | **fireflies & clamping** | a heavy-tailed (infinite-variance) estimator; clamping trades variance for darkening bias |
-| 39 | `39_reconstruction_filters.cpp` | **reconstruction filters** | box/tent/Gaussian/Mitchell; normalization + edge profile showing blur vs ringing |
-| 40 | `40_linear_vs_gamma.cpp` | **average in linear space** | averaging sRGB-encoded values is ~60/255 too dark; accumulate linear, encode last (+ PPM) |
-
-### Capstone
-| # | File | Concept | What it demonstrates |
-|---|------|---------|----------------------|
-| 41 | `41_rng_comparison.cpp` | **PRNG vs low-discrepancy** | Wang/PCG (white noise) vs Owen-Sobol; scatter + chi-square + convergence + speed. A better PRNG does *not* converge faster — placement does; use both |
-| 42 | `42_high_dimensional_qmc.cpp` | **high-dimensional QMC** | Halton collapses to stripes in high dims; digit scrambling fixes it; error vs dimension shows the curse and effective dimension (raw Halton hits 1e6 error at d=32) |
+| 39 | `39_bias_vs_variance.cpp` | **bias vs consistency** | kernel density estimate (photon-mapping style); fixed bandwidth parks at a permanent bias |
+| 40 | `40_fireflies_clamping.cpp` | **fireflies & clamping** | a heavy-tailed (infinite-variance) estimator; clamping trades variance for darkening bias |
+| 41 | `41_reconstruction_filters.cpp` | **reconstruction filters** | box/tent/Gaussian/Mitchell; normalization + edge profile showing blur vs ringing |
+| 42 | `42_linear_vs_gamma.cpp` | **average in linear space** | averaging sRGB-encoded values is ~60/255 too dark; accumulate linear, encode last (+ PPM) |
 
 Several examples write images into `.\images\`. PPM viewers are scarce on
 Windows, so `.\view_images.ps1` re-encodes every PPM to PNG (`-Open` also opens
@@ -128,11 +124,11 @@ Windows, so `.\view_images.ps1` re-encodes every PPM to PNG (`-Open` also opens
 - `adaptive_density.png` — the budget glows on the circle edges (17);
 - `bluenoise_white.png` vs `bluenoise_blue.png` — clumps vs even spacing (30);
 - `rng_bad.png` (a regular weave) vs `rng_good.png` (clean noise) (36);
-- `gamma_compare.png` — the bottom (wrongly averaged) strip is darker (40);
+- `gamma_compare.png` — the bottom (wrongly averaged) strip is darker (42);
 - `rng_wang.png` (white-noise clumps) vs `rng_sobol.png` (even) vs `rng_lcg.png`
-  (a lattice of lines) — the three categories side by side (41);
+  (a lattice of lines) — the three categories side by side (37);
 - `highdim_halton.png` (a high-dim pair collapsed onto diagonal stripes) vs
-  `highdim_scrambled.png` (stripes broken by digit scrambling) (42).
+  `highdim_scrambled.png` (stripes broken by digit scrambling) (38).
 
 ## How each idea shows up in the [path tracer](https://github.com/INedelcu/PathTracingDemo)
 
@@ -235,7 +231,7 @@ you can trust that a mismatch means a real difference, not RNG luck.
 - E. Woodcock et al. — delta tracking (1965); B. Burley — *Practical Hash-based
   Owen Scrambling* (JCGT 2020). Examples 33 and 35.
 - D. Mitchell, A. Netravali — *Reconstruction Filters in Computer Graphics*
-  (SIGGRAPH 1988). The Mitchell filter in example 39.
+  (SIGGRAPH 1988). The Mitchell filter in example 41.
 - The `Distribution2D` marginal/conditional pattern (examples 14–15) follows
   pbrt's marginal/conditional CDF sampling.
 - See the path tracer's own `README.md` "References" for the BRDF/sampling

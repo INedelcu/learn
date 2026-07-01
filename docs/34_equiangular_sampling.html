@@ -160,7 +160,7 @@ double est = (1.0 / (h*h + t*t)) / p;                    // f / p = Z  ->  exact
 <strong>Takeaway.</strong> Volumetric single scattering near a light is governed by the $1/(h^2+t^2)$ falloff — a sharp spike uniform sampling can't find. Equiangular sampling draws the distance with density $\propto1/(h^2+t^2)$ through the arctangent inverse CDF $t=h\tan(\theta_a+u(\theta_b-\theta_a))$, making $f/p=Z$ constant: zero variance for the bare falloff (the example-06 ideal), and a large win even with transmittance and phase folded in. It is how renderers sample distance for god rays.
 </div>
 
-<p class="small" style="margin-top:34px">The latest entry in the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="33_delta_tracking.html">33 — Delta tracking</a>. Builds on: <a href="06_importance_sampling.html">06 — Importance sampling</a>, <a href="05_sampling_distributions.html">05 — Inverse-CDF sampling</a>.</p>
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="33_delta_tracking.html">33 — Delta tracking</a>. Builds on: <a href="06_importance_sampling.html">06 — Importance sampling</a>, <a href="05_sampling_distributions.html">05 — Inverse-CDF sampling</a>.</p>
 
 </div>
 

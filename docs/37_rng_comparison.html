@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>37 — Comparing random sources: PRNGs vs low-discrepancy — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --wang:#2b6cb0; --pcg:#e53e3e; --sobol:#2f9e64; --lcg:#7c3aed; --truth:#d9a500; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--sobol)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px 18px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:8px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+  button:active{transform:translateY(1px)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Comparing random sources: PRNGs vs low-discrepancy</h1>
+<p class="sub">37_rng_comparison.cpp — after Owen-scrambled Sobol (35) and the Wang hash (36), the natural question is "which is the better random number generator?" The honest answer is that they are different categories of thing, and the numbers show exactly why.</p>
+
+<p class="lead">A <strong>PRNG</strong> — the Wang hash, or a PCG — emits <em>white noise</em>: draws that are independent and uniform, with no structure linking one to the next. That independence is what unbiased estimators and honest stochastic decisions (Russian roulette, reflect-vs-refract) require. A <strong>low-discrepancy sequence</strong> — Owen-scrambled Sobol — is deliberately <em>not</em> independent: consecutive points repel to fill space evenly, which makes integrals converge faster. Owen scrambling adds just enough randomization to keep it unbiased. Comparing them three ways — point distribution, convergence rate, and speed — shows they are not competitors but complements.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> On an $8\times8$ grid a uniform source scores $\chi^2\approx m-1=63$ (Wang lands at $70$, white-noise clumps), Owen-Sobol scores $0$ (perfectly stratified), and a bad LCG scores $641$ (collapsed onto a lattice) — but the punchline is the <em>rate</em>: two <em>different</em> good PRNGs both converge at $1/\sqrt N$ (their $\text{error}\cdot\sqrt N$ stays flat), while Owen-Sobol runs at $\sim N^{-1.4}$; a better PRNG does <em>not</em> converge faster, better sample <em>placement</em> does, so you use a hashed PRNG for randomness and a low-discrepancy sequence for placement, together.</p>
+</div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--wang)"></i> Wang hash (PRNG)</span>
+  <span><i class="dot" style="background:var(--pcg)"></i> PCG (PRNG)</span>
+  <span><i class="dot" style="background:var(--sobol)"></i> Owen-Sobol (low-discrepancy)</span>
+  <span><i class="dot" style="background:var(--lcg)"></i> bad LCG (lattice)</span>
+</div>
+
+
+<h2 id="1">1. Two different categories of "random"<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The confusion in "which RNG is best?" is that the contenders answer different questions. A PRNG is judged by <em>independence</em>: does knowing past draws tell you anything about the next? A low-discrepancy sequence is judged by <em>uniformity</em>: do the first $N$ points cover the domain evenly? These are almost opposite goals. Independent points must occasionally clump — that is what independence looks like — whereas evenly-spread points must be correlated, because "leave a gap here because there is already a point there" is a dependency. The scatter of $1024$ 2D points makes the three categories visible at a glance, and the grid $\chi^2$ statistic turns the picture into a number.</p>
+
+<figure>
+<svg id="fig-scatter" viewBox="0 0 600 250" role="img" aria-label="Three scatter plots of 1024 points: Wang hash (white-noise clumps), Owen-Sobol (evenly stratified), and a bad LCG (points on a few lattice lines)."></svg>
+<div class="panel">
+  <div class="row"><span style="color:var(--wang)">Wang $\chi^2$</span><b id="chi-wang">—</b></div>
+  <div class="row"><span style="color:var(--sobol)">Sobol $\chi^2$</span><b id="chi-sobol">—</b></div>
+  <div class="row"><span style="color:var(--lcg)">LCG $\chi^2$</span><b id="chi-lcg">—</b></div>
+</div>
+<figcaption>Figure 1. $1024$ points each, plotted from the exact generators. <span style="color:var(--wang)">Wang</span> is white noise — random clumps and voids. <span style="color:var(--sobol)">Owen-Sobol</span> is evenly stratified — no two points crowd. The <span style="color:var(--lcg)">bad LCG</span> $s\!\leftarrow\!(5s+1)\bmod 4096$ collapses consecutive pairs onto a handful of diagonal lines. The $8\times8$ grid $\chi^2$ (live readouts, reproducing the C++) reads $\approx70$ / $0$ / $641$ — random-like, perfect, and pathological.</figcaption>
+</figure>
+
+
+<h2 id="2">2. Uniformity: reading the $\chi^2$<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Drop $N$ points into $m=g^2$ grid cells and compare the counts $O_k$ to the expected $e=N/m$ with Pearson's statistic $\chi^2=\sum_k (O_k-e)^2/e$. For a genuine uniform source each $O_k$ is $\text{Binomial}(N,1/m)$ with variance $e(1-\tfrac1m)$, so</p>
+$$\mathbb E[\chi^2]=\sum_{k=1}^{m}\frac{\operatorname{Var}(O_k)}{e}=\frac{m\,e(1-\tfrac1m)}{e}=m-1=63$$
+<p>for the $8\times8=64$ cells. Wang's $70.1$ is one draw from that distribution — white noise, exactly as expected. Owen-Sobol reads $0.0$, and that is not luck: its first two dimensions form a $(0,2)$-sequence (<a href="35_sobol_owen.html">example 35</a>), so every dyadic box of area $1/64$ — and the $8\times8$ grid is precisely such a partition, since $8=2^3$ — holds <em>exactly</em> $N/64=16$ points. Zero deviation, $\chi^2=0$ by construction. The bad LCG's $640.8$ is the opposite failure: a too-small multiplier makes consecutive outputs fall on about a dozen lines, so most cells are empty and a few are packed — enormous deviation. Uniformity separates the lattice from the other two, but, crucially, it does <em>not</em> separate Wang from Sobol in a way that predicts integration performance. For that, watch how the error shrinks.</p>
+
+
+<h2 id="3">3. The punchline: convergence rate<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Integrate the smooth $\int_{[0,1]^2} e^{x+y}\,dx\,dy=(e-1)^2=2.952492$ and measure RMS error over $64$ independent runs. The story is entirely in the exponent. A PRNG obeys the Central Limit Theorem: error $\approx\sigma/\sqrt N$, so $\text{error}\cdot\sqrt N$ should hold constant. Owen-Sobol has no such barrier; on a smooth integrand it reaches $\sim N^{-3/2}$, so $\text{error}\cdot N$ should keep <em>shrinking</em>. Both predictions land:</p>
+
+<table>
+<thead><tr><th class="num">$N$</th><th class="num">Wang</th><th class="num">PCG</th><th class="num">Owen-Sobol</th><th class="num">Wang$\cdot\sqrt N$</th><th class="num">Owen$\cdot N$</th></tr></thead>
+<tbody>
+<tr><td class="num">64</td><td class="num">1.48e−1</td><td class="num">1.54e−1</td><td class="num">3.40e−3</td><td class="num">1.18</td><td class="num">0.218</td></tr>
+<tr><td class="num">256</td><td class="num">7.00e−2</td><td class="num">7.89e−2</td><td class="num">4.52e−4</td><td class="num">1.12</td><td class="num">0.116</td></tr>
+<tr><td class="num">1024</td><td class="num">4.00e−2</td><td class="num">3.82e−2</td><td class="num">6.18e−5</td><td class="num">1.28</td><td class="num">0.063</td></tr>
+<tr><td class="num">4096</td><td class="num">2.23e−2</td><td class="num">2.12e−2</td><td class="num">9.15e−6</td><td class="num">1.42</td><td class="num">0.038</td></tr>
+<tr><td class="num">16384</td><td class="num">1.15e−2</td><td class="num">9.63e−3</td><td class="num">1.24e−6</td><td class="num">1.48</td><td class="num">0.020</td></tr>
+</tbody>
+</table>
+
+<p>The <strong>Wang$\cdot\sqrt N$</strong> column is flat ($\sim1.1$–$1.5$) — Wang is exactly $1/\sqrt N$. PCG sits right on top of Wang the whole way down: two different good PRNGs, indistinguishable in rate. Meanwhile <strong>Owen$\cdot N$</strong> is not flat but <em>falling</em> ($0.22\to0.02$), so Owen-Sobol beats $1/N$: fitting the slope over the whole range gives $\log(3.40\mathrm{e}{-3}/1.24\mathrm{e}{-6})/\log(16384/64)=\log(2749)/\log(256)\approx-1.43$, the $N^{-3/2}$ of Owen scrambling on a smooth function. The lesson is sharp: swapping one good PRNG for another moves nothing; changing the sample <em>placement</em> moves the exponent.</p>
+
+<figure>
+<svg id="fig-conv" viewBox="0 0 600 320" role="img" aria-label="Log-log RMS error vs N: Wang and PCG overlap on a slope of -1/2, while Owen-Sobol follows a much steeper slope near -3/2."></svg>
+<figcaption>Figure 2. RMS error vs $N$ (log–log), C++ data points. <span style="color:var(--wang)">Wang</span> and <span style="color:var(--pcg)">PCG</span> lie on the same $N^{-1/2}$ guide (dashed) — a better PRNG is still a PRNG. <span style="color:var(--sobol)">Owen-Sobol</span> tracks the steeper $N^{-3/2}$ guide, pulling four orders of magnitude below the PRNGs by $N=16384$. Placement, not the generator's quality, sets the slope.</figcaption>
+</figure>
+
+
+<h2 id="4">4. Speed, and the synthesis<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Cost per sample: <span style="color:var(--wang)">Wang $2.34$ ns</span>, <span style="color:var(--pcg)">PCG $2.28$ ns</span>, <span style="color:var(--sobol)">Owen-Sobol $10.44$ ns</span>. The scrambled sequence is about $4.5\times$ more expensive per draw — the bit reversals and integer hashes of the scramble are not free. But <a href="31_efficiency.html">efficiency (example 31)</a> is variance $\times$ cost, and at $N=16384$ Owen-Sobol's error is $\sim10^{4}$ smaller; to match it a PRNG would need $\sim10^{8}$ times the samples. The extra $4.5\times$ per sample is irrelevant against that. So the framing "PRNG vs Sobol, pick one" is wrong. Use <strong>both</strong>: a hashed PRNG as the source of independent randomness — the renderer's Wang-seeded per-pixel stream from <a href="36_rng_decorrelation.html">example 36</a> — and a low-discrepancy sequence to <em>place</em> those samples in the high-dimensional path space. The PRNG guarantees unbiasedness and clean stochastic decisions; the sequence buys the convergence rate. They do different jobs.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/37_rng_comparison.cpp" target="_blank" rel="noopener"><code>37_rng_comparison.cpp</code></a>.</p>
+
+<p>The two workhorses: the Wang-hash PRNG (white noise) and the Owen scramble that turns a Sobol index into a stratified, unbiased sample.</p>
+
+<pre class="language-cpp"><code class="language-cpp">// PRNG: an integer hash -> white noise. Independent draws, no structure.
+uint32_t WangHash(uint32_t s) {
+    s = (s ^ 61u) ^ (s &gt;&gt; 16); s *= 9u; s = s ^ (s &gt;&gt; 4);
+    s *= 0x27d4eb2du; s = s ^ (s &gt;&gt; 15); return s;
+}
+
+// Low-discrepancy: Owen-scramble a Sobol point. A nested digit permutation that
+// randomizes (unbiased) while preserving stratification -> ~N^-1.5 convergence.
+uint32_t OwenScramble(uint32_t x, uint32_t seed) {
+    x = ReverseBits(x);
+    x ^= x * 0x3d20adeau; x += seed; x *= (seed &gt;&gt; 16) | 1u;
+    x ^= x * 0x05526c56u; x ^= x * 0x53a22864u;
+    return ReverseBits(x);
+}
+// Wang/PCG both converge at 1/sqrt(N); Owen-Sobol at ~N^-1.5. Placement, not
+// the generator, sets the rate -- so use a hashed PRNG AND a sequence, together.</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> A PRNG (Wang, PCG) and a low-discrepancy sequence (Owen-Sobol) are different tools. Uniformity ($8\times8$ $\chi^2$: Wang $70$, Sobol $0$, LCG $641$) tells lattices apart but doesn't rank the two good sources. The rate does: both PRNGs converge at $1/\sqrt N$ (error$\cdot\sqrt N$ flat), Owen-Sobol at $\sim N^{-1.43}$ (error$\cdot N$ still shrinking) — a better PRNG changes nothing, better placement changes the exponent. Owen costs $4.5\times$ more per sample but needs orders of magnitude fewer, so the answer isn't "pick one": use a hashed PRNG for the randomness and a low-discrepancy sequence for the placement.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="36_rng_decorrelation.html">36 — RNG decorrelation</a>. Builds on: <a href="35_sobol_owen.html">35 — Sobol &amp; Owen scrambling</a>, <a href="11_low_discrepancy.html">11 — Low-discrepancy sequences</a>, <a href="31_efficiency.html">31 — Efficiency</a>. Next: <a href="38_high_dimensional_qmc.html">38 — High-dimensional QMC</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+
+  // ---- exact ports of the C++ generators (uint32 math) ----
+  function u32(x){return x>>>0;}
+  function wang(s){s=u32(s); s=u32((s^61)^(s>>>16)); s=u32(Math.imul(s,9)); s=u32(s^(s>>>4)); s=u32(Math.imul(s,0x27d4eb2d)); s=u32(s^(s>>>15)); return u32(s);}
+  function rbits(n){n=u32(n); n=u32((n<<16)|(n>>>16)); n=u32(((n&0x00ff00ff)<<8)|((n&0xff00ff00)>>>8)); n=u32(((n&0x0f0f0f0f)<<4)|((n&0xf0f0f0f0)>>>4)); n=u32(((n&0x33333333)<<2)|((n&0xcccccccc)>>>2)); n=u32(((n&0x55555555)<<1)|((n&0xaaaaaaaa)>>>1)); return u32(n);}
+  function sobol1(i){i=u32(i); let r=0,v=0x80000000; while(i){ if(i&1) r=u32(r^v); i>>>=1; v=u32(v^(v>>>1)); } return u32(r);}
+  function owen(x,seed){x=rbits(x); x=u32(x^Math.imul(x,0x3d20adea)); x=u32(x+seed); x=u32(Math.imul(x,u32((seed>>>16)|1))); x=u32(x^Math.imul(x,0x05526c56)); x=u32(x^Math.imul(x,0x53a22864)); return rbits(x);}
+  function hashseed(a,b){let h=u32(Math.imul(a,747796405)+Math.imul(b,2891336453)); h=u32(h^(h>>>16)); h=u32(Math.imul(h,0x7feb352d)); h=u32(h^(h>>>15)); return u32(h);}
+  function f32(u){return u32(u)*2.3283064365386963e-10;}   // * 2^-32
+
+  const N=1024;
+  function genWang(){const p=[];for(let i=0;i<N;i++){const hw=wang(i);p.push([f32(hw),f32(wang(hw))]);}return p;}
+  function genSobol(){const s0=hashseed(0,0),s1=hashseed(0,1),p=[];for(let i=0;i<N;i++){p.push([f32(owen(rbits(i),s0)),f32(owen(sobol1(i),s1))]);}return p;}
+  function genLCG(){let s=1;const nx=()=>{s=(5*s+1)&4095;return s/4096;};const p=[];for(let i=0;i<N;i++){const x=nx(),y=nx();p.push([x,y]);}return p;}
+  function chi2(p,g){const c=new Array(g*g).fill(0);for(const[x,y]of p){let ix=Math.min(g-1,x*g|0),iy=Math.min(g-1,y*g|0);c[iy*g+ix]++;}const e=p.length/(g*g);let s=0;for(const v of c)s+=(v-e)*(v-e)/e;return s;}
+
+  // ---------- Figure 1: three scatter panels ----------
+  (function(){
+    const svg=document.getElementById('fig-scatter'); if(!svg) return;
+    const S=170, top=16, gap=25, labels=['Wang hash','Owen-Sobol','bad LCG'], cols=['var(--wang)','var(--sobol)','var(--lcg)'];
+    const data=[genWang(),genSobol(),genLCG()];
+    const x0=[15,15+S+gap,15+2*(S+gap)];
+    for(let k=0;k<3;k++){
+      const ox=x0[k];
+      svg.appendChild(el('rect',{x:ox,y:top,width:S,height:S,fill:'#fff',stroke:'var(--line)'}));
+      svg.appendChild(txt(ox+S/2,top+S+20,labels[k],{'font-size':12,fill:cols[k],'text-anchor':'middle','font-weight':600}));
+      for(const [x,y] of data[k]) svg.appendChild(el('circle',{cx:(ox+x*S).toFixed(1),cy:(top+(1-y)*S).toFixed(1),r:0.9,fill:cols[k],'fill-opacity':0.75}));
+    }
+    document.getElementById('chi-wang').textContent=chi2(data[0],8).toFixed(1);
+    document.getElementById('chi-sobol').textContent=chi2(data[1],8).toFixed(1);
+    document.getElementById('chi-lcg').textContent=chi2(data[2],8).toFixed(1);
+  })();
+
+  // ---------- Figure 2: convergence log-log ----------
+  (function(){
+    const svg=document.getElementById('fig-conv'); if(!svg) return;
+    const x0=58,x1=560,top=24,bot=250;
+    const Ns=[64,256,1024,4096,16384];
+    const wang=[1.48e-1,7.00e-2,4.00e-2,2.23e-2,1.15e-2];
+    const pcg =[1.54e-1,7.89e-2,3.82e-2,2.12e-2,9.63e-3];
+    const sob =[3.40e-3,4.52e-4,6.18e-5,9.15e-6,1.24e-6];
+    const LX0=Math.log10(64),LX1=Math.log10(16384);
+    const px=n=>x0+(Math.log10(n)-LX0)/(LX1-LX0)*(x1-x0);
+    const LY0=-6,LY1=0;   // 1e-6 .. 1
+    const py=v=>bot-(Math.log10(v)-LY0)/(LY1-LY0)*(bot-top);
+    for(let k=LY0;k<=LY1;k++){const y=py(Math.pow(10,k));svg.appendChild(el('line',{x1:x0,y1:y,x2:x1,y2:y,stroke:'#eef0f4'}));svg.appendChild(txt(x0-8,y+4,'1e'+k,{'font-size':10,fill:'var(--muted)','text-anchor':'end'}));}
+    Ns.forEach(n=>svg.appendChild(txt(px(n),bot+16,n.toString(),{'font-size':10.5,fill:'var(--muted)','text-anchor':'middle'})));
+    svg.appendChild(el('line',{x1:x0,y1:bot,x2:x1,y2:bot,stroke:'#9aa0ad'}));
+    svg.appendChild(txt((x0+x1)/2,bot+30,'samples N  (log)',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    svg.appendChild(txt(x0-40,top-6,'RMS err',{'font-size':12,fill:'var(--muted)'}));
+    // reference slopes
+    function guide(nRef,vRef,slope,col){const y1=vRef*Math.pow(64/nRef,-slope)*0,d=[];for(const n of [64,16384]){const v=vRef*Math.pow(n/nRef,slope);d.push(px(n).toFixed(1)+','+py(v).toFixed(1));}svg.appendChild(el('path',{d:'M'+d[0]+'L'+d[1],stroke:col,'stroke-width':1.4,'stroke-dasharray':'5 4',fill:'none'}));}
+    guide(64,1.55e-1,-0.5,'#9aa0ad');   // N^-1/2 through the PRNGs
+    guide(64,3.4e-3,-1.5,'#9aa0ad');    // N^-3/2 through Owen-Sobol
+    svg.appendChild(txt(px(1500),py(2.2e-2)+2,'N^(−1/2)',{'font-size':11,fill:'var(--muted)'}));
+    svg.appendChild(txt(px(320),py(2.0e-5),'N^(−3/2)',{'font-size':11,fill:'var(--muted)'}));
+    function series(vals,col,lab,ly){let d='';vals.forEach((v,i)=>{d+=(i?'L':'M')+px(Ns[i]).toFixed(1)+','+py(v).toFixed(1)+' ';});svg.appendChild(el('path',{d:d.trim(),fill:'none',stroke:col,'stroke-width':2.2}));vals.forEach((v,i)=>svg.appendChild(el('circle',{cx:px(Ns[i]),cy:py(v),r:2.6,fill:col})));}
+    series(wang,'var(--wang)'); series(pcg,'var(--pcg)'); series(sob,'var(--sobol)');
+    svg.appendChild(txt(px(16384)+2,py(1.15e-2)-2,'Wang',{'font-size':11,fill:'var(--wang)','text-anchor':'end'}));
+    svg.appendChild(txt(px(16384)+2,py(9.63e-3)+12,'PCG',{'font-size':11,fill:'var(--pcg)','text-anchor':'end'}));
+    svg.appendChild(txt(px(4096),py(9.15e-6)-8,'Owen-Sobol',{'font-size':11,fill:'var(--sobol)','text-anchor':'middle'}));
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>

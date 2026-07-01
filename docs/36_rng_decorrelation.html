@@ -157,7 +157,7 @@ float good = WangHash(idx) * 0x1p-32f;               // hashed seed -> independe
 <strong>Takeaway.</strong> Per-pixel RNG streams must be seeded through a hash, or adjacent pixels — whose raw seeds differ by one — draw correlated numbers and the image shows banding that averaging can't remove. The mean adjacent-pixel difference is $\tfrac13$ for independent uniforms; a smooth seed measures $0.22$ (correlated), a Wang hash $0.33$. It is not about being "more random" but about decorrelation, and hashing the (pixel, frame, step) seed — as the renderer does — is what turns per-pixel streams into clean, structureless noise.
 </div>
 
-<p class="small" style="margin-top:34px">The latest entry in the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="35_sobol_owen.html">35 — Sobol &amp; Owen scrambling</a>. Builds on: <a href="30_blue_noise.html">30 — Blue noise</a>, <a href="13_image_convergence_ppm.html">13 — Image-space convergence</a>.</p>
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="35_sobol_owen.html">35 — Sobol &amp; Owen scrambling</a>. Builds on: <a href="30_blue_noise.html">30 — Blue noise</a>, <a href="13_image_convergence_ppm.html">13 — Image-space convergence</a>. Next: <a href="37_rng_comparison.html">37 — PRNG vs low-discrepancy</a>.</p>
 
 </div>
 

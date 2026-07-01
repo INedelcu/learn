@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>42 — Average in linear space: the gamma trap — explained</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]});"></script>
+
+<!-- Prism.js — C++ syntax highlighting (Coy light theme) + copy button -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css">
+<style>
+  pre[class*="language-"]{border:0; border-radius:0}
+  pre[class*="language-"], pre[class*="language-"] code[class*="language-"]{font-size:14px; line-height:1.5}
+  h2[id]{scroll-margin-top:18px}
+  .hlink{margin-left:.4em; color:#bcc3ce; text-decoration:none; vertical-align:middle; display:inline-block; line-height:0}
+  h2:hover .hlink{color:#2b6cb0}
+  .hlink:hover{color:#2b6cb0}
+  div.code-toolbar > .toolbar{opacity:1}
+  div.code-toolbar > .toolbar > .toolbar-item > button{font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:6px; cursor:pointer; box-shadow:none}
+  div.code-toolbar > .toolbar > .toolbar-item > button:hover{background:var(--card); color:var(--ink)}
+</style>
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --line:#e1e4ea; --bg:#ffffff; --card:#f7f8fb;
+    --correct:#2f9e64; --wrong:#e53e3e; --curve:#2b6cb0; --truth:#d9a500; --codebg:#f4f6f9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:42px 22px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px}
+  h2{font-size:22px; margin:46px 0 12px; padding-top:14px; border-top:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:12px 0}
+  .sub{color:var(--muted); font-size:15px; margin-top:0}
+  a{color:#2b6cb0}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13.5px; background:var(--codebg); padding:1px 5px; border-radius:4px}
+  pre{background:var(--codebg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.5}
+  pre code{background:none; padding:0}
+  .lead{font-size:17px}
+  .callout{background:var(--card); border:1px solid var(--line); border-left:3px solid #2b6cb0; border-radius:8px; padding:12px 16px; margin:18px 0}
+  .callout.key{border-left-color:var(--correct)}
+  .callout.warn{border-left-color:var(--wrong)}
+  figure{margin:24px 0; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+  figure svg{display:block; width:100%; height:auto}
+  figcaption{color:var(--muted); font-size:14px; font-style:italic; margin-top:10px; text-align:center}
+  .legend{display:flex; flex-wrap:wrap; gap:14px 22px; margin:10px 0 4px; font-size:13.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:7px}
+  .swatch{width:22px; height:0; border-top:3px solid; display:inline-block; border-radius:2px}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:var(--card)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  .small{font-size:14px; color:var(--muted)}
+  .panel{display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; margin-top:14px; font-size:14px}
+  .panel .row{display:flex; justify-content:space-between; gap:10px; border-bottom:1px dotted var(--line); padding:3px 0}
+  .panel .row b{font-variant-numeric:tabular-nums}
+  input[type=range]{width:220px; vertical-align:middle}
+  .ctl{margin-top:12px; font-size:14px; display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center}
+  .swatches{display:flex; gap:16px; margin-top:14px; flex-wrap:wrap}
+  .sw{flex:1; min-width:150px}
+  .sw .chip{height:70px; border-radius:8px; border:1px solid var(--line)}
+  .sw .cap{font-size:13px; margin-top:6px; text-align:center; color:var(--muted)}
+  button{font:inherit; font-size:14px; padding:6px 12px; border:1px solid var(--line); background:#fff;
+    border-radius:7px; cursor:pointer; color:var(--ink)}
+  button:hover{background:var(--card)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<h1>Average in linear space: the gamma trap</h1>
+<p class="sub">42_linear_vs_gamma.cpp — a monitor's 8-bit values are sRGB-encoded, not proportional to light. Averaging those encoded values instead of the linear radiance behind them is one of the most common and most visible rendering bugs — the midtones always come out too dark.</p>
+
+<p class="lead">Monte Carlo rendering is an averaging machine: it estimates each pixel by averaging the radiance of many paths. That average is only correct if it happens in <strong>linear</strong> radiance. But the numbers a monitor consumes are <strong>sRGB-encoded</strong> — roughly $\text{value}\approx L^{1/2.2}$ — and encoding is nonlinear, so the average of encoded values is <em>not</em> the encoding of the average. Blend, downsample, or anti-alias in display space and you get a specific, always-in-the-same-direction error: the midtones darken. This is exactly why the path tracer accumulates linear radiance and applies the sRGB curve only at the final blit.</p>
+
+<div class="callout key">
+<strong>One-sentence summary.</strong> The sRGB encode $f$ is concave with $f(0)=0,\ f(1)=1$, so by Jensen's inequality $f$ lies <em>above</em> the diagonal on $[0,1]$; encoding-then-averaging gives the right answer $f(\text{cov})$ while averaging-then-displaying gives the too-low $\text{cov}$, and the gap $f(\text{cov})-\text{cov}\ge0$ is always a darkening — peaking near $60$–$73$ of $255$ levels in the midtones (e.g. a $50\%$ edge should display as $188/255$ but comes out $128/255$).</p>
+</div>
+
+<div class="legend">
+  <span><i class="swatch" style="border-color:var(--curve)"></i> sRGB encode $f(c)$</span>
+  <span><i class="dot" style="background:var(--correct)"></i> correct: encode the linear average</span>
+  <span><i class="dot" style="background:var(--wrong)"></i> wrong: average the encoded values</span>
+</div>
+
+
+<h2 id="1">1. Monitors are nonlinear<a class="hlink" href="#1" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>An 8-bit pixel value is not proportional to the light the monitor emits. The sRGB standard defines the encoding from linear radiance $c\in[0,1]$ to stored value:</p>
+$$f(c)=\begin{cases}12.92\,c & c\le 0.0031308,\\[2pt] 1.055\,c^{1/2.4}-0.055 & \text{otherwise,}\end{cases}$$
+<p>a tiny linear toe near black grafted onto a power curve with exponent $1/2.4$ (the whole thing approximates $c^{1/2.2}$). It is anchored at the corners, $f(0)=0$ and $f(1)=1$, and it is <strong>concave</strong>: $f''&lt;0$ on the power segment. Concavity is the entire story. It means the curve bows <em>above</em> the straight line joining its endpoints — so $f(c)\ge c$ for every $c\in[0,1]$, with equality only at $0$ and $1$. Mid-gray $c=\tfrac12$ encodes not to $0.5$ but to $f(0.5)=1.055\cdot0.5^{1/2.4}-0.055=0.735$, i.e. $188/255$. The monitor needs a <em>high</em> code to make <em>middling</em> light.</p>
+
+
+<h2 id="2">2. The trap: averaging encoded values<a class="hlink" href="#2" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Take the canonical case: a pixel whose area is fraction $\text{cov}$ covered by a white surface ($L=1$) and the rest by black ($L=0$) — an anti-aliased edge. The true light reaching the eye is the linear average</p>
+$$L=\text{cov}\cdot 1+(1-\text{cov})\cdot 0=\text{cov},\qquad\text{correct display}=f(\text{cov}).$$
+<p>Now the bug. If instead you average the two surfaces' <em>encoded</em> pixel values — which is what happens when you blend, downsample, or filter in display space — you compute</p>
+$$\text{cov}\cdot f(1)+(1-\text{cov})\cdot f(0)=\text{cov}\cdot 1+(1-\text{cov})\cdot 0=\text{cov},$$
+<p>and then send $\text{cov}$ straight to the display as if it were already a valid code. The two answers are $f(\text{cov})$ versus $\text{cov}$, and since $f(\text{cov})\ge\text{cov}$ the wrong one is <strong>always darker or equal, never brighter</strong>. This is just Jensen's inequality for a concave $f$: $f(\mathbb E[L])\ge \mathbb E[f(L)]$, with the endpoints black and white making both sides collapse to the clean forms above. The C++ prints the gap in 8-bit levels:</p>
+
+<table>
+<thead><tr><th class="num">cov</th><th class="num">correct $=f(\text{cov})$</th><th class="num">wrong $=\text{cov}$</th><th class="num">error (levels too dark)</th></tr></thead>
+<tbody>
+<tr><td class="num">0.10</td><td class="num">89/255</td><td class="num">26/255</td><td class="num" style="color:var(--wrong)">63</td></tr>
+<tr><td class="num">0.25</td><td class="num">137/255</td><td class="num">64/255</td><td class="num" style="color:var(--wrong)">73</td></tr>
+<tr><td class="num">0.50</td><td class="num">188/255</td><td class="num">128/255</td><td class="num" style="color:var(--wrong)">60</td></tr>
+<tr><td class="num">0.75</td><td class="num">225/255</td><td class="num">191/255</td><td class="num" style="color:var(--wrong)">34</td></tr>
+<tr><td class="num">0.90</td><td class="num">243/255</td><td class="num">230/255</td><td class="num" style="color:var(--wrong)">13</td></tr>
+</tbody>
+</table>
+
+<p>The error vanishes at the endpoints (pure black and pure white encode the same either way) and bulges in between. Its maximum sits in the low midtones: differentiating $f(c)-c$ and setting $f'(c)=1$ gives $c\approx0.22$, right where the table peaks at $73$ levels. That is not a subtle tint — $73/255$ is nearly a third of the entire tonal range, wrong, on every anti-aliased edge in the frame.</p>
+
+<figure>
+<svg id="fig-curve" viewBox="0 0 600 320" role="img" aria-label="The sRGB encode curve bowing above the diagonal; the vertical gap between them is the darkening error, maximal in the low midtones."></svg>
+<div class="ctl">
+  <label>coverage $\text{cov}$: <input id="g-cov" type="range" min="0" max="1" step="0.01" value="0.5"></label>
+</div>
+<div class="swatches">
+  <div class="sw"><div class="chip" id="g-correct"></div><div class="cap">correct — <b id="g-ccode">—</b>/255</div></div>
+  <div class="sw"><div class="chip" id="g-wrong"></div><div class="cap">wrong — <b id="g-wcode">—</b>/255</div></div>
+  <div class="sw"><div class="chip" style="background:#000;position:relative"><div id="g-halfL" style="position:absolute;inset:0 50% 0 0;background:#fff"></div></div><div class="cap">the actual mix (zoom out)</div></div>
+</div>
+<figcaption>Figure 1. The <span style="color:var(--curve)">sRGB encode</span> $f(c)$ bows above the diagonal; the vertical gap to the diagonal is the darkening error, largest near $c\approx0.22$. Drag coverage to compare the <span style="color:var(--correct)">correct</span> gray (encode the linear average) against the <span style="color:var(--wrong)">wrong</span> one (average the encoded values). The third swatch is the true black/white mix — squint and it should match the correct patch, not the dark one.</figcaption>
+</figure>
+
+
+<h2 id="3">3. The 50% edge, exactly<a class="hlink" href="#3" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>The half-covered edge is worth doing by hand, because it is the one everyone pictures. Correct:</p>
+$$f(0.5)=1.055\cdot 0.5^{1/2.4}-0.055=1.055\cdot0.7492-0.055=0.7354\ \Rightarrow\ \lfloor 0.7354\cdot255\rceil=188.$$
+<p>Wrong: average the codes $\{0,255\}$ to get $128$. The half-and-half edge that should read as a bright $188/255$ gray instead renders as a murky $128/255$ — a $60$-level hole punched into every $50\%$ edge in the image. And it compounds: mip-map generation, texture downsampling, and alpha compositing done in sRGB all make the same mistake, which is why a naively-scaled thumbnail looks darker than the original.</p>
+
+<figure>
+<canvas id="fig-strip" width="600" height="150" style="width:100%;height:auto;display:block;border-radius:8px"></canvas>
+<figcaption>Figure 2. The same coverage gradient (black at left → white at right), reconstructed two ways — exactly the PPM the C++ writes. <span style="color:var(--correct)">Top:</span> the linear average encoded once (correct). <span style="color:var(--wrong)">Bottom:</span> the encoded values averaged (wrong). The two are identical only at the black and white ends; through the midtones the bottom strip is visibly, systematically darker.</figcaption>
+</figure>
+
+
+<h2 id="4">4. Why the renderer accumulates in linear<a class="hlink" href="#4" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+
+<p>Every averaging step in the pipeline must live in linear space, and the encode must happen exactly once, last. This demo's accumulator is built that way: radiance is stored in a floating-point <code>R32G32B32A32_SFloat</code> buffer and each new sample is folded in with the progressive average <code>lerp(prev, new, 1/(step+1))</code> on <em>linear</em> values — the same running mean the whole series uses. Only at the final blit to the back buffer is the sRGB curve applied. Because the buffer is float and linear, there is no encoding sitting between samples to corrupt the average: the thousands of paths accumulated per pixel, the reconstruction filter of <a href="41_reconstruction_filters.html">example 41</a>, and any downsampling all compose correctly, and the nonlinearity is deferred to a single well-defined output transform. Mixing the two spaces anywhere upstream is the bug this example exists to inoculate against.</p>
+
+
+<h2 id="5">5. The code<a class="hlink" href="#5" title="Link to this section"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"></path></svg></a></h2>
+<p class="small">The complete sample on GitHub: <a href="https://github.com/INedelcu/learn/blob/main/42_linear_vs_gamma.cpp" target="_blank" rel="noopener"><code>42_linear_vs_gamma.cpp</code></a>.</p>
+
+<p>The sRGB encode, and the one-line difference between the correct and the wrong pixel.</p>
+
+<pre class="language-cpp"><code class="language-cpp">double ToSRGB(double c) {                    // linear radiance -> display code, concave
+    c = c &lt; 0 ? 0 : c &gt; 1 ? 1 : c;
+    return c &lt;= 0.0031308 ? 12.92 * c
+                          : 1.055 * std::pow(c, 1.0/2.4) - 0.055;
+}
+
+// A pixel that is fraction 'cov' white (L=1) over black (L=0):
+int correct = (int)std::lround(ToSRGB(cov) * 255);   // encode(linear average)  -> right
+int wrong   = (int)std::lround(cov * 255);           // average of encoded {0,255} -> too dark
+// correct - wrong &gt;= 0 always: f is concave, so it bows above the diagonal (Jensen)</code></pre>
+
+<div class="callout">
+<strong>Takeaway.</strong> The sRGB encode $f$ is concave with $f(0)=0,f(1)=1$, so it lies above the diagonal and $f(c)\ge c$ everywhere. Averaging linear radiance and encoding once gives the correct pixel $f(\text{cov})$; averaging already-encoded values gives $\text{cov}$, which is always darker — up to $73/255$ in the low midtones, $60/255$ at a $50\%$ edge ($188$ vs $128$). Monte Carlo rendering is averaging, so keep every accumulation, blend, and filter in linear radiance and apply the sRGB curve only when writing the final pixel. Mixing the two spaces is one of the most common and most visible rendering bugs.
+</div>
+
+<p class="small" style="margin-top:34px">Part of the <a href="index.html">Monte Carlo &amp; path tracing explainer series</a>. Previous: <a href="41_reconstruction_filters.html">41 — Reconstruction filters</a>. Builds on: <a href="13_image_convergence_ppm.html">13 — Image convergence</a>, <a href="41_reconstruction_filters.html">41 — Reconstruction filters</a>. This is the final example in the series — back to the <a href="index.html">index</a>.</p>
+
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  function el(t,a){const e=document.createElementNS(NS,t);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;}
+  function txt(x,y,s,a){const e=el('text',Object.assign({x,y},a||{}));e.textContent=s;return e;}
+  function toSRGB(c){c=c<0?0:c>1?1:c;return c<=0.0031308?12.92*c:1.055*Math.pow(c,1/2.4)-0.055;}
+  function code(v){return Math.round(Math.max(0,Math.min(1,v))*255);}
+  function gray(code){return 'rgb('+code+','+code+','+code+')';}
+
+  // ---------- Figure 1: encode curve + gap + swatches ----------
+  (function(){
+    const svg=document.getElementById('fig-curve'); if(!svg) return;
+    const x0=48,x1=470,top=22,bot=250;
+    const px=c=>x0+c*(x1-x0);
+    const py=v=>bot-v*(bot-top);
+    // grid
+    [0,0.25,0.5,0.75,1].forEach(t=>{
+      svg.appendChild(el('line',{x1:px(t),y1:top,x2:px(t),y2:bot,stroke:'#eef0f4'}));
+      svg.appendChild(el('line',{x1:x0,y1:py(t),x2:x1,y2:py(t),stroke:'#eef0f4'}));
+      svg.appendChild(txt(px(t),bot+16,t.toFixed(2),{'font-size':10,fill:'var(--muted)','text-anchor':'middle'}));
+      svg.appendChild(txt(x0-8,py(t)+4,t.toFixed(2),{'font-size':10,fill:'var(--muted)','text-anchor':'end'}));
+    });
+    svg.appendChild(txt((x0+x1)/2,bot+30,'linear radiance / coverage  c',{'font-size':12,fill:'var(--muted)','text-anchor':'middle'}));
+    svg.appendChild(txt(x0-30,top-6,'code',{'font-size':12,fill:'var(--muted)'}));
+    // diagonal (the WRONG answer: value = cov)
+    svg.appendChild(el('line',{x1:px(0),y1:py(0),x2:px(1),y2:py(1),stroke:'var(--wrong)','stroke-width':1.8,'stroke-dasharray':'5 4'}));
+    // encode curve (correct)
+    let d='';for(let i=0;i<=200;i++){const c=i/200;d+=(i?'L':'M')+px(c).toFixed(1)+','+py(toSRGB(c)).toFixed(1)+' ';}
+    svg.appendChild(el('path',{d:d.trim(),fill:'none',stroke:'var(--curve)','stroke-width':2.6}));
+    svg.appendChild(txt(px(0.62),py(toSRGB(0.62))-8,'f(c) = encode',{'font-size':11.5,fill:'var(--curve)'}));
+    svg.appendChild(txt(px(0.78),py(0.62),'value = cov (wrong)',{'font-size':11,fill:'var(--wrong)','text-anchor':'middle'}));
+    // movable marker: vertical gap between curve and diagonal
+    const vline=el('line',{stroke:'var(--truth)','stroke-width':2}); svg.appendChild(vline);
+    const dC=el('circle',{r:4,fill:'var(--correct)',stroke:'#fff','stroke-width':1.3}); svg.appendChild(dC);
+    const dW=el('circle',{r:4,fill:'var(--wrong)',stroke:'#fff','stroke-width':1.3}); svg.appendChild(dW);
+    const gapLbl=txt(0,0,'',{'font-size':11,fill:'var(--truth)','font-weight':'600'}); svg.appendChild(gapLbl);
+
+    const slider=document.getElementById('g-cov');
+    const chipC=document.getElementById('g-correct'), chipW=document.getElementById('g-wrong'), half=document.getElementById('g-halfL');
+    function update(){
+      const cov=parseFloat(slider.value);
+      const c=toSRGB(cov), w=cov;
+      vline.setAttribute('x1',px(cov)); vline.setAttribute('x2',px(cov));
+      vline.setAttribute('y1',py(c)); vline.setAttribute('y2',py(w));
+      dC.setAttribute('cx',px(cov)); dC.setAttribute('cy',py(c));
+      dW.setAttribute('cx',px(cov)); dW.setAttribute('cy',py(w));
+      const dl=code(c)-code(w);
+      gapLbl.setAttribute('x',px(cov)+8); gapLbl.setAttribute('y',(py(c)+py(w))/2+4);
+      gapLbl.textContent=dl>0?('−'+dl+' levels'):'';
+      chipC.style.background=gray(code(c)); chipW.style.background=gray(code(w));
+      half.style.right=(100-cov*100)+'%';
+      document.getElementById('g-ccode').textContent=code(c);
+      document.getElementById('g-wcode').textContent=code(w);
+    }
+    slider.addEventListener('input',update); update();
+  })();
+
+  // ---------- Figure 2: two-strip coverage gradient (matches the PPM) ----------
+  (function(){
+    const cv=document.getElementById('fig-strip'); if(!cv) return;
+    const ctx=cv.getContext('2d'); const W=cv.width,H=cv.height, half=H/2;
+    for(let x=0;x<W;x++){
+      const cov=(x+0.5)/W;
+      const top=code(toSRGB(cov));   // correct
+      const bot=code(cov);           // wrong
+      ctx.fillStyle=gray(top); ctx.fillRect(x,0,1,half);
+      ctx.fillStyle=gray(bot); ctx.fillRect(x,half,1,H-half);
+    }
+    // labels
+    ctx.font='12px -apple-system,Segoe UI,sans-serif';
+    ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillText('correct (linear average, encoded once)',10,20);
+    ctx.fillStyle='rgba(255,255,255,0.75)'; ctx.fillText('wrong (encoded values averaged) — darker midtones',10,half+20);
+    // divider
+    ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.moveTo(0,half+0.5); ctx.lineTo(W,half+0.5); ctx.stroke();
+  })();
+})();
+</script>
+<!-- Prism.js scripts: core -> clike -> c -> cpp, then toolbar (before copy) -> copy-to-clipboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>
